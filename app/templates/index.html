@@ -1,0 +1,36 @@
+`<!-- templates/index.html -->
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<h1>Generate Contribution Report</h1>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <div>
+        {{ form.year.label }} {{ form.year() }}
+    </div>
+    <div>
+        {{ form.month.label }} {{ form.month() }}
+    </div>
+    <div>
+        {{ form.report_type.label }} {{ form.report_type() }}
+    </div>
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+{% if reports %}
+<h2>Recent Reports</h2>
+<ul>
+    {% for report in reports %}
+    <li>
+        <a href="{{ url_for('main.download_report', filename=report.filename) }}">
+            {{ report.name }}
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}
