@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h2>Upload Excel to Generate Report</h2>
+<form action="{{ url_for('main.upload') }}" method="POST" enctype="multipart/form-data">
+    <input type="file" name="file">
+    <input type="submit" value="Upload">
+</form>
+{% endblock %}
