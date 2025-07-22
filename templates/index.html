@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mzugoss Welfare System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">Mzugoss Welfare</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('generate_report') }}">Reports</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">Monthly Contributions</h4>
+                    </div>
+                    <div class="card-body">
+                        {% if current_user.is_authenticated %}
+                        <div class="d-flex justify-content-between mb-4">
+                            <div>
+                                <h5>{{ current_month }} {{ current_year }}</h5>
+                                <p class="text-muted">Total Contributors: {{ contributors_count }}</p>
+                            </div>
+                            <div class="text-end">
+                                <h5>MWK {{ total_contributions|number_format }}</h5>
+                                <p class="text-muted">Total Contributions</p>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for member in members %}
+                                    <tr>
+                                        <td>{{ member.name }}</td>
+                                        <td>MWK {{ member.amount|number_format }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ 'success' if member.paid else 'danger' }}">
+                                                {{ 'Paid' if member.paid else 'Pending' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-5">
+                            <h4>Welcome to Mzugoss Welfare System</h4>
+                            <p class="text-muted">Please login to view contributions and generate reports</p>
+                            <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('generate_report') }}" class="btn btn-outline-success w-100 mb-3">
+                            <i class="bi bi-file-earmark-pdf"></i> Generate Report
+                        </a>
+                        <a href="{{ url_for('upload_file') }}" class="btn btn-outline-primary w-100 mb-3">
+                            <i class="bi bi-upload"></i> Upload Contributions
+                        </a>
+                        <a href="{{ url_for('sync_gsheets') }}" class="btn btn-outline-info w-100">
+                            <i class="bi bi-google"></i> Sync Google Sheet
+                        </a>
+                        {% else %}
+                        <p class="text-muted">Login to access quick actions</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card shadow">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Recent Activity</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            {% for activity in recent_activities %}
+                            <li class="list-group-item">
+                                <small class="text-muted">{{ activity.timestamp|time_ago }}</small><br>
+                                {{ activity.message }}
+                            </li>
+                            {% else %}
+                            <li class="list-group-item text-muted">No recent activity</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-light mt-5 py-3">
+        <div class="container text-center">
+            <p class="text-muted mb-0">Mzugoss Welfare System &copy; {{ current_year }}</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+
+        // Contribution chart
+        {% if current_user.is_authenticated and contribution_data %}
+        const ctx = document.createElement('canvas');
+        ctx.id = 'contributionChart';
+        document.querySelector('.card-body').prepend(ctx);
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ contribution_months|safe }},
+                datasets: [{
+                    label: 'Monthly Contributions',
+                    data: {{ contribution_amounts|safe }},
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        {% endif %}
+    </script>
+</body>
+</html>
