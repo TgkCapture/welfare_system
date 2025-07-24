@@ -1,0 +1,57 @@
+<!-- templates/report_preview.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">Report Generated Successfully</h3>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-success">
+                <h4 class="alert-heading">Report Ready!</h4>
+                <p>The {{ month }} {{ year }} contributions report has been successfully generated.</p>
+            </div>
+
+            <div class="report-summary mb-4">
+                <h4>Summary</h4>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-light mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Total Contributions</h5>
+                                <p class="card-text h4">{{ "%.2f"|format(total) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Contributors</h5>
+                                <p class="card-text h4">{{ contributors }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Defaulters</h5>
+                                <p class="card-text h4">{{ defaulters }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions mt-4">
+                <a href="{{ url_for('main.download_report') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-download"></i> Download Report
+                </a>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
