@@ -1,6 +1,14 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
 <h2>Upload Excel to Generate Report</h2>
 <form action="{{ url_for('main.upload') }}" method="POST" enctype="multipart/form-data">
     <input type="file" name="file">
