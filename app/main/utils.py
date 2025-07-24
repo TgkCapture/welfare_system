@@ -33,7 +33,7 @@ def parse_excel(filepath):
     if not year_sheet:
         raise ValueError(f"No sheet found for current year {current_year}")
     
-    # Get the raw sheet data without assuming headers
+    # Get the raw sheet data 
     raw_df = all_sheets[year_sheet]
     
     # Find the row containing month names
@@ -70,10 +70,10 @@ def parse_excel(filepath):
     # Convert amounts to numeric
     df[month_col] = pd.to_numeric(df[month_col], errors='coerce')
     
-    # Calculate summary stats
-    total_contributions = df[month_col].sum()
-    num_contributors = df[month_col].count()
-    num_missing = len(df) - num_contributors
+    # Calculate summary stats 
+    total_contributions = float(df[month_col].sum()) if not df[month_col].empty else 0.0
+    num_contributors = int(df[month_col].count()) if not df[month_col].empty else 0
+    num_missing = int(len(df) - num_contributors)
     
     return {
         'data': df,
