@@ -4,7 +4,7 @@ from flask_login import login_required
 import os
 from werkzeug.utils import secure_filename
 from datetime import datetime
-from .utils import parse_excel, generate_report
+from .utils import parse_excel, generate_report, generate_paid_members_image
 
 main = Blueprint('main', __name__)
 
@@ -102,3 +102,25 @@ def download_report():
     except Exception as e:
         flash(f'Error downloading report: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
+
+@main.route('/download-paid-members')
+@login_required
+def download_paid_members():
+    if 'report_data' not in session:
+        flash('No report data available', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    try:
+        img_buffer = generate_paid_members_image(session['report_data'])
+        if img_buffer is None:
+            flash('No paid members to display', 'info')
+            return redirect(url_for('main.report_preview'))
+            
+        return send_file(img_buffer,
+                        mimetype='image/png',
+                        as_attachment=True,
+                        download_name=f"paid_members_{session['report_data']['month']}_{session['report_data']['year']}.png")
+    except Exception as e:
+        current_app.logger.error(f"Error generating image: {str(e)}")
+        flash('Error generating paid members image', 'error')
+        return redirect(url_for('main.report_preview'))        
