@@ -2,6 +2,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, send_file, flash, session
 from flask_login import login_required
 import os
+import pandas as pd
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from .utils import parse_excel, generate_report, generate_paid_members_image
@@ -39,18 +40,25 @@ def upload():
         month = request.form.get('month', type=int)
         
         data = parse_excel(filepath, year=year, month=month)
-        report_path = generate_report(data, filename)
         
-        # Store report info in session
-        session['report_path'] = report_path
-        session['report_data'] = {
+        report_data = {
+            'data': data['data'].to_dict('records'),  
+            'month_col': data['month_col'],
+            'name_col': data['name_col'],
             'month': data['month'],
             'year': data['year'],
-            'total': data['total_contributions'],
-            'contributors': data['num_contributors'],
-            'defaulters': data['num_missing'],
+            'total': float(data['total_contributions']),
+            'contributors': int(data['num_contributors']),
+            'defaulters': int(data['num_missing']),
             'report_filename': f"contributions_report_{data['year']}_{data['month']}.pdf"
         }
+        
+        # Store in session
+        session['report_data'] = report_data
+        
+        # Generate and store report path
+        report_path = generate_report(data, filename)
+        session['report_path'] = report_path
         
         return redirect(url_for('main.report_preview'))
         
@@ -111,7 +119,19 @@ def download_paid_members():
         return redirect(url_for('main.dashboard'))
     
     try:
-        img_buffer = generate_paid_members_image(session['report_data'])
+        report_data = session['report_data']
+        data = {
+            'data': pd.DataFrame(report_data['data']),  
+            'month_col': report_data['month_col'],
+            'name_col': report_data['name_col'],
+            'month': report_data['month'],
+            'year': report_data['year'],
+            'total_contributions': report_data['total'],
+            'num_contributors': report_data['contributors'],
+            'num_missing': report_data['defaulters']
+        }
+        
+        img_buffer = generate_paid_members_image(data)
         if img_buffer is None:
             flash('No paid members to display', 'info')
             return redirect(url_for('main.report_preview'))
@@ -119,8 +139,8 @@ def download_paid_members():
         return send_file(img_buffer,
                         mimetype='image/png',
                         as_attachment=True,
-                        download_name=f"paid_members_{session['report_data']['month']}_{session['report_data']['year']}.png")
+                        download_name=f"paid_members_{data['month']}_{data['year']}.png")
     except Exception as e:
         current_app.logger.error(f"Error generating image: {str(e)}")
         flash('Error generating paid members image', 'error')
-        return redirect(url_for('main.report_preview'))        
+        return redirect(url_for('main.report_preview'))

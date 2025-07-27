@@ -193,35 +193,47 @@ def generate_report(data, original_name):
 
 def generate_paid_members_image(data):
     """Generate PNG image of paid members only"""
-    # Filter paid members
-    paid_df = data['data'][~data['data'][data['month_col']].isna()]
-    
-    if paid_df.empty:
+    try:
+        if not isinstance(data['data'], pd.DataFrame):
+            data['data'] = pd.DataFrame(data['data'])
+            
+        # Filter paid members
+        paid_df = data['data'][~data['data'][data['month_col']].isna()]
+        
+        if paid_df.empty:
+            return None
+        
+        # Create figure with appropriate size
+        plt.figure(figsize=(10, max(5, paid_df.shape[0] * 0.3)))
+        plt.axis('off')
+        
+        # Create table data
+        table_data = [[row[data['name_col']], f"MWK {row[data['month_col']]:,.2f}"] 
+                     for _, row in paid_df.iterrows()]
+        
+        # Create table
+        table = plt.table(cellText=table_data,
+                        colLabels=['Name', 'Amount'],
+                        loc='center',
+                        cellLoc='left',
+                        colColours=['#f0f0f0', '#f0f0f0'])
+        
+        # Style table
+        table.auto_set_font_size(False)
+        table.set_fontsize(12)
+        table.scale(1, 1.5)
+        
+        # Add title
+        plt.title(f"Paid Members - {data['month']} {data['year']}", pad=20, fontsize=14)
+        
+        # Save to bytes buffer
+        buf = BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight', dpi=100)
+        plt.close()
+        buf.seek(0)
+        
+        return buf
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in generate_paid_members_image: {str(e)}")
         return None
-    
-    # Create figure
-    plt.figure(figsize=(10, paid_df.shape[0] * 0.3 + 2))
-    plt.axis('off')
-    
-    # Create table
-    table_data = [[name, f"MWK {amount:,.2f}"] 
-                 for name, amount in zip(paid_df[data['name_col']], paid_df[data['month_col']])]
-    
-    table = plt.table(cellText=table_data,
-                     colLabels=['Name', 'Amount'],
-                     loc='center',
-                     cellLoc='left',
-                     colColours=['#f0f0f0', '#f0f0f0'])
-    
-    # Style table
-    table.auto_set_font_size(False)
-    table.set_fontsize(12)
-    table.scale(1, 1.5)
-    
-    # Save to bytes buffer
-    buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight', dpi=100)
-    plt.close()
-    buf.seek(0)
-    
-    return buf
