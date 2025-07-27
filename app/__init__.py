@@ -1,3 +1,6 @@
+# === app/__init__.py ===
+__version__ = "0.1.0" 
+
 from flask import Flask
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
@@ -8,11 +11,11 @@ db = SQLAlchemy()
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
-    
-    # Load config before accessing config values
+   
+    app.version = __version__
+
     app.config.from_pyfile('config.py')
 
-    # Now safe to use config values
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['REPORT_FOLDER'], exist_ok=True)
 
@@ -20,7 +23,6 @@ def create_app():
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
 
-    # Register blueprints
     from .auth.routes import auth as auth_blueprint
     from .main.routes import main as main_blueprint
     app.register_blueprint(auth_blueprint)
@@ -35,4 +37,3 @@ def create_app():
         db.create_all()
 
     return app
-

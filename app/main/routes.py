@@ -11,7 +11,11 @@ main = Blueprint('main', __name__)
 @main.route('/')
 @login_required
 def dashboard():
-    return render_template('dashboard.html')
+    return render_template('dashboard.html', version=current_app.version)
+
+@main.route('/version')
+def version():
+    return f"Current version: {current_app.version}"
 
 @main.route('/upload', methods=['POST'])
 @login_required

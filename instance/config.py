@@ -1,3 +1,4 @@
+# ./instance/config.py
 import os
 
 SECRET_KEY = 'supersecretkey'
