@@ -20,16 +20,17 @@
             {% endif %}
         {% endwith %}
 
-        <form action="{{ url_for('main.upload') }}" method="POST" enctype="multipart/form-data" class="upload-form">
+        <form action="{{ url_for('main.upload') }}" method="POST" enctype="multipart/form-data" class="upload-form" id="uploadForm">
             <div class="form-group">
-                <label for="file-upload" class="file-upload-label">
+                <label for="file-upload" class="file-upload-label" id="dropArea">
                     <i class="fas fa-cloud-upload-alt"></i>
-                    <span>Choose Excel File</span>
+                    <span id="uploadText">Drag & drop your Excel file here or click to browse</span>
+                    <div id="fileName" class="file-name-display"></div>
                     <input type="file" name="file" id="file-upload" accept=".xlsx,.xls" required>
                 </label>
             </div>
             
-            <button type="submit" class="btn btn-primary btn-upload">
+            <button type="submit" class="btn btn-primary btn-upload" id="submitBtn" disabled>
                 <i class="fas fa-file-import"></i> Generate Report
             </button>
         </form>
@@ -39,4 +40,98 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropArea = document.getElementById('dropArea');
+    const fileInput = document.getElementById('file-upload');
+    const uploadText = document.getElementById('uploadText');
+    const fileNameDisplay = document.getElementById('fileName');
+    const submitBtn = document.getElementById('submitBtn');
+    const form = document.getElementById('uploadForm');
+    
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    // Highlight drop area when item is dragged over it
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight() {
+        dropArea.classList.add('highlight');
+    }
+    
+    function unhighlight() {
+        dropArea.classList.remove('highlight');
+    }
+    
+    // Handle dropped files
+    dropArea.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        // Create a new DataTransfer object and add the file
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(files[0]);
+        
+        // Assign the DataTransfer object to the file input
+        fileInput.files = dataTransfer.files;
+        
+        handleFiles(files);
+    }
+    
+    // Handle selected files
+    fileInput.addEventListener('change', function() {
+        handleFiles(this.files);
+    });
+    
+    function handleFiles(files) {
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+                file.type === 'application/vnd.ms-excel' ||
+                file.name.endsWith('.xlsx') || 
+                file.name.endsWith('.xls')) {
+                // Valid Excel file
+                uploadText.textContent = 'File ready for upload:';
+                fileNameDisplay.textContent = file.name;
+                fileNameDisplay.style.display = 'block';
+                submitBtn.disabled = false;
+            } else {
+                // Invalid file type
+                uploadText.textContent = 'Please select an Excel file (.xlsx, .xls)';
+                fileNameDisplay.textContent = '';
+                fileNameDisplay.style.display = 'none';
+                submitBtn.disabled = true;
+                
+                // Clear the invalid file
+                fileInput.value = '';
+            }
+        }
+    }
+    
+    // Form submission handling
+    form.addEventListener('submit', function(e) {
+        if (fileInput.files.length === 0) {
+            e.preventDefault();
+            uploadText.textContent = 'Please select a file first';
+        }
+    });
+});
+</script>
 {% endblock %}
