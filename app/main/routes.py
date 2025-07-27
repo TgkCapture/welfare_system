@@ -2,16 +2,17 @@
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, send_file, flash, session
 from flask_login import login_required
 import os
+import pandas as pd
 from werkzeug.utils import secure_filename
 from datetime import datetime
-from .utils import parse_excel, generate_report
+from .utils import parse_excel, generate_report, generate_paid_members_image
 
 main = Blueprint('main', __name__)
 
 @main.route('/')
 @login_required
 def dashboard():
-    return render_template('dashboard.html', version=current_app.version)
+    return render_template('dashboard.html', version=current_app.version, datetime=datetime)
 
 @main.route('/version')
 def version():
@@ -21,7 +22,7 @@ def version():
 @login_required
 def upload():
     if 'file' not in request.files:
-        flash('No file part in request', 'error')
+        flash('No file selected', 'error')
         return redirect(url_for('main.dashboard'))
     
     file = request.files['file']
@@ -32,37 +33,38 @@ def upload():
     try:
         filename = secure_filename(file.filename)
         filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        
-        # Ensure upload directory exists
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         file.save(filepath)
         
-        try:
-            data = parse_excel(filepath)
-            report_path = generate_report(data, filename)
-        except ValueError as e:
-            flash(f'Error parsing Excel file: {str(e)}', 'error')
-            return redirect(url_for('main.dashboard'))
-        except Exception as e:
-            flash(f'Error generating report: {str(e)}', 'error')
-            return redirect(url_for('main.dashboard'))
+        # Get year and month from form
+        year = request.form.get('year', type=int)
+        month = request.form.get('month', type=int)
         
-        # Store report info in session
-        session['report_path'] = report_path
-        session['report_data'] = {
-            'month': data.get('month', 'Unknown'),
-            'year': data.get('year', 'Unknown'),
-            'total': float(data.get('total_contributions', 0)),
-            'contributors': int(data.get('num_contributors', 0)),
-            'defaulters': int(data.get('num_missing', 0)),
-            'report_filename': f"contributions_report_{data.get('month', 'unknown')}_{data.get('year', 'unknown')}.pdf"
+        data = parse_excel(filepath, year=year, month=month)
+        
+        report_data = {
+            'data': data['data'].to_dict('records'),  
+            'month_col': data['month_col'],
+            'name_col': data['name_col'],
+            'month': data['month'],
+            'year': data['year'],
+            'total': float(data['total_contributions']),
+            'contributors': int(data['num_contributors']),
+            'defaulters': int(data['num_missing']),
+            'report_filename': f"contributions_report_{data['year']}_{data['month']}.pdf"
         }
+        
+        # Store in session
+        session['report_data'] = report_data
+        
+        # Generate and store report path
+        report_path = generate_report(data, filename)
+        session['report_path'] = report_path
         
         return redirect(url_for('main.report_preview'))
         
     except Exception as e:
         current_app.logger.error(f"Upload error: {str(e)}")
-        flash('An error occurred while processing your file', 'error')
+        flash(f'Error generating report: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
 @main.route('/report-preview')
@@ -108,3 +110,37 @@ def download_report():
     except Exception as e:
         flash(f'Error downloading report: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
+
+@main.route('/download-paid-members')
+@login_required
+def download_paid_members():
+    if 'report_data' not in session:
+        flash('No report data available', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    try:
+        report_data = session['report_data']
+        data = {
+            'data': pd.DataFrame(report_data['data']),  
+            'month_col': report_data['month_col'],
+            'name_col': report_data['name_col'],
+            'month': report_data['month'],
+            'year': report_data['year'],
+            'total_contributions': report_data['total'],
+            'num_contributors': report_data['contributors'],
+            'num_missing': report_data['defaulters']
+        }
+        
+        img_buffer = generate_paid_members_image(data)
+        if img_buffer is None:
+            flash('No paid members to display', 'info')
+            return redirect(url_for('main.report_preview'))
+            
+        return send_file(img_buffer,
+                        mimetype='image/png',
+                        as_attachment=True,
+                        download_name=f"paid_members_{data['month']}_{data['year']}.png")
+    except Exception as e:
+        current_app.logger.error(f"Error generating image: {str(e)}")
+        flash('Error generating paid members image', 'error')
+        return redirect(url_for('main.report_preview'))

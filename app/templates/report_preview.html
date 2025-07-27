@@ -2,53 +2,80 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container">
     <div class="card">
-        <div class="card-header bg-primary text-white">
-            <h3 class="mb-0">Report Generated Successfully</h3>
+        <div class="card-header">
+            <h3 class="mb-0">
+                <i class="fas fa-check-circle me-2"></i>
+                Report Generated Successfully
+            </h3>
         </div>
         <div class="card-body">
             <div class="alert alert-success">
-                <h4 class="alert-heading">Report Ready!</h4>
-                <p>The {{ month }} {{ year }} contributions report has been successfully generated.</p>
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Report Ready!</strong> The {{ month }} {{ year }} contributions report has been successfully generated.
             </div>
 
-            <div class="report-summary mb-4">
-                <h4>Summary</h4>
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="card bg-light mb-3">
-                            <div class="card-body">
-                                <h5 class="card-title">Total Contributions</h5>
-                                <p class="card-text h4">{{ "%.2f"|format(total) }}</p>
-                            </div>
+            <h4 class="mb-4">
+                <i class="fas fa-chart-pie me-2"></i>
+                Summary Statistics
+            </h4>
+            
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="card summary-card border-success">
+                        <div class="card-body">
+                            <h5 class="card-title text-success">
+                                <i class="fas fa-money-bill-wave me-2"></i>
+                                Total Contributions
+                            </h5>
+                            <p class="display-6 text-success">
+                                MWK {{ "%.2f"|format(total) }}
+                            </p>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="card bg-light mb-3">
-                            <div class="card-body">
-                                <h5 class="card-title">Contributors</h5>
-                                <p class="card-text h4">{{ contributors }}</p>
-                            </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card summary-card border-primary">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary">
+                                <i class="fas fa-users me-2"></i>
+                                Contributors
+                            </h5>
+                            <p class="display-6 text-primary">
+                                {{ contributors }}
+                            </p>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="card bg-light mb-3">
-                            <div class="card-body">
-                                <h5 class="card-title">Defaulters</h5>
-                                <p class="card-text h4">{{ defaulters }}</p>
-                            </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card summary-card border-warning">
+                        <div class="card-body">
+                            <h5 class="card-title text-warning">
+                                <i class="fas fa-user-times me-2"></i>
+                                Defaulters
+                            </h5>
+                            <p class="display-6 text-warning">
+                                {{ defaulters }}
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="actions mt-4">
-                <a href="{{ url_for('main.download_report') }}" class="btn btn-primary btn-lg">
-                    <i class="fas fa-download"></i> Download Report
+            <div class="actions">
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary btn-lg">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back to Dashboard
                 </a>
-                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                <a href="{{ url_for('main.download_report') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-file-pdf me-2"></i>
+                    Download Report
+                </a>
+                <a href="{{ url_for('main.download_paid_members') }}" class="btn btn-success btn-lg">
+                    <i class="fas fa-file-image"></i> Download Paid Members (PNG)
                 </a>
             </div>
         </div>
