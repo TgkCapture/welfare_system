@@ -8,4 +8,7 @@
     {{ form.password.label }} {{ form.password() }}<br>
     {{ form.submit() }}
 </form>
+<p style="margin-top: 15px;">
+    Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a>
+</p>
 {% endblock %}
