@@ -1,3 +1,4 @@
+
 {% extends 'base.html' %}
 
 {% block title %}Dashboard - Mzugoss Welfare{% endblock %}
@@ -6,7 +7,7 @@
 <div class="dashboard-container">
     <div class="upload-card">
         <h2 class="upload-title">
-            <i class="fas fa-file-excel"></i> Upload Monthly Contributions
+            <i class="fas fa-file-excel"></i> Generate Contribution Report
         </h2>
         
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -28,6 +29,26 @@
                     <div id="fileName" class="file-name-display"></div>
                     <input type="file" name="file" id="file-upload" accept=".xlsx,.xls" required>
                 </label>
+            </div>
+            
+            <div class="form-group">
+                <label for="year">Year:</label>
+                <select name="year" id="year" class="form-control">
+                    {% set current_year = datetime.now().year %}
+                    {% for y in range(2018, current_year + 1) %}
+                        <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="month">Month:</label>
+                <select name="month" id="month" class="form-control">
+                    {% set current_month = datetime.now().month %}
+                    {% for m in range(1, 13) %}
+                        <option value="{{ m }}" {% if m == current_month %}selected{% endif %}>{{ datetime(2023, m, 1).strftime('%B') }}</option>
+                    {% endfor %}
+                </select>
             </div>
             
             <button type="submit" class="btn btn-primary btn-upload" id="submitBtn" disabled>

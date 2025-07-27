@@ -11,7 +11,7 @@ main = Blueprint('main', __name__)
 @main.route('/')
 @login_required
 def dashboard():
-    return render_template('dashboard.html', version=current_app.version)
+    return render_template('dashboard.html', version=current_app.version, datetime=datetime)
 
 @main.route('/version')
 def version():
@@ -21,7 +21,7 @@ def version():
 @login_required
 def upload():
     if 'file' not in request.files:
-        flash('No file part in request', 'error')
+        flash('No file selected', 'error')
         return redirect(url_for('main.dashboard'))
     
     file = request.files['file']
@@ -32,37 +32,31 @@ def upload():
     try:
         filename = secure_filename(file.filename)
         filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        
-        # Ensure upload directory exists
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         file.save(filepath)
         
-        try:
-            data = parse_excel(filepath)
-            report_path = generate_report(data, filename)
-        except ValueError as e:
-            flash(f'Error parsing Excel file: {str(e)}', 'error')
-            return redirect(url_for('main.dashboard'))
-        except Exception as e:
-            flash(f'Error generating report: {str(e)}', 'error')
-            return redirect(url_for('main.dashboard'))
+        # Get year and month from form
+        year = request.form.get('year', type=int)
+        month = request.form.get('month', type=int)
+        
+        data = parse_excel(filepath, year=year, month=month)
+        report_path = generate_report(data, filename)
         
         # Store report info in session
         session['report_path'] = report_path
         session['report_data'] = {
-            'month': data.get('month', 'Unknown'),
-            'year': data.get('year', 'Unknown'),
-            'total': float(data.get('total_contributions', 0)),
-            'contributors': int(data.get('num_contributors', 0)),
-            'defaulters': int(data.get('num_missing', 0)),
-            'report_filename': f"contributions_report_{data.get('month', 'unknown')}_{data.get('year', 'unknown')}.pdf"
+            'month': data['month'],
+            'year': data['year'],
+            'total': data['total_contributions'],
+            'contributors': data['num_contributors'],
+            'defaulters': data['num_missing'],
+            'report_filename': f"contributions_report_{data['year']}_{data['month']}.pdf"
         }
         
         return redirect(url_for('main.report_preview'))
         
     except Exception as e:
         current_app.logger.error(f"Upload error: {str(e)}")
-        flash('An error occurred while processing your file', 'error')
+        flash(f'Error generating report: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
 
 @main.route('/report-preview')

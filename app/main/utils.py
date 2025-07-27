@@ -2,7 +2,7 @@ import pandas as pd
 import os
 from fpdf import FPDF
 from datetime import datetime
-from flask import current_app
+from flask import current_app, request
 import calendar
 import numpy as np
 
@@ -14,26 +14,30 @@ def find_month_row(df, month_name):
                 return i
     return None
 
-def parse_excel(filepath):
-    """Parse the Excel file and return data for current month"""
-    current_year = datetime.now().year
-    current_month = datetime.now().month
-    month_name = calendar.month_name[current_month]
+def parse_excel(filepath, year=None, month=None):
+    """Parse the Excel file and return data for specified month/year"""
+    # Use current month/year if not specified
+    if year is None:
+        year = datetime.now().year
+    if month is None:
+        month = datetime.now().month
+    
+    month_name = calendar.month_name[month]
     
     # Read all sheets
     all_sheets = pd.read_excel(filepath, sheet_name=None, header=None)
     
-    # Find the sheet for current year
+    # Find the sheet for specified year
     year_sheet = None
     for sheet_name in all_sheets:
-        if str(current_year) in sheet_name:
+        if str(year) in sheet_name:
             year_sheet = sheet_name
             break
     
     if not year_sheet:
-        raise ValueError(f"No sheet found for current year {current_year}")
+        raise ValueError(f"No sheet found for year {year}")
     
-    # Get the raw sheet data 
+    # Get the raw sheet data
     raw_df = all_sheets[year_sheet]
     
     # Find the row containing month names
@@ -44,7 +48,7 @@ def parse_excel(filepath):
     # Re-read the sheet with proper headers
     df = pd.read_excel(filepath, sheet_name=year_sheet, header=month_row)
     
-    # Find the column for current month
+    # Find the column for specified month
     month_col = None
     for col in df.columns:
         if pd.notna(col) and month_name.lower() in str(col).lower():
@@ -52,7 +56,7 @@ def parse_excel(filepath):
             break
     
     if not month_col:
-        raise ValueError(f"No column found for current month {month_name}")
+        raise ValueError(f"No column found for month {month_name}")
     
     # Find the name column 
     name_col = None
@@ -63,7 +67,7 @@ def parse_excel(filepath):
     if not name_col:
         name_col = df.columns[0]  # Fallback to first column
     
-    # Clean and process the data - exclude rows with "Total" in name column
+    # Clean and process the data
     df = df[[name_col, month_col]].dropna(subset=[name_col])
     df = df[df[name_col].astype(str).str.strip() != '']
     df = df[~df[name_col].str.lower().str.contains('total')]  # Exclude totals row
@@ -79,7 +83,7 @@ def parse_excel(filepath):
     return {
         'data': df,
         'month': month_name,
-        'year': current_year,
+        'year': year,
         'total_contributions': total_contributions,
         'num_contributors': num_contributors,
         'num_missing': num_missing,
@@ -139,7 +143,7 @@ def generate_report(data, original_name):
     pdf.cell(200, 10, txt=f"Report generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
     
     # Save the file
-    filename = f"contributions_report_{data['month']}_{data['year']}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+    filename = f"contributions_report_{data['year']}_{data['month']}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
     report_path = os.path.join(current_app.config['REPORT_FOLDER'], filename)
     pdf.output(report_path)
     
