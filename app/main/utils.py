@@ -63,14 +63,15 @@ def parse_excel(filepath):
     if not name_col:
         name_col = df.columns[0]  # Fallback to first column
     
-    # Clean and process the data
+    # Clean and process the data - exclude rows with "Total" in name column
     df = df[[name_col, month_col]].dropna(subset=[name_col])
     df = df[df[name_col].astype(str).str.strip() != '']
+    df = df[~df[name_col].str.lower().str.contains('total')]  # Exclude totals row
     
     # Convert amounts to numeric
     df[month_col] = pd.to_numeric(df[month_col], errors='coerce')
     
-    # Calculate summary stats 
+    # Calculate summary stats
     total_contributions = float(df[month_col].sum()) if not df[month_col].empty else 0.0
     num_contributors = int(df[month_col].count()) if not df[month_col].empty else 0
     num_missing = int(len(df) - num_contributors)
