@@ -1,20 +1,42 @@
 {% extends 'base.html' %}
-{% block title %}Dashboard{% endblock %}
-{% block content %}
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="alert alert-{{ category }}">{{ message }}</div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
 
-<h2>Upload Excel to Generate Report</h2>
-<form action="{{ url_for('main.upload') }}" method="POST" enctype="multipart/form-data">
-    <input type="file" name="file">
-    <input type="submit" value="Upload">
-</form>
-<div style="margin-top: 5px; font-size: 0.8em; color: #666;">
-    V {{ version }}
+{% block title %}Dashboard - Mzugoss Welfare{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="upload-card">
+        <h2 class="upload-title">
+            <i class="fas fa-file-excel"></i> Upload Monthly Contributions
+        </h2>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    <i class="fas fa-{% if category == 'success' %}check-circle{% else %}exclamation-triangle{% endif %}"></i>
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('main.upload') }}" method="POST" enctype="multipart/form-data" class="upload-form">
+            <div class="form-group">
+                <label for="file-upload" class="file-upload-label">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span>Choose Excel File</span>
+                    <input type="file" name="file" id="file-upload" accept=".xlsx,.xls" required>
+                </label>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-upload">
+                <i class="fas fa-file-import"></i> Generate Report
+            </button>
+        </form>
+        
+        <div class="version-info">
+            <i class="fas fa-code-branch"></i> Version {{ version }}
+        </div>
+    </div>
 </div>
 {% endblock %}
