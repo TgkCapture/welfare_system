@@ -59,6 +59,18 @@ def parse_excel(filepath, year=None, month=None):
     # Get the raw sheet data
     raw_df = all_sheets[year_sheet]
     
+    # Find money dispensed and total book balance
+    money_dispensed = None
+    total_book_balance = None
+    
+    for i, row in raw_df.iterrows():
+        for cell in row:
+            if pd.notna(cell) and isinstance(cell, str):
+                if "money dispensed" in cell.lower():
+                    money_dispensed = raw_df.iloc[i, 1]  # Value is in column B
+                elif "total book balance" in cell.lower():
+                    total_book_balance = raw_df.iloc[i, 1]  # Value is in column B
+    
     # Find the row containing month names
     month_row = find_month_row(raw_df, month_name)
     if month_row is None:
@@ -108,7 +120,9 @@ def parse_excel(filepath, year=None, month=None):
         'num_missing': num_missing,
         'defaulters': df[df[month_col].isna()][name_col].tolist(),
         'name_col': name_col,
-        'month_col': month_col
+        'month_col': month_col,
+        'money_dispensed': money_dispensed,
+        'total_book_balance': total_book_balance
     }
 
 def generate_report(data, original_name):
@@ -140,6 +154,16 @@ def generate_report(data, original_name):
     pdf.cell(0, 10, str(data['num_contributors']), 1, 1, 'L')
     pdf.cell(60, 10, "Number of Defaulters:", 1, 0, 'L', 1)
     pdf.cell(0, 10, str(data['num_missing']), 1, 1, 'L')
+    
+    # Add Money Dispensed and Total Book Balance if available
+    if data.get('money_dispensed') is not None:
+        pdf.cell(60, 10, "Money Dispensed:", 1, 0, 'L', 1)
+        pdf.cell(0, 10, f"MWK {data['money_dispensed']:,.2f}", 1, 1, 'L')
+    
+    if data.get('total_book_balance') is not None:
+        pdf.cell(60, 10, "Total Book Balance:", 1, 0, 'L', 1)
+        pdf.cell(0, 10, f"MWK {data['total_book_balance']:,.2f}", 1, 1, 'L')
+    
     pdf.ln(10)
     
     # Paid Members Section
@@ -204,27 +228,54 @@ def generate_paid_members_image(data):
             return None
         
         # Create figure with appropriate size
-        plt.figure(figsize=(10, max(5, paid_df.shape[0] * 0.3)))
-        plt.axis('off')
+        fig = plt.figure(figsize=(10, max(6, paid_df.shape[0] * 0.3 + 1)))  # Extra space for summary
+        
+        # Create a grid layout
+        gs = fig.add_gridspec(2, 1, height_ratios=[1, paid_df.shape[0] * 0.3])
+        
+        # Summary section
+        ax_summary = fig.add_subplot(gs[0])
+        ax_summary.axis('off')
+        
+        # Create summary text
+        summary_text = [
+            f"Month: {data['month']} {data['year']}",
+            f"Total Contributions: MWK {data['total_contributions']:,.2f}",
+            f"Contributors: {data['num_contributors']}",
+            f"Defaulters: {data['num_missing']}"
+        ]
+        
+        # Add Money Dispensed and Total Book Balance if available
+        if data.get('money_dispensed') is not None:
+            summary_text.append(f"Money Dispensed: MWK {data['money_dispensed']:,.2f}")
+        if data.get('total_book_balance') is not None:
+            summary_text.append(f"Total Book Balance: MWK {data['total_book_balance']:,.2f}")
+        
+        ax_summary.text(0, 0.5, "\n".join(summary_text), 
+                       ha='left', va='center', fontsize=12)
+        
+        # Paid members table
+        ax_table = fig.add_subplot(gs[1])
+        ax_table.axis('off')
         
         # Create table data
         table_data = [[row[data['name_col']], f"MWK {row[data['month_col']]:,.2f}"] 
                      for _, row in paid_df.iterrows()]
         
         # Create table
-        table = plt.table(cellText=table_data,
-                        colLabels=['Name', 'Amount'],
-                        loc='center',
-                        cellLoc='left',
-                        colColours=['#f0f0f0', '#f0f0f0'])
+        table = ax_table.table(cellText=table_data,
+                              colLabels=['Name', 'Amount'],
+                              loc='center',
+                              cellLoc='left',
+                              colColours=['#f0f0f0', '#f0f0f0'])
         
         # Style table
         table.auto_set_font_size(False)
         table.set_fontsize(12)
         table.scale(1, 1.5)
         
-        # Add title
-        plt.title(f"Paid Members - {data['month']} {data['year']}", pad=20, fontsize=14)
+        # Adjust layout
+        plt.tight_layout()
         
         # Save to bytes buffer
         buf = BytesIO()
