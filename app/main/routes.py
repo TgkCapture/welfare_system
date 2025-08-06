@@ -50,6 +50,8 @@ def upload():
             'total': float(data['total_contributions']),
             'contributors': int(data['num_contributors']),
             'defaulters': int(data['num_missing']),
+            'money_dispensed': data.get('money_dispensed'),
+            'total_book_balance': data.get('total_book_balance'),
             'report_filename': f"contributions_report_{data['year']}_{data['month']}.pdf"
         }
         
@@ -74,16 +76,19 @@ def report_preview():
         flash('No report data available', 'error')
         return redirect(url_for('main.dashboard'))
     
+    report_data = session['report_data']
+    
     return render_template(
         'report_preview.html',
-        month=session['report_data']['month'],
-        year=session['report_data']['year'],
-        total=session['report_data']['total'],
-        contributors=session['report_data']['contributors'],
-        defaulters=session['report_data']['defaulters'],
-        filename=session['report_data']['report_filename']
+        month=report_data['month'],
+        year=report_data['year'],
+        total=report_data['total'],
+        contributors=report_data['contributors'],
+        defaulters=report_data['defaulters'],
+        money_dispensed=report_data.get('money_dispensed', None),  # Use get() with default None
+        total_book_balance=report_data.get('total_book_balance', None),  # Use get() with default None
+        filename=report_data['report_filename']
     )
-
 @main.route('/download-report')
 @login_required
 def download_report():
