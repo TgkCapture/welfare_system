@@ -221,7 +221,7 @@ def generate_paid_members_image(data):
             return None
         
         # Calculate figure height
-        base_height = 6 
+        base_height = 4 
         row_height = 0.4  
         fig_height = max(base_height, base_height + len(paid_df) * row_height)
         
