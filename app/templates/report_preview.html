@@ -30,7 +30,7 @@
                                 Total Contributions
                             </h5>
                             <p class="display-6 text-success">
-                                MWK {{ "%.2f"|format(total) }}
+                                MWK {{ "%.2f"|format(total_contributions) }}
                             </p>
                         </div>
                     </div>
@@ -64,7 +64,7 @@
                     </div>
                 </div>
 
-                {% if money_dispensed is not none %}
+                <!-- Money Dispensed Card -->
                 <div class="col-md-4">
                     <div class="card summary-card border-info">
                         <div class="card-body">
@@ -73,14 +73,17 @@
                                 Money Dispensed
                             </h5>
                             <p class="display-6 text-info">
-                                MWK {{ "%.2f"|format(money_dispensed) }}
+                                {% if money_dispensed is not none %}
+                                    MWK {{ "%.2f"|format(money_dispensed) }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
                             </p>
                         </div>
                     </div>
                 </div>
-                {% endif %}
 
-                {% if total_book_balance is not none %}
+                <!-- Total Book Balance Card -->
                 <div class="col-md-4">
                     <div class="card summary-card border-dark">
                         <div class="card-body">
@@ -89,12 +92,15 @@
                                 Total Book Balance
                             </h5>
                             <p class="display-6 text-dark">
-                                MWK {{ "%.2f"|format(total_book_balance) }}
+                                {% if total_book_balance is not none %}
+                                    MWK {{ "%.2f"|format(total_book_balance) }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
                             </p>
                         </div>
                     </div>
                 </div>
-                {% endif %}
             </div>
 
             <div class="actions">
