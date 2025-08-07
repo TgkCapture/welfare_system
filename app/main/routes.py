@@ -1,5 +1,5 @@
 # === app/main/routes.py ===
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, send_file, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, send_file, flash, session, jsonify
 from flask_login import login_required
 import os
 import pandas as pd
@@ -42,16 +42,16 @@ def upload():
         data = parse_excel(filepath, year=year, month=month)
         
         report_data = {
-            'data': data['data'].to_dict('records'),  
+            'data': data['data'].to_dict('records'),
             'month_col': data['month_col'],
             'name_col': data['name_col'],
             'month': data['month'],
             'year': data['year'],
-            'total': float(data['total_contributions']),
-            'contributors': int(data['num_contributors']),
-            'defaulters': int(data['num_missing']),
-            'money_dispensed': data.get('money_dispensed'),
-            'total_book_balance': data.get('total_book_balance'),
+            'total_contributions': float(data['total_contributions']),
+            'num_contributors': int(data['num_contributors']),
+            'num_missing': int(data['num_missing']),
+            'money_dispensed': float(data['money_dispensed']) if data.get('money_dispensed') is not None else None,
+            'total_book_balance': float(data['total_book_balance']) if data.get('total_book_balance') is not None else None,
             'report_filename': f"contributions_report_{data['year']}_{data['month']}.pdf"
         }
         
