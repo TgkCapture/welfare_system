@@ -34,8 +34,7 @@ def upload():
         filename = secure_filename(file.filename)
         filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
-        
-        # Get year and month from form
+
         year = request.form.get('year', type=int)
         month = request.form.get('month', type=int)
         
@@ -82,13 +81,14 @@ def report_preview():
         'report_preview.html',
         month=report_data['month'],
         year=report_data['year'],
-        total=report_data['total'],
-        contributors=report_data['contributors'],
-        defaulters=report_data['defaulters'],
-        money_dispensed=report_data.get('money_dispensed', None),  # Use get() with default None
-        total_book_balance=report_data.get('total_book_balance', None),  # Use get() with default None
+        total_contributions=report_data['total_contributions'],  
+        contributors=report_data['num_contributors'],  
+        defaulters=report_data['num_missing'],  
+        money_dispensed=report_data.get('money_dispensed'),
+        total_book_balance=report_data.get('total_book_balance'),
         filename=report_data['report_filename']
     )
+
 @main.route('/download-report')
 @login_required
 def download_report():
@@ -121,19 +121,22 @@ def download_report():
 def download_paid_members():
     if 'report_data' not in session:
         flash('No report data available', 'error')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.report_preview'))
     
     try:
         report_data = session['report_data']
+
         data = {
-            'data': pd.DataFrame(report_data['data']),  
+            'data': pd.DataFrame(report_data['data']),
             'month_col': report_data['month_col'],
             'name_col': report_data['name_col'],
             'month': report_data['month'],
             'year': report_data['year'],
-            'total_contributions': report_data['total'],
-            'num_contributors': report_data['contributors'],
-            'num_missing': report_data['defaulters']
+            'total_contributions': report_data['total_contributions'],
+            'num_contributors': report_data['num_contributors'],
+            'num_missing': report_data['num_missing'],
+            'money_dispensed': report_data.get('money_dispensed'),
+            'total_book_balance': report_data.get('total_book_balance')
         }
         
         img_buffer = generate_paid_members_image(data)
@@ -141,10 +144,12 @@ def download_paid_members():
             flash('No paid members to display', 'info')
             return redirect(url_for('main.report_preview'))
             
-        return send_file(img_buffer,
-                        mimetype='image/png',
-                        as_attachment=True,
-                        download_name=f"paid_members_{data['month']}_{data['year']}.png")
+        return send_file(
+            img_buffer,
+            mimetype='image/png',
+            as_attachment=True,
+            download_name=f"paid_members_{data['month']}_{data['year']}.png"
+        )
     except Exception as e:
         current_app.logger.error(f"Error generating image: {str(e)}")
         flash('Error generating paid members image', 'error')
