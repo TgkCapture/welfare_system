@@ -67,19 +67,17 @@ def parse_excel(filepath, year=None, month=None):
         for cell in row:
             if pd.notna(cell) and isinstance(cell, str):
                 if "money dispensed" in cell.lower():
-                    money_dispensed = raw_df.iloc[i, 1]  # Value is in column B
+                    money_dispensed = raw_df.iloc[i, 1]  
                 elif "total book balance" in cell.lower():
-                    total_book_balance = raw_df.iloc[i, 1]  # Value is in column B
+                    total_book_balance = raw_df.iloc[i, 1] 
     
     # Find the row containing month names
     month_row = find_month_row(raw_df, month_name)
     if month_row is None:
         raise ValueError(f"No row found containing month {month_name}")
-    
-    # Re-read the sheet with proper headers
+  
     df = pd.read_excel(filepath, sheet_name=year_sheet, header=month_row)
-    
-    # Find the column for specified month
+ 
     month_col = None
     for col in df.columns:
         if pd.notna(col) and month_name.lower() in str(col).lower():
@@ -88,20 +86,18 @@ def parse_excel(filepath, year=None, month=None):
     
     if not month_col:
         raise ValueError(f"No column found for month {month_name}")
-    
-    # Find the name column 
+
     name_col = None
     for col in df.columns:
         if any(isinstance(val, str) and "name" in val.lower() for val in df[col].dropna()):
             name_col = col
             break
     if not name_col:
-        name_col = df.columns[0]  # Fallback to first column
-    
-    # Clean and process the data
+        name_col = df.columns[0]  
+   
     df = df[[name_col, month_col]].dropna(subset=[name_col])
     df = df[df[name_col].astype(str).str.strip() != '']
-    df = df[~df[name_col].str.lower().str.contains('total')]  # Exclude totals row
+    df = df[~df[name_col].str.lower().str.contains('total')]  
     
     # Convert amounts to numeric
     df[month_col] = pd.to_numeric(df[month_col], errors='coerce')
@@ -140,8 +136,7 @@ def generate_report(data, original_name):
     pdf.set_font("Arial", 'B', 14)
     pdf.cell(0, 10, f"Report for {data['month']} {data['year']}", 0, 1, 'L')
     pdf.ln(5)
-    
-    # Summary section with better styling
+
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, "SUMMARY STATISTICS", 0, 1, 'L')
     pdf.set_font("Arial", size=12)
@@ -154,8 +149,7 @@ def generate_report(data, original_name):
     pdf.cell(0, 10, str(data['num_contributors']), 1, 1, 'L')
     pdf.cell(60, 10, "Number of Defaulters:", 1, 0, 'L', 1)
     pdf.cell(0, 10, str(data['num_missing']), 1, 1, 'L')
-    
-    # Add Money Dispensed and Total Book Balance if available
+
     if data.get('money_dispensed') is not None:
         pdf.cell(60, 10, "Money Dispensed:", 1, 0, 'L', 1)
         pdf.cell(0, 10, f"MWK {data['money_dispensed']:,.2f}", 1, 1, 'L')
@@ -170,8 +164,7 @@ def generate_report(data, original_name):
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, "PAID MEMBERS", 0, 1, 'L')
     pdf.set_font("Arial", size=12)
-    
-    # Create paid members table
+
     paid_df = data['data'][~data['data'][data['month_col']].isna()]
     if not paid_df.empty:
         # Table header
@@ -216,7 +209,7 @@ def generate_report(data, original_name):
     return report_path
 
 def generate_paid_members_image(data):
-    """Generate PNG image of paid members only"""
+    """Generate PNG image of paid members with financial summary"""
     try:
         if not isinstance(data['data'], pd.DataFrame):
             data['data'] = pd.DataFrame(data['data'])
@@ -227,64 +220,90 @@ def generate_paid_members_image(data):
         if paid_df.empty:
             return None
         
-        # Create figure with appropriate size
-        fig = plt.figure(figsize=(10, max(6, paid_df.shape[0] * 0.3 + 1)))  # Extra space for summary
+        # Calculate figure height
+        base_height = 6 
+        row_height = 0.4  
+        fig_height = max(base_height, base_height + len(paid_df) * row_height)
         
-        # Create a grid layout
-        gs = fig.add_gridspec(2, 1, height_ratios=[1, paid_df.shape[0] * 0.3])
+        # Create figure
+        fig = plt.figure(figsize=(10, fig_height))
         
-        # Summary section
+        # Create grid layout (2 rows: summary and members)
+        gs = fig.add_gridspec(2, 1, height_ratios=[1.5, len(paid_df) * row_height])
+        
+        # Financial Summary Section
         ax_summary = fig.add_subplot(gs[0])
         ax_summary.axis('off')
-        
-        # Create summary text
-        summary_text = [
-            f"Month: {data['month']} {data['year']}",
-            f"Total Contributions: MWK {data['total_contributions']:,.2f}",
-            f"Contributors: {data['num_contributors']}",
-            f"Defaulters: {data['num_missing']}"
+     
+        summary_data = [
+            ["Report Period:", f"{data['month']} {data['year']}"],
+            ["Total Contributions:", f"MWK {data['total_contributions']:,.2f}"],
+            ["Contributors:", str(data['num_contributors'])],
+            ["Defaulters:", str(data['num_missing'])],
+            ["Money Dispensed:", f"MWK {data['money_dispensed']:,.2f}"],  
+            ["Total Book Balance:", f"MWK {data['total_book_balance']:,.2f}"]  
         ]
         
-        # Add Money Dispensed and Total Book Balance if available
-        if data.get('money_dispensed') is not None:
-            summary_text.append(f"Money Dispensed: MWK {data['money_dispensed']:,.2f}")
-        if data.get('total_book_balance') is not None:
-            summary_text.append(f"Total Book Balance: MWK {data['total_book_balance']:,.2f}")
+        # Create summary table
+        summary_table = ax_summary.table(
+            cellText=summary_data,
+            colWidths=[0.4, 0.6],
+            cellLoc='left',
+            loc='center',
+            edges='open'
+        )
         
-        ax_summary.text(0, 0.5, "\n".join(summary_text), 
-                       ha='left', va='center', fontsize=12)
+        # Style summary table
+        summary_table.auto_set_font_size(False)
+        summary_table.set_fontsize(12)
         
-        # Paid members table
-        ax_table = fig.add_subplot(gs[1])
-        ax_table.axis('off')
+        # Highlight financial rows
+        for i in range(len(summary_data)):
+            if "MWK" in summary_data[i][1]:
+                summary_table._cells[(i, 1)].set_text_props(fontweight='bold')
+                summary_table._cells[(i, 1)].set_text_props(color='blue')
         
-        # Create table data
-        table_data = [[row[data['name_col']], f"MWK {row[data['month_col']]:,.2f}"] 
-                     for _, row in paid_df.iterrows()]
+        # Paid Members Section
+        ax_members = fig.add_subplot(gs[1])
+        ax_members.axis('off')
         
-        # Create table
-        table = ax_table.table(cellText=table_data,
-                              colLabels=['Name', 'Amount'],
-                              loc='center',
-                              cellLoc='left',
-                              colColours=['#f0f0f0', '#f0f0f0'])
+        # Create members table data
+        table_data = [
+            [str(row[data['name_col']]), f"MWK {float(row[data['month_col']]):,.2f}"] 
+            for _, row in paid_df.iterrows()
+        ]
         
-        # Style table
-        table.auto_set_font_size(False)
-        table.set_fontsize(12)
-        table.scale(1, 1.5)
+        # Create members table
+        members_table = ax_members.table(
+            cellText=table_data,
+            colLabels=['Member Name', 'Amount'],
+            loc='center',
+            cellLoc='left',
+            colColours=['#f7f7f7', '#f7f7f7'],
+            colWidths=[0.6, 0.4]
+        )
         
-        # Adjust layout
+        # Style members table
+        members_table.auto_set_font_size(False)
+        members_table.set_fontsize(12)
+        members_table.scale(1, 1.5)
+        
+        # Highlight header
+        for (row, col), cell in members_table.get_celld().items():
+            if row == 0:
+                cell.set_facecolor('#4a86e8')
+                cell.set_text_props(color='white', fontweight='bold')
+    
         plt.tight_layout()
         
         # Save to bytes buffer
         buf = BytesIO()
-        plt.savefig(buf, format='png', bbox_inches='tight', dpi=100)
+        plt.savefig(buf, format='png', bbox_inches='tight', dpi=150)
         plt.close()
         buf.seek(0)
         
         return buf
         
     except Exception as e:
-        current_app.logger.error(f"Error in generate_paid_members_image: {str(e)}")
+        current_app.logger.error(f"Error generating image: {str(e)}")
         return None
