@@ -10,7 +10,17 @@ A Flask-based system to automate the tracking of monthly contributions, simplify
   Upload Excel files or connect to Google Sheets to import member contribution data.
 
 * **Automated Reporting**
-  Generate PDF or PNG reports for any month or year, showing contributors and totals.
+  - **Comprehensive PDF Reports**: Detailed reports showing all financial data including:
+    - Total contributions
+    - Money dispensed
+    - Book balance
+    - List of paid members
+    - Defaulters list
+  - **Quick-view PNG Reports**: Condensed image showing only paid members and key financials
+
+* **Version Control for Developers**
+  - Uses `bump2version==1.0.1` for seamless version management
+  - Standardized version bumping (major.minor.patch)
 
 * **User Management**
   Simple login system for members and admins to securely access and download reports.
@@ -32,6 +42,7 @@ A Flask-based system to automate the tracking of monthly contributions, simplify
 | PDF Report Generation   | reportlab          |
 | PNG/Charts              | matplotlib, Pillow |
 | Spreadsheet Integration | openpyxl, gspread  |
+| Version Control         | bump2version       |
 | Auth & Storage          | SQLite (built-in)  |
 
 ---
@@ -70,27 +81,79 @@ Then open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
 
 ## 🔧 Usage Guide
 
-1. **Upload Sheet**: Go to homepage and upload your group's Excel file.
-2. **Dashboard**: Choose the year/month to generate a report.
-3. **Generate Report**: Click to generate PDF or PNG version.
-4. **Download & Share**: Save and share the reports as needed.
+### For Administrators:
+
+1. **Upload Sheet**: 
+   - Go to homepage and upload your group's Excel file
+   - System automatically extracts:
+     - Member names
+     - Monthly contributions
+     - Money dispensed
+     - Total book balance
+
+2. **Dashboard**: 
+   - Select year/month to generate report
+   - View key statistics at a glance
+
+3. **Generate Reports**:
+   - **PDF Report**: Comprehensive document with all financial details
+   - **PNG Report**: Quick-view image showing only paid members
+
+4. **Download & Share**: 
+   - Save reports in preferred format
+   - Distribute to group members
+
+### For Developers:
+
+```bash
+# Version management (using bump2version)
+bump2version patch  # for bug fixes
+bump2version minor  # for new features
+bump2version major  # for breaking changes
+```
 
 ---
 
-## 📅 Excel Format
+## 📅 Excel Format Requirements
 
 Ensure your file follows this pattern:
 
-* Sheet name: Year (e.g., `2025`)
-* Columns: `Name`, `January`, `February`, ..., `December`
-* Amounts should be numeric (e.g., 500, 1000)
+* **Sheet naming**: Year (e.g., `2025`)
+* **Columns**: 
+  - `Name` 
+  - `January` 
+  - `February` 
+  - ... 
+  - `December`
+* **Special Rows**:
+  - `MONEY DISPENSED` (single value)
+  - `TOTAL BOOK BALANCE` (single value)
+* **Amounts**: Should be numeric (e.g., 500, 1000)
+
+---
+
+## ✅ Achieved Milestones
+
+1. **Data Extraction**: Successfully extracts from Excel:
+   - Member contributions
+   - Financial summaries
+   - Payment status
+
+2. **Report Generation**:
+   - Comprehensive PDF reports with all financial details
+   - Condensed PNG images showing paid members
+
+3. **User Workflow**:
+   - Simple file upload
+   - Intuitive report selection
+   - One-click generation of both report types
 
 ---
 
 ## 👤 User Roles
 
-* **Admin**: Can upload files, manage reports.
-* **Member**: Can view and download reports.
+* **Admin**: Can upload files, manage reports, access all data
+* **Member**: Can view and download reports for their group
 
 ---
 
@@ -105,4 +168,7 @@ Ensure your file follows this pattern:
 
 ## 🌟 Credits
 
-Built with ❤️ by @tgkcapture . Designed for the community.
+Built with ❤️ by @tgkcapture. Designed for the community.
+
+---
+

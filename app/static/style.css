@@ -1,6 +1,7 @@
 /* ========== Base Styles ========== */
 :root {
     --primary-color: #3498db;
+    --primary-dark: #2980b9;
     --secondary-color: #2c3e50;
     --success-color: #2ecc71;
     --danger-color: #e74c3c;
@@ -9,15 +10,21 @@
     --dark-color: #34495e;
     --text-color: #333;
     --text-light: #7f8c8d;
+    --border-color: #ddd;
+    --bg-color: #f5f7fa;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
     color: var(--text-color);
-    background-color: #f5f7fa;
-    margin: 0;
-    padding: 0;
+    background-color: var(--bg-color);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -31,11 +38,31 @@ body {
     padding: 0 20px;
 }
 
+.auth-container,
+.form-container {
+    max-width: 500px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-container {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 0 15px;
+}
+
+/* ========== Header & Navigation ========== */
 .main-header {
     background-color: var(--secondary-color);
     color: white;
     padding: 1rem 0;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
 }
 
 .header-content {
@@ -50,6 +77,8 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
+    color: white;
+    text-decoration: none;
 }
 
 .main-nav {
@@ -57,20 +86,20 @@ body {
     gap: 20px;
 }
 
-.main-content {
-    flex: 1;
-    padding: 2rem 0;
-}
-
-.main-footer {
-    background-color: var(--secondary-color);
+.nav-link {
     color: white;
-    padding: 1rem 0;
-    text-align: center;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: opacity 0.3s ease;
 }
 
-/* ========== Component Styles ========== */
-/* Cards */
+.nav-link:hover {
+    opacity: 0.8;
+}
+
+/* ========== Card Styles ========== */
 .card {
     background: white;
     border-radius: 8px;
@@ -90,12 +119,69 @@ body {
     padding: 1.5rem;
 }
 
-/* Buttons */
+.upload-card {
+    background: white;
+    border-radius: 10px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* ========== Form Styles ========== */
+.form-title {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: var(--secondary-color);
+    text-align: center;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+.form-footer {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--text-light);
+}
+
+.form-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.form-link:hover {
+    text-decoration: underline;
+}
+
+/* ========== Button Styles ========== */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.6rem 1.2rem;
+    padding: 0.75rem 1.5rem;
     border-radius: 6px;
     font-weight: 500;
     text-decoration: none;
@@ -103,6 +189,7 @@ body {
     border: none;
     cursor: pointer;
     gap: 8px;
+    font-size: 1rem;
 }
 
 .btn-primary {
@@ -111,7 +198,7 @@ body {
 }
 
 .btn-primary:hover {
-    background-color: #2980b9;
+    background-color: var(--primary-dark);
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
@@ -131,36 +218,114 @@ body {
     font-size: 1.1rem;
 }
 
-/* Alerts */
+.btn-block {
+    display: block;
+    width: 100%;
+}
+
+.btn-upload {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1.1rem;
+}
+
+/* ========== Alert Styles ========== */
 .alert {
     padding: 1rem;
     border-radius: 6px;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid transparent;
 }
 
 .alert-success {
     background-color: #d4edda;
-    border-left: 4px solid var(--success-color);
+    border-left-color: var(--success-color);
     color: #155724;
 }
 
+.alert-danger,
 .alert-error {
     background-color: #f8d7da;
-    border-left: 4px solid var(--danger-color);
+    border-left-color: var(--danger-color);
     color: #721c24;
 }
 
-/* Forms */
-.form-group {
-    margin-bottom: 1.5rem;
+.alert-info {
+    background-color: #d1ecf1;
+    border-left-color: #17a2b8;
+    color: #0c5460;
 }
 
-.form-control {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
+/* ========== Upload Components ========== */
+.upload-title {
+    color: var(--secondary-color);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.upload-form {
+    margin-top: 1.5rem;
+}
+
+.file-upload-label {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    color: var(--text-light);
+    min-height: 150px;
+}
+
+.file-upload-label:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(52, 152, 219, 0.05);
+}
+
+.file-upload-label.highlight {
+    border-color: var(--primary-color);
+    background-color: rgba(52, 152, 219, 0.1);
+}
+
+.file-upload-label i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+}
+
+#file-upload {
+    display: none;
+}
+
+.file-name-display {
+    display: none;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background-color: #f0f8ff;
     border-radius: 4px;
-    font-size: 1rem;
+    color: var(--primary-color);
+    font-weight: 500;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-preview {
+    margin-top: 1rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    display: none;
 }
 
 /* ========== Utility Classes ========== */
@@ -184,72 +349,6 @@ body {
     margin-bottom: 1.5rem;
 }
 
-/* ===== Dashboard Specific Styles ===== */
-.dashboard-container {
-    max-width: 600px;
-    margin: 2rem auto;
-    padding: 0 15px;
-}
-
-.upload-card {
-    background: white;
-    border-radius: 10px;
-    padding: 2rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.upload-title {
-    color: var(--secondary-color);
-    margin-bottom: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.upload-form {
-    margin-top: 1.5rem;
-}
-
-.file-upload-label {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    border: 2px dashed #ccc;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    margin-bottom: 1.5rem;
-    text-align: center;
-    color: var(--text-light);
-}
-
-.file-upload-label:hover {
-    border-color: var(--primary-color);
-    background-color: rgba(52, 152, 219, 0.05);
-}
-
-.file-upload-label i {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    color: var(--primary-color);
-}
-
-.file-upload-label span {
-    font-size: 1rem;
-}
-
-#file-upload {
-    display: none;
-}
-
-.btn-upload {
-    width: 100%;
-    padding: 1rem;
-    font-size: 1.1rem;
-}
-
 .version-info {
     margin-top: 1.5rem;
     text-align: center;
@@ -261,96 +360,22 @@ body {
     gap: 5px;
 }
 
-/* File upload preview  */
-.file-preview {
-    margin-top: 1rem;
-    padding: 0.5rem;
-    border-radius: 4px;
-    background-color: #f8f9fa;
-    display: none;
-}
-
-/* ===== Drag and Drop Styles ===== */
-.file-upload-label {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    border: 2px dashed #ccc;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    margin-bottom: 1.5rem;
+/* ========== Footer Styles ========== */
+.main-footer {
+    background-color: var(--secondary-color);
+    color: white;
+    padding: 1.5rem 0;
     text-align: center;
-    color: var(--text-light);
-    min-height: 150px;
+    margin-top: auto;
 }
 
-.file-upload-label.highlight {
-    border-color: var(--primary-color);
-    background-color: rgba(52, 152, 219, 0.1);
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
 }
 
-.file-name-display {
-    display: none;
-    margin-top: 10px;
-    padding: 8px 12px;
-    background-color: #f0f8ff;
-    border-radius: 4px;
-    color: var(--primary-color);
-    font-weight: 500;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* Loading indicator  */
-.uploading {
-    position: relative;
-}
-
-.uploading::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(255, 255, 255, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Responsive adjustments */
-@media (max-width: 576px) {
-    .file-upload-label {
-        min-height: 120px;
-        padding: 1.5rem;
-    }
-    
-    #uploadText {
-        font-size: 0.9rem;
-    }
-}
-
-@media (max-width: 576px) {
-    .upload-card {
-        padding: 1.5rem;
-    }
-    
-    .upload-title {
-        font-size: 1.5rem;
-    }
-    
-    .file-upload-label {
-        padding: 1.5rem;
-    }
-}
-
+/* ========== Responsive Styles ========== */
 @media (max-width: 768px) {
     .header-content {
         flex-direction: column;
@@ -362,6 +387,13 @@ body {
         justify-content: space-around;
     }
     
+    .auth-container,
+    .form-container,
+    .upload-card {
+        padding: 1.5rem;
+        margin: 1rem auto;
+    }
+    
     .actions {
         flex-direction: column;
         gap: 1rem;
@@ -369,5 +401,39 @@ body {
     
     .btn {
         width: 100%;
+    }
+}
+
+@media (max-width: 576px) {
+    .container {
+        padding: 0 15px;
+    }
+    
+    .auth-container,
+    .form-container {
+        padding: 1.25rem;
+        box-shadow: none;
+        border: 1px solid var(--border-color);
+    }
+    
+    .file-upload-label {
+        min-height: 120px;
+        padding: 1.5rem;
+    }
+    
+    #uploadText {
+        font-size: 0.9rem;
+    }
+    
+    .upload-card {
+        padding: 1.5rem;
+    }
+    
+    .upload-title {
+        font-size: 1.5rem;
+    }
+    
+    .file-upload-label {
+        padding: 1.5rem;
     }
 }

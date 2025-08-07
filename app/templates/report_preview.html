@@ -30,7 +30,7 @@
                                 Total Contributions
                             </h5>
                             <p class="display-6 text-success">
-                                MWK {{ "%.2f"|format(total) }}
+                                MWK {{ "%.2f"|format(total_contributions) }}
                             </p>
                         </div>
                     </div>
@@ -59,6 +59,44 @@
                             </h5>
                             <p class="display-6 text-warning">
                                 {{ defaulters }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Money Dispensed Card -->
+                <div class="col-md-4">
+                    <div class="card summary-card border-info">
+                        <div class="card-body">
+                            <h5 class="card-title text-info">
+                                <i class="fas fa-hand-holding-usd me-2"></i>
+                                Money Dispensed
+                            </h5>
+                            <p class="display-6 text-info">
+                                {% if money_dispensed is not none %}
+                                    MWK {{ "%.2f"|format(money_dispensed) }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Book Balance Card -->
+                <div class="col-md-4">
+                    <div class="card summary-card border-dark">
+                        <div class="card-body">
+                            <h5 class="card-title text-dark">
+                                <i class="fas fa-book me-2"></i>
+                                Total Book Balance
+                            </h5>
+                            <p class="display-6 text-dark">
+                                {% if total_book_balance is not none %}
+                                    MWK {{ "%.2f"|format(total_book_balance) }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
                             </p>
                         </div>
                     </div>
