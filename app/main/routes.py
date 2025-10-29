@@ -34,12 +34,18 @@ def upload():
     filepath = None
     
     try:
+        # Process the file (same logic for both sources)
+        year = request.form.get('year', type=int)
+        month = request.form.get('month', type=int)
+        
+        if not year or not month:
+            flash('Year and month are required', 'error')
+            return redirect(url_for('main.dashboard'))
+        
         if use_google_sheets and sheet_url:
-            # Fetch from Google Sheets
-            current_app.logger.info(f"Fetching data from Google Sheets: {sheet_url}")
+            current_app.logger.info(f"Fetching data from Google Sheets: {sheet_url} for year {year}")
             
-            # Get Excel data from Google Sheets
-            excel_data = google_sheets_service.get_sheet_as_excel(sheet_url)
+            excel_data = google_sheets_service.get_sheet_as_excel(sheet_url, sheet_name=str(year))
             if excel_data is None:
                 flash('Failed to fetch data from Google Sheets. Please check the URL and credentials.', 'error')
                 return redirect(url_for('main.dashboard'))
@@ -50,8 +56,7 @@ def upload():
             
             with open(filepath, 'wb') as f:
                 f.write(excel_data.getvalue())
-            
-            # Store the sheet URL for future use
+
             Setting.set_value('google_sheets_url', sheet_url)
             current_app.logger.info(f"Saved Google Sheets data to: {filepath}")
             
@@ -70,14 +75,6 @@ def upload():
             filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
             current_app.logger.info(f"Saved uploaded file to: {filepath}")
-        
-        # Process the file (same logic for both sources)
-        year = request.form.get('year', type=int)
-        month = request.form.get('month', type=int)
-        
-        if not year or not month:
-            flash('Year and month are required', 'error')
-            return redirect(url_for('main.dashboard'))
         
         data = parse_excel(filepath, year=year, month=month)
         
@@ -98,7 +95,6 @@ def upload():
         # Store in session
         session['report_data'] = report_data
         
-        # Generate and store report path
         report_path = generate_report(data, filename)
         session['report_path'] = report_path
         
@@ -111,8 +107,7 @@ def upload():
         
     except Exception as e:
         current_app.logger.error(f"Upload error: {str(e)}")
-        
-        # Clean up temporary file in case of error
+
         if use_google_sheets and filepath and os.path.exists(filepath):
             try:
                 os.remove(filepath)
