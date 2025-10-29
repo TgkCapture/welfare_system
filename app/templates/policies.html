@@ -1,0 +1,258 @@
+<!-- app/templates/policies.html -->
+{% extends 'base.html' %}
+
+{% block title %}Policies - MZUGOSS Welfare{% endblock %}
+{% block page_title %}Group Policies & Guidelines{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Navigation Sidebar -->
+    <div class="col-12 col-lg-3 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-list"></i> Policy Sections</h3>
+            </div>
+            <div class="card-body">
+                <nav class="policy-nav">
+                    <a href="#contribution" class="policy-nav-item active">
+                        <i class="fas fa-money-bill-wave"></i>
+                        Contribution Policy
+                    </a>
+                    <a href="#payouts" class="policy-nav-item">
+                        <i class="fas fa-hand-holding-usd"></i>
+                        Payout Policy
+                    </a>
+                    <a href="#membership" class="policy-nav-item">
+                        <i class="fas fa-user-plus"></i>
+                        Membership
+                    </a>
+                    <a href="#governance" class="policy-nav-item">
+                        <i class="fas fa-gavel"></i>
+                        Governance
+                    </a>
+                    <a href="#penalties" class="policy-nav-item">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Penalties
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Policy Content -->
+    <div class="col-12 col-lg-9">
+        <!-- Contribution Policy -->
+        <div class="card mb-4 policy-section" id="contribution">
+            <div class="card-header">
+                <h3><i class="fas fa-money-bill-wave"></i> Contribution Policy</h3>
+            </div>
+            <div class="card-body">
+                <div class="policy-item">
+                    <h4>Monthly Contributions</h4>
+                    <ul>
+                        <li><strong>Amount:</strong> MWK 5,000 per member per month</li>
+                        <li><strong>Deadline:</strong> 5th of every month</li>
+                        <li><strong>Method:</strong> Mobile money or bank transfer</li>
+                        <li><strong>Receipt:</strong> Send proof of payment to treasurer</li>
+                    </ul>
+                </div>
+
+                <div class="policy-item">
+                    <h4>Payment Channels</h4>
+                    <div class="payment-methods">
+                        <div class="payment-method">
+                            <i class="fas fa-mobile-alt"></i>
+                            <strong>Airtel Money:</strong> 0888 123 456
+                        </div>
+                        <div class="payment-method">
+                            <i class="fas fa-mobile-alt"></i>
+                            <strong>TNM Mpamba:</strong> 0999 123 456
+                        </div>
+                        <div class="payment-method">
+                            <i class="fas fa-university"></i>
+                            <strong>Bank Transfer:</strong> Account details available
+                        </div>
+                    </div>
+                </div>
+
+                <div class="policy-item">
+                    <h4>Late Payments</h4>
+                    <ul>
+                        <li>Late fee: MWK 1,000 after 5th of month</li>
+                        <li>Maximum grace period: 10 days</li>
+                        <li>After 15th: Considered defaulted for the month</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payout Policy -->
+        <div class="card mb-4 policy-section" id="payouts">
+            <div class="card-header">
+                <h3><i class="fas fa-hand-holding-usd"></i> Payout Policy</h3>
+            </div>
+            <div class="card-body">
+                <div class="policy-item">
+                    <h4>Eligibility Criteria</h4>
+                    <ul>
+                        <li>Must be a member in good standing for 6+ months</li>
+                        <li>No outstanding contributions</li>
+                        <li>Valid reason for payout request</li>
+                        <li>Committee approval required</li>
+                    </ul>
+                </div>
+
+                <div class="policy-item">
+                    <h4>Payout Categories</h4>
+                    <div class="payout-categories">
+                        <div class="category-card">
+                            <h5>Emergency Medical</h5>
+                            <p class="amount">Up to MWK 200,000</p>
+                            <small>For critical medical situations</small>
+                        </div>
+                        <div class="category-card">
+                            <h5>Education Support</h5>
+                            <p class="amount">Up to MWK 150,000</p>
+                            <small>For educational advancement</small>
+                        </div>
+                        <div class="category-card">
+                            <h5>Business Startup</h5>
+                            <p class="amount">Up to MWK 100,000</p>
+                            <small>For entrepreneurial ventures</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="policy-item">
+                    <h4>Application Process</h4>
+                    <ol>
+                        <li>Submit written application to committee</li>
+                        <li>Provide supporting documents</li>
+                        <li>Committee review within 7 days</li>
+                        <li>Approval by majority vote</li>
+                        <li>Disbursement within 3 working days</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- Membership Policy -->
+        <div class="card mb-4 policy-section" id="membership">
+            <div class="card-header">
+                <h3><i class="fas fa-user-plus"></i> Membership Policy</h3>
+            </div>
+            <div class="card-body">
+                <div class="policy-item">
+                    <h4>Eligibility</h4>
+                    <ul>
+                        <li>Must be MZUGOSS Class of 2018 graduate</li>
+                        <li>Willing to commit to monthly contributions</li>
+                        <li>Agree to abide by group constitution</li>
+                        <li>Approved by existing members</li>
+                    </ul>
+                </div>
+
+                <div class="policy-item">
+                    <h4>Membership Benefits</h4>
+                    <div class="benefits-grid">
+                        <div class="benefit-item">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Financial Security</span>
+                        </div>
+                        <div class="benefit-item">
+                            <i class="fas fa-network-wired"></i>
+                            <span>Networking</span>
+                        </div>
+                        <div class="benefit-item">
+                            <i class="fas fa-hand-holding-heart"></i>
+                            <span>Support System</span>
+                        </div>
+                        <div class="benefit-item">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Financial Growth</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Governance Policy -->
+        <div class="card mb-4 policy-section" id="governance">
+            <div class="card-header">
+                <h3><i class="fas fa-gavel"></i> Governance Policy</h3>
+            </div>
+            <div class="card-body">
+                <div class="policy-item">
+                    <h4>Committee Structure</h4>
+                    <div class="committee-members">
+                        <div class="member-role">
+                            <h5>Chairperson</h5>
+                            <p>Overall leadership and coordination</p>
+                        </div>
+                        <div class="member-role">
+                            <h5>Treasurer</h5>
+                            <p>Financial management and reporting</p>
+                        </div>
+                        <div class="member-role">
+                            <h5>Secretary</h5>
+                            <p>Record keeping and communication</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="policy-item">
+                    <h4>Decision Making</h4>
+                    <ul>
+                        <li>Simple majority for routine decisions</li>
+                        <li>Two-thirds majority for constitutional changes</li>
+                        <li>Emergency decisions by executive committee</li>
+                        <li>All decisions documented and shared</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Penalties Policy -->
+        <div class="card mb-4 policy-section" id="penalties">
+            <div class="card-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> Penalties & Compliance</h3>
+            </div>
+            <div class="card-body">
+                <div class="policy-item">
+                    <h4>Default Consequences</h4>
+                    <div class="penalty-stages">
+                        <div class="penalty-stage">
+                            <h5>Stage 1: 1-2 Months Default</h5>
+                            <ul>
+                                <li>Formal warning notice</li>
+                                <li>Late fee accumulation</li>
+                                <li>Payment plan option</li>
+                            </ul>
+                        </div>
+                        <div class="penalty-stage">
+                            <h5>Stage 2: 3-6 Months Default</h5>
+                            <ul>
+                                <li>Suspension from payouts</li>
+                                <li>Increased late fees</li>
+                                <li>Committee review</li>
+                            </ul>
+                        </div>
+                        <div class="penalty-stage">
+                            <h5>Stage 3: 6+ Months Default</h5>
+                            <ul>
+                                <li>Membership suspension</li>
+                                <li>Legal action consideration</li>
+                                <li>Full arrears settlement required</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/policies.js') }}"></script>
+{% endblock %}

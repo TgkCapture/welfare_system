@@ -1,0 +1,153 @@
+<!-- app/templates/contributors.html -->
+{% extends 'base.html' %}
+
+{% block title %}Contributors - MZUGOSS Welfare{% endblock %}
+{% block page_title %}Monthly Contributors{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-users"></i> Contributors for <span id="currentPeriod">{{ datetime.now().strftime('%B %Y') }}</span></h3>
+                <div class="header-actions">
+                    <button class="btn btn-outline-primary" id="refreshBtn">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                    <button class="btn btn-success" id="exportBtn">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Filter Controls -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <label for="monthFilter" class="form-label">Month</label>
+                        <select class="form-select" id="monthFilter">
+                            {% for m in range(1, 13) %}
+                                <option value="{{ m }}" {% if m == datetime.now().month %}selected{% endif %}>
+                                    {{ datetime(2023, m, 1).strftime('%B') }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="yearFilter" class="form-label">Year</label>
+                        <select class="form-select" id="yearFilter">
+                            {% set current_year = datetime.now().year %}
+                            {% for y in range(2018, current_year + 1) %}
+                                <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="statusFilter" class="form-label">Status</label>
+                        <select class="form-select" id="statusFilter">
+                            <option value="all">All Contributors</option>
+                            <option value="paid">Paid Only</option>
+                            <option value="pending">Pending Only</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Contributors Table -->
+                <div class="table-responsive">
+                    <table class="table table-hover" id="contributorsTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Member Name</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Payment Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contributorsBody">
+                            <!-- Data will be populated by JavaScript -->
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="fas fa-users fa-2x mb-2"></i><br>
+                                    Select a period to view contributors
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Summary Stats -->
+                <div class="row mt-4">
+                    <div class="col-md-3">
+                        <div class="summary-card">
+                            <div class="summary-icon primary">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="summary-info">
+                                <h4 id="totalContributors">0</h4>
+                                <p>Total Contributors</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="summary-card">
+                            <div class="summary-icon success">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="summary-info">
+                                <h4 id="paidCount">0</h4>
+                                <p>Paid Members</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="summary-card">
+                            <div class="summary-icon warning">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="summary-info">
+                                <h4 id="pendingCount">0</h4>
+                                <p>Pending</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="summary-card">
+                            <div class="summary-icon info">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </div>
+                            <div class="summary-info">
+                                <h4 id="totalAmount">MWK 0</h4>
+                                <p>Total Collected</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contribution Trends Chart -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-chart-line"></i> Contribution Trends</h3>
+            </div>
+            <div class="card-body">
+                <div id="contributionChart" style="height: 300px;">
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-chart-bar fa-2x mb-2"></i><br>
+                        Contribution trends chart will be displayed here
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/contributors.js') }}"></script>
+{% endblock %}

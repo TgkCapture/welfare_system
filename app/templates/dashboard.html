@@ -1,261 +1,218 @@
+<!-- app/templates/dashboard.html -->
 {% extends 'base.html' %}
 
-{% block title %}Dashboard - Mzugoss Welfare{% endblock %}
+{% block title %}Dashboard - MZUGOSS Welfare{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
-    <div class="upload-card">
-        <h2 class="upload-title">
-            <i class="fas fa-file-excel"></i> Generate Contribution Report
-        </h2>
-        
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                <div class="alert alert-{{ category }}">
-                    <i class="fas fa-{% if category == 'success' %}check-circle{% else %}exclamation-triangle{% endif %}"></i>
-                    {{ message }}
-                </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <form action="{{ url_for('main.upload') }}" method="POST" enctype="multipart/form-data" class="upload-form" id="uploadForm">
-            <!-- Google Sheets Toggle -->
-            <div class="form-group">
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" id="use_google_sheets" name="use_google_sheets" {% if sheet_url %}checked{% endif %}>
-                    <label class="form-check-label" for="use_google_sheets">
-                        <i class="fab fa-google"></i> Use Google Sheets instead of file upload
-                    </label>
-                </div>
+<div class="row">
+    <!-- Quick Stats -->
+    <div class="col-12 col-md-6 col-lg-3 mb-4">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="fas fa-users"></i>
             </div>
-            
-            <!-- Google Sheets URL Input -->
-            <div class="form-group mb-3" id="sheet_url_group" style="display: {% if sheet_url %}block{% else %}none{% endif %};">
-                <label for="sheet_url">Google Sheets URL:</label>
-                <input type="url" class="form-control" id="sheet_url" name="sheet_url" 
-                       value="{{ sheet_url }}" placeholder="https://docs.google.com/spreadsheets/d/..." {% if sheet_url %}required{% endif %}>
-                <small class="form-text text-muted">
-                    Enter the URL of your Google Sheet with contribution data
-                </small>
+            <div class="stat-info">
+                <h3 id="totalMembers">--</h3>
+                <p>Total Members</p>
             </div>
-            
-            <!-- File Upload Section -->
-            <div class="form-group" id="file_upload_group" style="display: {% if sheet_url %}none{% else %}block{% endif %};">
-                <label for="file-upload" class="file-upload-label" id="dropArea">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <span id="uploadText">Drag & drop your Excel file here or click to browse</span>
-                    <div id="fileName" class="file-name-display"></div>
-                    <input type="file" name="file" id="file-upload" accept=".xlsx,.xls" {% if not sheet_url %}required{% endif %}>
-                </label>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group col-md-6">
-                    <label for="year">Year:</label>
-                    <select name="year" id="year" class="form-control" required>
-                        {% set current_year = datetime.now().year %}
-                        {% for y in range(2018, current_year + 1) %}
-                            <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="form-group col-md-6">
-                    <label for="month">Month:</label>
-                    <select name="month" id="month" class="form-control" required>
-                        {% set current_month = datetime.now().month %}
-                        {% for m in range(1, 13) %}
-                            <option value="{{ m }}" {% if m == current_month %}selected{% endif %}>{{ datetime(2023, m, 1).strftime('%B') }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            
-            <button type="submit" class="btn btn-primary btn-upload" id="submitBtn">
-                <i class="fas fa-file-import"></i> Generate Report
-            </button>
-        </form>
-        
-        {% if sheet_url %}
-        <div class="mt-3 p-3 bg-light rounded">
-            <small class="text-muted">
-                <i class="fab fa-google"></i> Currently using Google Sheet: 
-                <a href="{{ sheet_url }}" target="_blank" class="text-truncate d-inline-block" style="max-width: 300px;">
-                    {{ sheet_url }}
-                </a>
-                <br>
-                <a href="{{ url_for('main.settings') }}" class="small">Change settings</a>
-            </small>
         </div>
-        {% endif %}
-        
-        <div class="version-info">
-            <i class="fas fa-code-branch"></i> Version {{ version }}
+    </div>
+    <div class="col-12 col-md-6 col-lg-3 mb-4">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="fas fa-hand-holding-usd"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="monthlyContributions">--</h3>
+                <p>This Month</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3 mb-4">
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="fas fa-user-clock"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="pendingContributions">--</h3>
+                <p>Pending</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3 mb-4">
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="fas fa-piggy-bank"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="totalBalance">--</h3>
+                <p>Total Balance</p>
+            </div>
         </div>
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const useSheetsCheckbox = document.getElementById('use_google_sheets');
-    const sheetUrlGroup = document.getElementById('sheet_url_group');
-    const fileUploadGroup = document.getElementById('file_upload_group');
-    const sheetUrlInput = document.getElementById('sheet_url');
-    const fileInput = document.getElementById('file-upload');
-    const dropArea = document.getElementById('dropArea');
-    const uploadText = document.getElementById('uploadText');
-    const fileNameDisplay = document.getElementById('fileName');
-    const submitBtn = document.getElementById('submitBtn');
-    const form = document.getElementById('uploadForm');
-    
-    // Toggle between Google Sheets and file upload
-    function toggleInputs() {
-        const useSheets = useSheetsCheckbox.checked;
-        sheetUrlGroup.style.display = useSheets ? 'block' : 'none';
-        fileUploadGroup.style.display = useSheets ? 'none' : 'block';
-        
-        if (useSheets) {
-            sheetUrlInput.setAttribute('required', 'required');
-            fileInput.removeAttribute('required');
-            uploadText.textContent = 'Google Sheets mode enabled';
-            fileNameDisplay.textContent = '';
-            fileNameDisplay.style.display = 'none';
-        } else {
-            sheetUrlInput.removeAttribute('required');
-            fileInput.setAttribute('required', 'required');
-            uploadText.textContent = 'Drag & drop your Excel file here or click to browse';
-            fileNameDisplay.textContent = '';
-            fileNameDisplay.style.display = 'none';
-        }
-    }
-    
-    useSheetsCheckbox.addEventListener('change', toggleInputs);
-    toggleInputs(); // Initialize on page load
-    
-    // File upload drag and drop functionality
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropArea.addEventListener(eventName, preventDefaults, false);
-        document.body.addEventListener(eventName, preventDefaults, false);
-    });
-    
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-    
-    // Highlight drop area when item is dragged over it
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropArea.addEventListener(eventName, highlight, false);
-    });
-    
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropArea.addEventListener(eventName, unhighlight, false);
-    });
-    
-    function highlight() {
-        if (!useSheetsCheckbox.checked) {
-            dropArea.classList.add('highlight');
-        }
-    }
-    
-    function unhighlight() {
-        dropArea.classList.remove('highlight');
-    }
-    
-    // Handle dropped files
-    dropArea.addEventListener('drop', handleDrop, false);
-    
-    function handleDrop(e) {
-        if (useSheetsCheckbox.checked) return;
-        
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        
-        // Create a new DataTransfer object and add the file
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(files[0]);
-        
-        // Assign the DataTransfer object to the file input
-        fileInput.files = dataTransfer.files;
-        
-        handleFiles(files);
-    }
-    
-    // Handle selected files
-    fileInput.addEventListener('change', function() {
-        if (useSheetsCheckbox.checked) return;
-        handleFiles(this.files);
-    });
-    
-    function handleFiles(files) {
-        if (files.length > 0 && !useSheetsCheckbox.checked) {
-            const file = files[0];
-            if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-                file.type === 'application/vnd.ms-excel' ||
-                file.name.endsWith('.xlsx') || 
-                file.name.endsWith('.xls')) {
-                // Valid Excel file
-                uploadText.textContent = 'File ready for upload:';
-                fileNameDisplay.textContent = file.name;
-                fileNameDisplay.style.display = 'block';
-            } else {
-                // Invalid file type
-                uploadText.textContent = 'Please select an Excel file (.xlsx, .xls)';
-                fileNameDisplay.textContent = '';
-                fileNameDisplay.style.display = 'none';
-                
-                // Clear the invalid file
-                fileInput.value = '';
-            }
-        }
-    }
-    
-    // Form submission handling
-    form.addEventListener('submit', function(e) {
-        if (useSheetsCheckbox.checked) {
-            // Validate Google Sheets URL
-            if (!sheetUrlInput.value) {
-                e.preventDefault();
-                alert('Please enter a Google Sheets URL');
-                return;
-            }
-        } else {
-            // Validate file upload
-            if (fileInput.files.length === 0) {
-                e.preventDefault();
-                uploadText.textContent = 'Please select a file first';
-                return;
-            }
-        }
-        
-        // Show loading state
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-    });
-});
-</script>
+<div class="row">
+    <!-- Report Generation Card -->
+    <div class="col-12 col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-file-chart-line"></i> Generate Contribution Report</h3>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('main.upload') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
+                    <!-- Data Source Toggle -->
+                    <div class="form-section">
+                        <label class="form-label">Data Source</label>
+                        <div class="source-toggle">
+                            <input type="radio" id="sourceFile" name="data_source" value="file" checked>
+                            <label for="sourceFile" class="toggle-option">
+                                <i class="fas fa-file-excel"></i>
+                                <span>File Upload</span>
+                            </label>
+                            
+                            <input type="radio" id="sourceSheets" name="data_source" value="sheets" {% if sheet_url %}checked{% endif %}>
+                            <label for="sourceSheets" class="toggle-option">
+                                <i class="fab fa-google"></i>
+                                <span>Google Sheets</span>
+                            </label>
+                        </div>
+                    </div>
 
-<style>
-.form-check-input:checked {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-}
+                    <!-- File Upload Section -->
+                    <div class="form-section" id="fileSection">
+                        <label class="form-label">Upload Excel File</label>
+                        <div class="file-upload-area" id="dropArea">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <h4>Drag & Drop Your File</h4>
+                            <p>Supported formats: .xlsx, .xls</p>
+                            <input type="file" name="file" id="fileInput" accept=".xlsx,.xls" required>
+                            <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('fileInput').click()">
+                                Browse Files
+                            </button>
+                            <div id="filePreview" class="file-preview"></div>
+                        </div>
+                    </div>
 
-#sheet_url_group, #file_upload_group {
-    transition: all 0.3s ease;
-}
+                    <!-- Google Sheets Section -->
+                    <div class="form-section" id="sheetsSection" style="display: none;">
+                        <div class="form-group">
+                            <label for="sheet_url" class="form-label">Google Sheets URL</label>
+                            <input type="url" class="form-control" id="sheet_url" name="sheet_url" 
+                                   value="{{ sheet_url }}" placeholder="https://docs.google.com/spreadsheets/d/...">
+                            <div class="form-text">
+                                Make sure the sheet is shared with the service account
+                            </div>
+                        </div>
+                    </div>
 
-.file-upload-label.highlight {
-    border-color: #0d6efd;
-    background-color: rgba(13, 110, 253, 0.05);
-}
+                    <!-- Period Selection -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="year" class="form-label">Year</label>
+                                <select name="year" id="year" class="form-select" required>
+                                    {% set current_year = datetime.now().year %}
+                                    {% for y in range(2018, current_year + 2) %}
+                                        <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="month" class="form-label">Month</label>
+                                <select name="month" id="month" class="form-select" required>
+                                    {% set current_month = datetime.now().month %}
+                                    {% for m in range(1, 13) %}
+                                        <option value="{{ m }}" {% if m == current_month %}selected{% endif %}>
+                                            {{ datetime(2023, m, 1).strftime('%B') }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
-.text-truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-</style>
+                    <button type="submit" class="btn btn-primary btn-lg w-100 mt-3" id="submitBtn">
+                        <i class="fas fa-rocket"></i> Generate Report
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions & Info -->
+    <div class="col-12 col-lg-4 mb-4">
+        <!-- Quick Actions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+            </div>
+            <div class="card-body">
+                <div class="quick-actions">
+                    <a href="{{ url_for('main.contributors') }}" class="action-btn">
+                        <i class="fas fa-users"></i>
+                        <span>View Contributors</span>
+                    </a>
+                    <a href="{{ url_for('main.policies') }}" class="action-btn">
+                        <i class="fas fa-file-contract"></i>
+                        <span>Group Policies</span>
+                    </a>
+                    <a href="{{ url_for('main.settings') }}" class="action-btn">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-info-circle"></i> System Info</h3>
+            </div>
+            <div class="card-body">
+                <div class="system-info">
+                    
+                    <div class="info-item">
+                        <span class="info-label">Last Sync:</span>
+                        <span class="info-value" id="lastSync">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Active Members:</span>
+                        <span class="info-value" id="activeMembers">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-history"></i> Recent Activity</h3>
+            </div>
+            <div class="card-body">
+                <div class="activity-list" id="recentActivity">
+                    <div class="activity-item">
+                        <i class="fas fa-sync activity-icon"></i>
+                        <div class="activity-content">
+                            <p class="activity-text">System initialized and ready</p>
+                            <small class="activity-time">{{ datetime.now().strftime('%Y-%m-%d %H:%M') }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}
