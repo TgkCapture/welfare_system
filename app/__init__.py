@@ -23,6 +23,10 @@ def create_app():
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
 
+    # Initialize Google Sheets service
+    from .google_sheets import google_sheets_service
+    google_sheets_service.init_app(app)
+
     from .auth.routes import auth as auth_blueprint
     from .main.routes import main as main_blueprint
     app.register_blueprint(auth_blueprint)
