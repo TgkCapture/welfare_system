@@ -215,3 +215,21 @@ def download_paid_members():
         current_app.logger.error(f"Error generating image: {str(e)}")
         flash('Error generating paid members image', 'error')
         return redirect(url_for('main.report_preview'))
+
+@main.route('/contributors')
+@login_required
+def contributors():
+    """Display monthly contributors page"""
+    return render_template('contributors.html')
+
+@main.route('/about')
+@login_required
+def about():
+    """Display about page with mission and vision"""
+    return render_template('about.html')
+
+@main.route('/policies')
+@login_required
+def policies():
+    """Display group policies and guidelines"""
+    return render_template('policies.html')
