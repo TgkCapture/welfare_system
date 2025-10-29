@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Application Settings</h2>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Google Sheets Configuration</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('main.settings') }}">
+                    <div class="form-group mb-3">
+                        <label for="sheet_url">Default Google Sheets URL</label>
+                        <input type="url" class="form-control" id="sheet_url" name="sheet_url" 
+                               value="{{ sheet_url }}" placeholder="https://docs.google.com/spreadsheets/d/...">
+                        <small class="form-text text-muted">
+                            Enter the URL of your Google Sheet with contribution data. This will be used as the default when generating reports.
+                        </small>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Save Settings</button>
+                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title">Google Sheets Setup Instructions</h5>
+            </div>
+            <div class="card-body">
+                <ol>
+                    <li>Create a Google Sheet with your contribution data</li>
+                    <li>Share the sheet with your service account email (from Google Cloud credentials)</li>
+                    <li>Copy the sheet URL and paste it above</li>
+                    <li>Ensure your sheet has the same format as your Excel files</li>
+                </ol>
+                <p class="text-muted">
+                    Note: You need to set up Google API credentials in your instance/config.py file
+                    using GOOGLE_CREDENTIALS_PATH or GOOGLE_CREDENTIALS_JSON environment variables.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

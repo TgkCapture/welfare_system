@@ -7,3 +7,6 @@ __pycache__/
 reports/
 uploads/
 instance/db.sqlite3
+instance/config.py
+instance/config.py
+credentials/mzugoss-welfare-5dab294def1f.json

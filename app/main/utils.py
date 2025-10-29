@@ -1,3 +1,4 @@
+# === app/main/utils.py ===
 import pandas as pd
 import os
 from fpdf import FPDF
@@ -46,15 +47,36 @@ def parse_excel(filepath, year=None, month=None):
     # Read all sheets
     all_sheets = pd.read_excel(filepath, sheet_name=None, header=None)
     
-    # Find the sheet for specified year
     year_sheet = None
+    possible_sheet_names = [
+        str(year),                    
+        f"{year} Data",              
+        f"Data {year}",              
+        f"Contributions {year}",     
+        f"{year} Contributions",     
+        "Sheet1",                    
+        "Sheet 1",                   
+    ]
+    
+    # First try exact matches or contains
     for sheet_name in all_sheets:
+        sheet_lower = sheet_name.lower()
+        # Check if sheet name contains the year
         if str(year) in sheet_name:
             year_sheet = sheet_name
             break
+        # Check for common patterns
+        if any(pattern.lower() in sheet_lower for pattern in ['data', 'contributions', 'sheet']):
+            year_sheet = sheet_name
+            
+    if not year_sheet and all_sheets:
+        year_sheet = list(all_sheets.keys())[0]
+        current_app.logger.info(f"Using first sheet: {year_sheet}")
     
     if not year_sheet:
-        raise ValueError(f"No sheet found for year {year}")
+        raise ValueError(f"No sheet found for year {year}. Available sheets: {list(all_sheets.keys())}")
+    
+    current_app.logger.info(f"Using sheet: {year_sheet} for year {year}")
     
     # Get the raw sheet data
     raw_df = all_sheets[year_sheet]
@@ -67,9 +89,15 @@ def parse_excel(filepath, year=None, month=None):
         for cell in row:
             if pd.notna(cell) and isinstance(cell, str):
                 if "money dispensed" in cell.lower():
-                    money_dispensed = raw_df.iloc[i, 1]  
+                    try:
+                        money_dispensed = float(raw_df.iloc[i, 1])  
+                    except (ValueError, TypeError):
+                        money_dispensed = raw_df.iloc[i, 1] 
                 elif "total book balance" in cell.lower():
-                    total_book_balance = raw_df.iloc[i, 1] 
+                    try:
+                        total_book_balance = float(raw_df.iloc[i, 1]) 
+                    except (ValueError, TypeError):
+                        total_book_balance = raw_df.iloc[i, 1]  
     
     # Find the row containing month names
     month_row = find_month_row(raw_df, month_name)
@@ -151,12 +179,24 @@ def generate_report(data, original_name):
     pdf.cell(0, 10, str(data['num_missing']), 1, 1, 'L')
 
     if data.get('money_dispensed') is not None:
-        pdf.cell(60, 10, "Money Dispensed:", 1, 0, 'L', 1)
-        pdf.cell(0, 10, f"MWK {data['money_dispensed']:,.2f}", 1, 1, 'L')
+        try:
+            money_dispensed = float(data['money_dispensed'])
+            pdf.cell(60, 10, "Money Dispensed:", 1, 0, 'L', 1)
+            pdf.cell(0, 10, f"MWK {money_dispensed:,.2f}", 1, 1, 'L')
+        except (ValueError, TypeError) as e:
+            current_app.logger.warning(f"Could not convert money_dispensed to float: {data['money_dispensed']}")
+            pdf.cell(60, 10, "Money Dispensed:", 1, 0, 'L', 1)
+            pdf.cell(0, 10, f"MWK {data['money_dispensed']}", 1, 1, 'L')  # Display as string
     
     if data.get('total_book_balance') is not None:
-        pdf.cell(60, 10, "Total Book Balance:", 1, 0, 'L', 1)
-        pdf.cell(0, 10, f"MWK {data['total_book_balance']:,.2f}", 1, 1, 'L')
+        try:
+            total_book_balance = float(data['total_book_balance'])
+            pdf.cell(60, 10, "Total Book Balance:", 1, 0, 'L', 1)
+            pdf.cell(0, 10, f"MWK {total_book_balance:,.2f}", 1, 1, 'L')
+        except (ValueError, TypeError) as e:
+            current_app.logger.warning(f"Could not convert total_book_balance to float: {data['total_book_balance']}")
+            pdf.cell(60, 10, "Total Book Balance:", 1, 0, 'L', 1)
+            pdf.cell(0, 10, f"MWK {data['total_book_balance']}", 1, 1, 'L')  # Display as string
     
     pdf.ln(10)
     

@@ -1,5 +1,5 @@
 # === app/__init__.py ===
-__version__ = "1.0.0" 
+__version__ = "1.1.0" 
 
 from flask import Flask
 from flask_login import LoginManager
@@ -22,6 +22,10 @@ def create_app():
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
+
+    # Initialize Google Sheets service
+    from .google_sheets import google_sheets_service
+    google_sheets_service.init_app(app)
 
     from .auth.routes import auth as auth_blueprint
     from .main.routes import main as main_blueprint

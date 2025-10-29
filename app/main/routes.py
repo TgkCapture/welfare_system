@@ -1,18 +1,25 @@
 # === app/main/routes.py ===
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, send_file, flash, session, jsonify
-from flask_login import login_required
+from flask_login import login_required, current_user
 import os
 import pandas as pd
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from .utils import parse_excel, generate_report, generate_paid_members_image
+from app.google_sheets import google_sheets_service
+from app.models import Setting
 
 main = Blueprint('main', __name__)
 
 @main.route('/')
 @login_required
 def dashboard():
-    return render_template('dashboard.html', version=current_app.version, datetime=datetime)
+    # Get the stored Google Sheets URL if available
+    sheet_url = Setting.get_value('google_sheets_url', current_app.config.get('DEFAULT_SHEET_URL', ''))
+    return render_template('dashboard.html', 
+                         version=current_app.version, 
+                         datetime=datetime,
+                         sheet_url=sheet_url)
 
 @main.route('/version')
 def version():
@@ -21,22 +28,53 @@ def version():
 @main.route('/upload', methods=['POST'])
 @login_required
 def upload():
-    if 'file' not in request.files:
-        flash('No file selected', 'error')
-        return redirect(url_for('main.dashboard'))
-    
-    file = request.files['file']
-    if file.filename == '':
-        flash('No file selected', 'error')
-        return redirect(url_for('main.dashboard'))
+    # Check if using Google Sheets
+    use_google_sheets = request.form.get('use_google_sheets') == 'on'
+    sheet_url = request.form.get('sheet_url', '')
+    filepath = None
     
     try:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-
+        # Process the file (same logic for both sources)
         year = request.form.get('year', type=int)
         month = request.form.get('month', type=int)
+        
+        if not year or not month:
+            flash('Year and month are required', 'error')
+            return redirect(url_for('main.dashboard'))
+        
+        if use_google_sheets and sheet_url:
+            current_app.logger.info(f"Fetching data from Google Sheets: {sheet_url} for year {year}")
+            
+            excel_data = google_sheets_service.get_sheet_as_excel(sheet_url, sheet_name=str(year))
+            if excel_data is None:
+                flash('Failed to fetch data from Google Sheets. Please check the URL and credentials.', 'error')
+                return redirect(url_for('main.dashboard'))
+            
+            # Save temporarily
+            filename = f"google_sheet_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+            
+            with open(filepath, 'wb') as f:
+                f.write(excel_data.getvalue())
+
+            Setting.set_value('google_sheets_url', sheet_url)
+            current_app.logger.info(f"Saved Google Sheets data to: {filepath}")
+            
+        else:
+            # Original file upload logic
+            if 'file' not in request.files:
+                flash('No file selected', 'error')
+                return redirect(url_for('main.dashboard'))
+            
+            file = request.files['file']
+            if file.filename == '':
+                flash('No file selected', 'error')
+                return redirect(url_for('main.dashboard'))
+            
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            current_app.logger.info(f"Saved uploaded file to: {filepath}")
         
         data = parse_excel(filepath, year=year, month=month)
         
@@ -57,16 +95,39 @@ def upload():
         # Store in session
         session['report_data'] = report_data
         
-        # Generate and store report path
         report_path = generate_report(data, filename)
         session['report_path'] = report_path
+        
+        # Clean up temporary file if from Google Sheets
+        if use_google_sheets and filepath and os.path.exists(filepath):
+            os.remove(filepath)
+            current_app.logger.info(f"Cleaned up temporary file: {filepath}")
         
         return redirect(url_for('main.report_preview'))
         
     except Exception as e:
         current_app.logger.error(f"Upload error: {str(e)}")
+
+        if use_google_sheets and filepath and os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except:
+                pass
+                
         flash(f'Error generating report: {str(e)}', 'error')
         return redirect(url_for('main.dashboard'))
+
+@main.route('/settings', methods=['GET', 'POST'])
+@login_required
+def settings():
+    if request.method == 'POST':
+        sheet_url = request.form.get('sheet_url', '')
+        Setting.set_value('google_sheets_url', sheet_url)
+        flash('Settings updated successfully', 'success')
+        return redirect(url_for('main.settings'))
+    
+    sheet_url = Setting.get_value('google_sheets_url', '')
+    return render_template('settings.html', sheet_url=sheet_url)
 
 @main.route('/report-preview')
 @login_required
