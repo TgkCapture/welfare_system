@@ -1,3 +1,4 @@
+<!-- app/templates/base.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,34 +10,109 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <!-- Navigation Header -->
     <header class="main-header">
-        <div class="header-content">
-            <h1 class="logo">
-                <i class="fas fa-hands-helping"></i>
-                Mzugoss Welfare
-            </h1>
-            <nav class="main-nav">
-                {% if current_user.is_authenticated %}
-                <a href="{{ url_for('main.dashboard') }}" class="nav-link">
-                    <i class="fas fa-tachometer-alt"></i> Dashboard
-                </a>
-                <a href="{{ url_for('auth.logout') }}" class="nav-link">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </a>
-                {% endif %}
-            </nav>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo-section">
+                    <a href="{{ url_for('main.dashboard') }}" class="logo">
+                        <div class="logo-icon">
+                            <i class="fas fa-hands-helping"></i>
+                        </div>
+                        <div class="logo-text">
+                            <span class="logo-primary">Mzugoss</span>
+                            <span class="logo-secondary">Welfare</span>
+                        </div>
+                    </a>
+                </div>
+
+                <nav class="main-nav">
+                    {% if current_user.is_authenticated %}
+                    <div class="nav-links">
+                        <a href="{{ url_for('main.dashboard') }}" class="nav-link">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+                        <a href="{{ url_for('main.welfare_rules') }}" class="nav-link">
+                            <i class="fas fa-book"></i>
+                            <span class="nav-text">Welfare Rules</span>
+                        </a>
+                        {% if current_user.is_admin %}
+                        <a href="{{ url_for('main.settings') }}" class="nav-link">
+                            <i class="fas fa-cog"></i>
+                            <span class="nav-text">Settings</span>
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="user-menu">
+                        <div class="user-info">
+                            <i class="fas fa-user-circle"></i>
+                            <span class="user-email">{{ current_user.email }}</span>
+                        </div>
+                        <a href="{{ url_for('auth.logout') }}" class="nav-link logout-btn">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span class="nav-text">Logout</span>
+                        </a>
+                    </div>
+                    {% endif %}
+                </nav>
+
+                <!-- Mobile Menu Button -->
+                <button class="mobile-menu-btn" id="mobileMenuBtn">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
         </div>
     </header>
 
+    <!-- Mobile Navigation Overlay -->
+    <div class="mobile-nav-overlay" id="mobileNavOverlay">
+        <div class="mobile-nav-content">
+            <button class="close-mobile-nav" id="closeMobileNav">
+                <i class="fas fa-times"></i>
+            </button>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('main.dashboard') }}" class="mobile-nav-link">
+                <i class="fas fa-tachometer-alt"></i>
+                Dashboard
+            </a>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('main.settings') }}" class="mobile-nav-link">
+                <i class="fas fa-cog"></i>
+                Settings
+            </a>
+            {% endif %}
+            <div class="mobile-user-info">
+                <i class="fas fa-user-circle"></i>
+                {{ current_user.email }}
+            </div>
+            <a href="{{ url_for('auth.logout') }}" class="mobile-nav-link logout-btn">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Main Content -->
     <main class="main-content">
         <div class="container">
+            <!-- Flash Messages -->
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible">
+                                <div class="alert-content">
+                                    <i class="alert-icon fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+                                    <span class="alert-message">{{ message }}</span>
+                                </div>
+                                <button class="alert-close" onclick="this.parentElement.style.display='none'">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        {% endfor %}
+                    </div>
                 {% endif %}
             {% endwith %}
             
@@ -44,11 +120,54 @@
         </div>
     </main>
 
+    <!-- Footer -->
     <footer class="main-footer">
-        <div class="footer-content">
-            <p>© 2025 Mzugoss Welfare System. All rights reserved.</p>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <p>&copy; 2025 Mzugoss Welfare System. All rights reserved.</p>
+                </div>
+                <div class="footer-section">
+                    <div class="version-info">
+                        <i class="fas fa-code-branch"></i>
+                        <span>Version {{ version }}</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </footer>
+
+    <script>
+        // Mobile Navigation
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const mobileNavOverlay = document.getElementById('mobileNavOverlay');
+            const closeMobileNav = document.getElementById('closeMobileNav');
+
+            function openMobileNav() {
+                mobileNavOverlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeMobileNavFunc() {
+                mobileNavOverlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            mobileMenuBtn.addEventListener('click', openMobileNav);
+            closeMobileNav.addEventListener('click', closeMobileNavFunc);
+            mobileNavOverlay.addEventListener('click', function(e) {
+                if (e.target === mobileNavOverlay) {
+                    closeMobileNavFunc();
+                }
+            });
+
+            // Close mobile nav when clicking on links
+            document.querySelectorAll('.mobile-nav-link').forEach(link => {
+                link.addEventListener('click', closeMobileNavFunc);
+            });
+        });
+    </script>
 
     {% block extra_js %}{% endblock %}
 </body>

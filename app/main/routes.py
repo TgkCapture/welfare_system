@@ -1,5 +1,5 @@
 # === app/main/routes.py ===
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, send_file, flash, session, jsonify
+from flask import Blueprint, make_response, render_template, request, redirect, url_for, current_app, send_file, flash, session, jsonify
 from flask_login import login_required, current_user
 import os
 import pandas as pd
@@ -16,10 +16,17 @@ main = Blueprint('main', __name__)
 def dashboard():
     # Get the stored Google Sheets URL if available
     sheet_url = Setting.get_value('google_sheets_url', current_app.config.get('DEFAULT_SHEET_URL', ''))
+    
+    current_date = datetime.now()
+    current_year = current_date.year
+    current_month = current_date.month
+    
     return render_template('dashboard.html', 
                          version=current_app.version, 
                          datetime=datetime,
-                         sheet_url=sheet_url)
+                         sheet_url=sheet_url,
+                         year=current_year,  
+                         month=current_month)  
 
 @main.route('/version')
 def version():
@@ -215,3 +222,32 @@ def download_paid_members():
         current_app.logger.error(f"Error generating image: {str(e)}")
         flash('Error generating paid members image', 'error')
         return redirect(url_for('main.report_preview'))
+
+@main.route('/rules')
+@main.route('/welfare-rules')
+def welfare_rules():
+    """Public endpoint for welfare rules - no login required"""
+    return render_template('welfare_rules.html', version=current_app.version)
+
+@main.route('/download-welfare-rules-pdf')
+def download_welfare_rules_pdf():
+    """Download welfare rules as PDF using ReportLab"""
+    try:
+        from app.main.pdf_utils import PDFGenerator
+        
+        # Generate PDF
+        pdf_content = PDFGenerator.generate_welfare_rules_pdf()
+        
+        # Create response
+        response = make_response(pdf_content)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = \
+            'attachment; filename=mzugoss_welfare_rules.pdf'
+        
+        return response
+        
+    except Exception as e:
+        current_app.logger.error(f"PDF download failed: {str(e)}")
+        # Fallback to print functionality
+        flash('PDF generation unavailable. Using print to PDF instead.', 'warning')
+        return redirect(url_for('main.welfare_rules'))
