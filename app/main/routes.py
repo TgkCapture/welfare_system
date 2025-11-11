@@ -222,3 +222,10 @@ def download_paid_members():
         current_app.logger.error(f"Error generating image: {str(e)}")
         flash('Error generating paid members image', 'error')
         return redirect(url_for('main.report_preview'))
+
+@main.route('/rules')
+@main.route('/welfare-rules')
+def welfare_rules():
+    """Public endpoint for welfare rules - no login required"""
+    return render_template('welfare_rules.html', version=current_app.version)
+
