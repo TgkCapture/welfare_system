@@ -16,10 +16,17 @@ main = Blueprint('main', __name__)
 def dashboard():
     # Get the stored Google Sheets URL if available
     sheet_url = Setting.get_value('google_sheets_url', current_app.config.get('DEFAULT_SHEET_URL', ''))
+    
+    current_date = datetime.now()
+    current_year = current_date.year
+    current_month = current_date.month
+    
     return render_template('dashboard.html', 
                          version=current_app.version, 
                          datetime=datetime,
-                         sheet_url=sheet_url)
+                         sheet_url=sheet_url,
+                         year=current_year,  
+                         month=current_month)  
 
 @main.route('/version')
 def version():
