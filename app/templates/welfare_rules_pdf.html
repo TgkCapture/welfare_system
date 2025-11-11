@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mzugoss Welfare Rules</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .header { 
+            text-align: center; 
+            margin-bottom: 1.5cm; 
+            padding: 1cm;
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: white;
+            margin: -1cm -1cm 1.5cm -1cm;
+        }
+        
+        .header h1 {
+            margin: 0 0 0.5cm 0;
+            font-size: 24pt;
+        }
+        
+        .header p {
+            margin: 0;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 0 1cm;
+        }
+        
+        .section { 
+            margin-bottom: 1cm; 
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        
+        .section-title { 
+            color: #2563eb; 
+            border-bottom: 2px solid #2563eb; 
+            padding-bottom: 0.3cm;
+            margin-bottom: 0.5cm;
+            font-size: 18pt;
+        }
+        
+        .subsection-title {
+            color: #1e293b;
+            font-size: 14pt;
+            margin: 0.5cm 0 0.3cm 0;
+            font-weight: bold;
+        }
+        
+        .fee-grid { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 0.5cm; 
+            margin: 0.5cm 0; 
+        }
+        
+        .fee-item { 
+            border: 1px solid #ddd; 
+            padding: 0.5cm; 
+            text-align: center; 
+            border-radius: 0.2cm;
+            background: #f8fafc;
+        }
+        
+        .fee-item h3 {
+            margin: 0 0 0.3cm 0;
+            font-size: 12pt;
+            color: #64748b;
+        }
+        
+        .amount { 
+            font-size: 16pt; 
+            font-weight: bold; 
+            color: #2563eb; 
+            margin: 0.2cm 0;
+        }
+        
+        .period {
+            font-size: 10pt;
+            color: #64748b;
+        }
+        
+        .rule-card {
+            background: #f8fafc;
+            padding: 0.5cm;
+            margin: 0.3cm 0;
+            border-radius: 0.2cm;
+            border-left: 4px solid #2563eb;
+        }
+        
+        .rule-badge {
+            background: #dbeafe;
+            color: #2563eb;
+            padding: 0.2cm 0.5cm;
+            border-radius: 1cm;
+            font-size: 10pt;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 0.3cm;
+        }
+        
+        .relationships-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.3cm;
+            margin: 0.3cm 0;
+        }
+        
+        .relationship-item {
+            background: white;
+            padding: 0.3cm;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.2cm;
+            font-size: 10pt;
+            display: flex;
+            align-items: center;
+            gap: 0.3cm;
+        }
+        
+        .rule-item {
+            margin: 0.3cm 0;
+            padding-left: 0.5cm;
+            border-left: 3px solid #cbd5e1;
+        }
+        
+        .example {
+            background: #fffbeb;
+            padding: 0.3cm;
+            margin: 0.3cm 0;
+            border-radius: 0.2cm;
+            border-left: 3px solid #f59e0b;
+            font-size: 10pt;
+        }
+        
+        .example-title {
+            font-weight: bold;
+            color: #d97706;
+        }
+        
+        .key-points-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5cm;
+            margin: 0.5cm 0;
+        }
+        
+        .key-point {
+            border: 1px solid #e2e8f0;
+            padding: 0.5cm;
+            border-radius: 0.2cm;
+            text-align: center;
+            background: white;
+        }
+        
+        .key-point h4 {
+            margin: 0 0 0.3cm 0;
+            color: #2563eb;
+            font-size: 11pt;
+        }
+        
+        .key-point p {
+            margin: 0;
+            font-size: 9pt;
+            color: #64748b;
+        }
+        
+        .footer { 
+            text-align: center; 
+            margin-top: 2cm; 
+            font-size: 8pt; 
+            color: #666;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 0.5cm;
+        }
+        
+        .page-break {
+            page-break-before: always;
+        }
+        
+        .highlight {
+            background: #f0f9ff;
+            padding: 0.3cm;
+            border-radius: 0.2cm;
+            margin: 0.3cm 0;
+        }
+        
+        .warning {
+            background: #fefce8;
+            padding: 0.3cm;
+            border-radius: 0.2cm;
+            border-left: 4px solid #f59e0b;
+            margin: 0.3cm 0;
+        }
+        
+        strong {
+            color: #1e293b;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Mzugoss Welfare Rules & Guidelines</h1>
+        <p>Last Updated: {{ now.strftime('%Y-%m-%d') }}</p>
+        <p>Community Welfare System - Fair and Sustainable Support</p>
+    </div>
+    
+    <div class="content">
+        <!-- Quick Summary Section -->
+        <div class="section">
+            <h2 class="section-title">Quick Summary</h2>
+            <div class="fee-grid">
+                <div class="fee-item">
+                    <h3>Monthly Contribution</h3>
+                    <div class="amount">K1,000</div>
+                    <div class="period">per month</div>
+                </div>
+                <div class="fee-item">
+                    <h3>Funeral Support</h3>
+                    <div class="amount">K20,000</div>
+                    <div class="period">per incident</div>
+                </div>
+                <div class="fee-item">
+                    <h3>Wedding Support</h3>
+                    <div class="amount">K50,000</div>
+                    <div class="period">per wedding</div>
+                </div>
+                <div class="fee-item">
+                    <h3>Sickness Support</h3>
+                    <div class="amount">K5,000</div>
+                    <div class="period">per admission</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Funeral Rules Section -->
+        <div class="section">
+            <h2 class="section-title">Funeral Support Rules</h2>
+            <p>Financial assistance during bereavement for immediate family members only.</p>
+            
+            <div class="rule-card">
+                <div class="rule-badge">Eligibility</div>
+                <p><strong>Money will only be released for immediate family members:</strong></p>
+                <div class="relationships-grid">
+                    <div class="relationship-item">✓ Mother</div>
+                    <div class="relationship-item">✓ Father</div>
+                    <div class="relationship-item">✓ Sister</div>
+                    <div class="relationship-item">✓ Brother</div>
+                    <div class="relationship-item">✓ Legal Guardian</div>
+                    <div class="relationship-item">✓ Husband/Wife</div>
+                    <div class="relationship-item">✓ Children</div>
+                </div>
+            </div>
+            
+            <div class="highlight">
+                <div class="rule-badge">Support Amount</div>
+                <div style="text-align: center;">
+                    <div class="amount">K20,000</div>
+                    <div class="period">per funeral incident</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contribution Rules Section -->
+        <div class="section">
+            <h2 class="section-title">Contribution Rules</h2>
+            <p>Monthly contributions system with penalties and benefits calculation.</p>
+            
+            <div class="warning">
+                <div class="rule-badge">Important Notice</div>
+                <p><strong>Non-contributors will not receive any welfare money.</strong> There will be no separate contributions for people who do not contribute regularly. Personal donations between members are allowed.</p>
+            </div>
+
+            <h3 class="subsection-title">Contribution Guidelines</h3>
+            
+            <div class="rule-item">
+                <h4>1. Late Payment Penalties</h4>
+                <p>5% penalty per month for late contributions. Multiple months accumulate penalties progressively.</p>
+                <div class="example">
+                    <span class="example-title">Example:</span> 2 months late = 10% penalty, 3 months late = 15% penalty
+                </div>
+            </div>
+            
+            <div class="rule-item">
+                <h4>2. Back Payments</h4>
+                <p>Missed months must be paid for the specific period they were missed. Payments are applied to the oldest outstanding month first.</p>
+            </div>
+            
+            <div class="rule-item">
+                <h4>3. Benefits Calculation</h4>
+                <p>Number of times you can receive help = Number of months you've contributed.</p>
+                <div class="example">
+                    <span class="example-title">Example:</span> 3 months contribution = eligible for support 3 times
+                </div>
+            </div>
+            
+            <div class="rule-item">
+                <h4>4. Partial Contributions</h4>
+                <p>For those contributing irregularly ("mwa apo ndi apo"), penalties apply based on the number of months skipped.</p>
+            </div>
+        </div>
+
+        <!-- Sickness Rules Section -->
+        <div class="section">
+            <h2 class="section-title">Sickness Support</h2>
+            <p>Medical and hospitalization assistance for members.</p>
+            
+            <div class="rule-card">
+                <div class="rule-badge">Eligibility Criteria</div>
+                <p>Support is provided for members who are <strong>admitted in the hospital for a couple of days</strong>. Outpatient visits and minor illnesses are not covered.</p>
+            </div>
+            
+            <div class="highlight">
+                <div class="rule-badge">Medical Support</div>
+                <div style="text-align: center;">
+                    <div class="amount">K5,000</div>
+                    <div class="period">per hospital admission</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wedding Rules Section -->
+        <div class="section">
+            <h2 class="section-title">Wedding Support</h2>
+            <p>Celebratory financial assistance for members getting married.</p>
+            
+            <div class="highlight">
+                <div class="rule-badge">Wedding Support</div>
+                <div style="text-align: center;">
+                    <div class="amount">K50,000</div>
+                    <div class="period">per wedding ceremony</div>
+                </div>
+            </div>
+            <p style="text-align: center; font-size: 10pt; color: #64748b; margin-top: 0.3cm;">
+                Available to contributing members for their own wedding ceremony
+            </p>
+        </div>
+
+        <!-- Key Points Summary -->
+        <div class="section page-break">
+            <h2 class="section-title">Key Points to Remember</h2>
+            <div class="key-points-grid">
+                <div class="key-point">
+                    <h4>Regular Contributions</h4>
+                    <p>Consistent monthly payments ensure you're eligible for support when needed</p>
+                </div>
+                <div class="key-point">
+                    <h4>Avoid Penalties</h4>
+                    <p>Pay on time to avoid 5% monthly penalties on late contributions</p>
+                </div>
+                <div class="key-point">
+                    <h4>Fair System</h4>
+                    <p>Benefits are proportional to your contributions - more contributions = more support eligibility</p>
+                </div>
+                <div class="key-point">
+                    <h4>Family Support</h4>
+                    <p>Immediate family coverage for funerals including spouses and children</p>
+                </div>
+                <div class="key-point">
+                    <h4>Hospitalization Required</h4>
+                    <p>Sickness support only for hospital admissions of multiple days</p>
+                </div>
+                <div class="key-point">
+                    <h4>No Separate Collections</h4>
+                    <p>No welfare money for non-contributors; only personal donations allowed</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Penalty Calculation Guide -->
+        <div class="section">
+            <h2 class="section-title">Penalty Calculation Guide</h2>
+            <p>Understanding how late payment penalties are calculated:</p>
+            
+            <div class="rule-card">
+                <h4>Penalty Rate: 5% per month</h4>
+                <p><strong>Formula:</strong> Penalty = Monthly Contribution × (5% × Number of Late Months)</p>
+                
+                <div class="example">
+                    <span class="example-title">Example Calculation:</span><br>
+                    Monthly Contribution: K1,000<br>
+                    2 months late: K1,000 × (5% × 2) = K1,000 × 10% = K100 penalty<br>
+                    Total to pay: K1,000 + K100 = K1,100
+                </div>
+                
+                <div class="example">
+                    <span class="example-title">3 months late:</span><br>
+                    K1,000 × (5% × 3) = K1,000 × 15% = K150 penalty<br>
+                    Total to pay: K1,000 + K150 = K1,150
+                </div>
+            </div>
+        </div>
+
+        <!-- Benefits Eligibility Guide -->
+        <div class="section">
+            <h2 class="section-title">Benefits Eligibility Guide</h2>
+            <p>How your contributions determine your support eligibility:</p>
+            
+            <div class="rule-card">
+                <h4>1:1 Benefit Ratio</h4>
+                <p><strong>Rule:</strong> Each month of contribution = One time eligible for support</p>
+                
+                <div class="example">
+                    <span class="example-title">Scenario 1:</span><br>
+                    6 months contributed = Eligible for support 6 times total<br>
+                    (Can be any combination of funeral, sickness, or wedding support)
+                </div>
+                
+                <div class="example">
+                    <span class="example-title">Scenario 2:</span><br>
+                    2 months contributed = Eligible for support 2 times only<br>
+                    Once used, must contribute more to be eligible again
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p><strong>Confidential - For Mzugoss Members Only</strong></p>
+        <p>Generated on: {{ now.strftime('%Y-%m-%d at %H:%M') }} | Version {{ version }}</p>
+        <p>These rules are designed to ensure fair and sustainable welfare support for all contributing members.</p>
+        <p>For any clarifications, please contact the welfare committee.</p>
+    </div>
+</body>
+</html>
