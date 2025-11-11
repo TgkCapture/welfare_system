@@ -1,5 +1,5 @@
 # === app/main/routes.py ===
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, send_file, flash, session, jsonify
+from flask import Blueprint, make_response, render_template, request, redirect, url_for, current_app, send_file, flash, session, jsonify
 from flask_login import login_required, current_user
 import os
 import pandas as pd
@@ -229,3 +229,25 @@ def welfare_rules():
     """Public endpoint for welfare rules - no login required"""
     return render_template('welfare_rules.html', version=current_app.version)
 
+@main.route('/download-welfare-rules-pdf')
+def download_welfare_rules_pdf():
+    """Download welfare rules as PDF using ReportLab"""
+    try:
+        from app.main.pdf_utils import PDFGenerator
+        
+        # Generate PDF
+        pdf_content = PDFGenerator.generate_welfare_rules_pdf()
+        
+        # Create response
+        response = make_response(pdf_content)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = \
+            'attachment; filename=mzugoss_welfare_rules.pdf'
+        
+        return response
+        
+    except Exception as e:
+        current_app.logger.error(f"PDF download failed: {str(e)}")
+        # Fallback to print functionality
+        flash('PDF generation unavailable. Using print to PDF instead.', 'warning')
+        return redirect(url_for('main.welfare_rules'))
