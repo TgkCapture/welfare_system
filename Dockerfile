@@ -1,25 +1,27 @@
-# Dockerfile
-FROM python:3.11-slim
+# Use Python 3.10 or higher
+FROM python:3.10-slim
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-ENV FLASK_APP=run.py
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc python3-dev \
+RUN apt-get update && apt-get install -y \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p instance/uploads instance/reports
+RUN mkdir -p uploads
 
-RUN chmod 755 instance instance/uploads instance/reports
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
-EXPOSE 5000
+EXPOSE 5025
 
-CMD ["python", "run.py"]
+# Use the entrypoint script
+CMD ["./entrypoint.sh"]
