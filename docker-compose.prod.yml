@@ -1,0 +1,29 @@
+version: '3.8'
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY}
+      - SQLALCHEMY_DATABASE_URI=sqlite:///instance/db.sqlite3
+      - UPLOAD_FOLDER=/app/uploads
+      - REPORT_FOLDER=/app/reports
+      - GOOGLE_CREDENTIALS_PATH=/app/credentials/mzugoss-welfare-5dab294def1f.json
+      - DEFAULT_SHEET_URL=${DEFAULT_SHEET_URL}
+    volumes:
+      - uploads_data:/app/uploads
+      - reports_data:/app/reports
+      - instance_data:/app/instance
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  uploads_data:
+  reports_data:
+  instance_data:
