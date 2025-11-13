@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+instance/db.sqlite3
+uploads/
+reports/
+*.log
+.env
+.git
+.gitignore
+__pycache__
+.vscode
+.idea
