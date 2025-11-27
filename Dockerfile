@@ -21,7 +21,7 @@ RUN mkdir -p uploads
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
 
-EXPOSE 5025
+EXPOSE 5000
 
 # Use the entrypoint script
 CMD ["./entrypoint.sh"]
