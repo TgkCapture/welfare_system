@@ -1,0 +1,11 @@
+# Set the default behavior for all files
+* text=auto
+
+# Ensure shell scripts have LF line endings and executable permissions
+*.sh text eol=lf
+
+# Force specific file types to LF
+*.py text eol=lf
+*.txt text eol=lf
+*.md text eol=lf
+Dockerfile text eol=lf
