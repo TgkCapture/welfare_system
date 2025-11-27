@@ -27,4 +27,4 @@ RUN ls -la /app/entrypoint.sh
 
 EXPOSE 5000
 
-CMD ["./entrypoint.sh"]
+CMD ["/bin/sh", "./entrypoint.sh"]
