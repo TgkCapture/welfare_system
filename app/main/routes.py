@@ -1,13 +1,15 @@
 # === app/main/routes.py ===
-from flask import Blueprint, make_response, render_template, request, redirect, url_for, current_app, send_file, flash, session, jsonify
+from flask import Blueprint, make_response, render_template, request, redirect, url_for, current_app, send_file, flash, session, jsonify, send_from_directory
 from flask_login import login_required, current_user
 import os
 import pandas as pd
 from werkzeug.utils import secure_filename
 from datetime import datetime
+import io
 from .utils import parse_excel, generate_report, generate_paid_members_image
 from app.google_sheets import google_sheets_service
 from app.models import Setting
+from app.main.pdf_utils import PDFGenerator, ShareUtils, WelfareRulesData
 
 main = Blueprint('main', __name__)
 
@@ -223,31 +225,145 @@ def download_paid_members():
         flash('Error generating paid members image', 'error')
         return redirect(url_for('main.report_preview'))
 
+# ==================== WELFARE RULES ROUTES ====================
+
 @main.route('/rules')
 @main.route('/welfare-rules')
 def welfare_rules():
     """Public endpoint for welfare rules - no login required"""
-    return render_template('welfare_rules.html', version=current_app.version)
+    # Get welfare rules data from centralized source
+    welfare_data = WelfareRulesData.get_summary()
+    
+    return render_template('welfare_rules.html', 
+                         version=current_app.version,
+                         welfare_data=welfare_data,
+                         funeral_eligibility=WelfareRulesData.get_funeral_eligibility(),
+                         penalty_info=WelfareRulesData.get_penalty_info(),
+                         benefit_scenarios=WelfareRulesData.get_benefit_scenarios())
 
-@main.route('/download-welfare-rules-pdf')
+@main.route('/welfare-rules/pdf')
 def download_welfare_rules_pdf():
     """Download welfare rules as PDF using ReportLab"""
     try:
-        from app.main.pdf_utils import PDFGenerator
-        
-        # Generate PDF
+        # Generate PDF using ReportLab
         pdf_content = PDFGenerator.generate_welfare_rules_pdf()
         
         # Create response
         response = make_response(pdf_content)
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = \
-            'attachment; filename=mzugoss_welfare_rules.pdf'
+            'attachment; filename=mzugoss_welfare_rules_v2.pdf'
         
         return response
         
     except Exception as e:
         current_app.logger.error(f"PDF download failed: {str(e)}")
-        # Fallback to print functionality
-        flash('PDF generation unavailable. Using print to PDF instead.', 'warning')
+        flash('PDF generation is temporarily unavailable. Please try the HTML download option instead.', 'warning')
         return redirect(url_for('main.welfare_rules'))
+
+@main.route('/welfare-rules/html-download')
+def download_welfare_rules_html():
+    """Download welfare rules as HTML file"""
+    try:
+        # Read the HTML template
+        html_content = render_template(
+            'welfare_rules_pdf.html', 
+            now=datetime.now(), 
+            version='2.0'
+        )
+        
+        # Create response
+        response = make_response(html_content)
+        response.headers['Content-Type'] = 'text/html'
+        response.headers['Content-Disposition'] = \
+            'attachment; filename=mzugoss_welfare_rules_v2.html'
+        
+        return response
+        
+    except Exception as e:
+        current_app.logger.error(f"HTML download failed: {str(e)}")
+        flash('HTML download failed. Please try again later.', 'error')
+        return redirect(url_for('main.welfare_rules'))
+
+@main.route('/welfare-rules/print')
+def print_welfare_rules():
+    """Special print-friendly version of welfare rules"""
+    return render_template('welfare_rules_print.html',
+                         version=current_app.version,
+                         welfare_data=WelfareRulesData.get_summary(),
+                         funeral_eligibility=WelfareRulesData.get_funeral_eligibility(),
+                         penalty_info=WelfareRulesData.get_penalty_info(),
+                         benefit_scenarios=WelfareRulesData.get_benefit_scenarios())
+
+@main.route('/welfare-rules/share/<share_type>')
+def share_welfare_rules(share_type):
+    """Share welfare rules on different platforms"""
+    valid_share_types = ['whatsapp', 'email', 'sms', 'twitter', 'facebook']
+    
+    if share_type not in valid_share_types:
+        flash('Invalid share type', 'error')
+        return redirect(url_for('main.welfare_rules'))
+    
+    try:
+        share_url = ShareUtils.get_share_url(share_type)
+        return redirect(share_url)
+    except Exception as e:
+        current_app.logger.error(f"Share error: {str(e)}")
+        flash('Sharing failed. Please copy the link manually.', 'error')
+        return redirect(url_for('main.welfare_rules'))
+
+@main.route('/welfare-rules/copy-link')
+def copy_welfare_rules_link():
+    """API endpoint to get share link for copying"""
+    share_text = ShareUtils.get_share_text('general')
+    return jsonify({
+        'success': True,
+        'url': share_text['url'],
+        'message': 'Link copied to clipboard'
+    })
+
+@main.route('/welfare-rules/api/data')
+def welfare_rules_api_data():
+    """API endpoint for welfare rules data (for AJAX requests)"""
+    try:
+        return jsonify({
+            'success': True,
+            'summary': WelfareRulesData.get_summary(),
+            'funeral_eligibility': WelfareRulesData.get_funeral_eligibility(),
+            'penalty_info': WelfareRulesData.get_penalty_info(),
+            'benefit_scenarios': WelfareRulesData.get_benefit_scenarios()
+        })
+    except Exception as e:
+        current_app.logger.error(f"API error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ==================== STATIC FILES ====================
+
+@main.route('/static/css/pdf_styles.css')
+def serve_pdf_styles():
+    """Serve PDF CSS file"""
+    return send_from_directory('static/css', 'pdf_styles.css')
+
+@main.route('/static/js/welfare_rules.js')
+def serve_welfare_rules_js():
+    """Serve welfare rules JavaScript file"""
+    return send_from_directory('static/js', 'welfare_rules.js')
+
+@main.route('/static/css/welfare_rules.css')
+def serve_welfare_rules_css():
+    """Serve welfare rules CSS file"""
+    return send_from_directory('static/css', 'welfare_rules.css')
+
+# ==================== HEALTH CHECK ====================
+
+@main.route('/health')
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'version': current_app.version,
+        'timestamp': datetime.now().isoformat()
+    })

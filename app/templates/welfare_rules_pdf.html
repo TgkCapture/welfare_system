@@ -3,208 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Mzugoss Welfare Rules</title>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            line-height: 1.6; 
-            color: #333;
-            margin: 0;
-            padding: 0;
-        }
-        
-        .header { 
-            text-align: center; 
-            margin-bottom: 1.5cm; 
-            padding: 1cm;
-            background: linear-gradient(135deg, #2563eb, #3b82f6);
-            color: white;
-            margin: -1cm -1cm 1.5cm -1cm;
-        }
-        
-        .header h1 {
-            margin: 0 0 0.5cm 0;
-            font-size: 24pt;
-        }
-        
-        .header p {
-            margin: 0;
-            opacity: 0.9;
-        }
-        
-        .content {
-            padding: 0 1cm;
-        }
-        
-        .section { 
-            margin-bottom: 1cm; 
-            break-inside: avoid;
-            page-break-inside: avoid;
-        }
-        
-        .section-title { 
-            color: #2563eb; 
-            border-bottom: 2px solid #2563eb; 
-            padding-bottom: 0.3cm;
-            margin-bottom: 0.5cm;
-            font-size: 18pt;
-        }
-        
-        .subsection-title {
-            color: #1e293b;
-            font-size: 14pt;
-            margin: 0.5cm 0 0.3cm 0;
-            font-weight: bold;
-        }
-        
-        .fee-grid { 
-            display: grid; 
-            grid-template-columns: repeat(2, 1fr); 
-            gap: 0.5cm; 
-            margin: 0.5cm 0; 
-        }
-        
-        .fee-item { 
-            border: 1px solid #ddd; 
-            padding: 0.5cm; 
-            text-align: center; 
-            border-radius: 0.2cm;
-            background: #f8fafc;
-        }
-        
-        .fee-item h3 {
-            margin: 0 0 0.3cm 0;
-            font-size: 12pt;
-            color: #64748b;
-        }
-        
-        .amount { 
-            font-size: 16pt; 
-            font-weight: bold; 
-            color: #2563eb; 
-            margin: 0.2cm 0;
-        }
-        
-        .period {
-            font-size: 10pt;
-            color: #64748b;
-        }
-        
-        .rule-card {
-            background: #f8fafc;
-            padding: 0.5cm;
-            margin: 0.3cm 0;
-            border-radius: 0.2cm;
-            border-left: 4px solid #2563eb;
-        }
-        
-        .rule-badge {
-            background: #dbeafe;
-            color: #2563eb;
-            padding: 0.2cm 0.5cm;
-            border-radius: 1cm;
-            font-size: 10pt;
-            font-weight: bold;
-            display: inline-block;
-            margin-bottom: 0.3cm;
-        }
-        
-        .relationships-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.3cm;
-            margin: 0.3cm 0;
-        }
-        
-        .relationship-item {
-            background: white;
-            padding: 0.3cm;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.2cm;
-            font-size: 10pt;
-            display: flex;
-            align-items: center;
-            gap: 0.3cm;
-        }
-        
-        .rule-item {
-            margin: 0.3cm 0;
-            padding-left: 0.5cm;
-            border-left: 3px solid #cbd5e1;
-        }
-        
-        .example {
-            background: #fffbeb;
-            padding: 0.3cm;
-            margin: 0.3cm 0;
-            border-radius: 0.2cm;
-            border-left: 3px solid #f59e0b;
-            font-size: 10pt;
-        }
-        
-        .example-title {
-            font-weight: bold;
-            color: #d97706;
-        }
-        
-        .key-points-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.5cm;
-            margin: 0.5cm 0;
-        }
-        
-        .key-point {
-            border: 1px solid #e2e8f0;
-            padding: 0.5cm;
-            border-radius: 0.2cm;
-            text-align: center;
-            background: white;
-        }
-        
-        .key-point h4 {
-            margin: 0 0 0.3cm 0;
-            color: #2563eb;
-            font-size: 11pt;
-        }
-        
-        .key-point p {
-            margin: 0;
-            font-size: 9pt;
-            color: #64748b;
-        }
-        
-        .footer { 
-            text-align: center; 
-            margin-top: 2cm; 
-            font-size: 8pt; 
-            color: #666;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 0.5cm;
-        }
-        
-        .page-break {
-            page-break-before: always;
-        }
-        
-        .highlight {
-            background: #f0f9ff;
-            padding: 0.3cm;
-            border-radius: 0.2cm;
-            margin: 0.3cm 0;
-        }
-        
-        .warning {
-            background: #fefce8;
-            padding: 0.3cm;
-            border-radius: 0.2cm;
-            border-left: 4px solid #f59e0b;
-            margin: 0.3cm 0;
-        }
-        
-        strong {
-            color: #1e293b;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pdf_styles.css') }}">
 </head>
 <body>
     <div class="header">
@@ -225,17 +24,17 @@
                 </div>
                 <div class="fee-item">
                     <h3>Funeral Support</h3>
-                    <div class="amount">K20,000</div>
+                    <div class="amount">K50,000</div>
                     <div class="period">per incident</div>
                 </div>
                 <div class="fee-item">
                     <h3>Wedding Support</h3>
-                    <div class="amount">K50,000</div>
+                    <div class="amount">K80,000</div>
                     <div class="period">per wedding</div>
                 </div>
                 <div class="fee-item">
                     <h3>Sickness Support</h3>
-                    <div class="amount">K5,000</div>
+                    <div class="amount">K15,000</div>
                     <div class="period">per admission</div>
                 </div>
             </div>
@@ -262,9 +61,27 @@
             
             <div class="highlight">
                 <div class="rule-badge">Support Amount</div>
-                <div style="text-align: center;">
-                    <div class="amount">K20,000</div>
+                <div class="special-amount">
+                    <div class="amount">K50,000</div>
                     <div class="period">per funeral incident</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deceased Member Support Section -->
+        <div class="section">
+            <h2 class="section-title">Deceased Member Support</h2>
+            <p>Special support for when a contributing member passes away.</p>
+            
+            <div class="important-section">
+                <div class="important-badge">Special Support</div>
+                <p><strong>When a contributing member dies:</strong></p>
+                <div class="special-amount">
+                    <div class="amount">K80,000</div>
+                    <div class="period">support for family</div>
+                </div>
+                <div class="clarification-note">
+                    <strong>Clarification:</strong> This support is specifically for when a member (someone who contributes regularly) passes away. The K80,000 is provided to support the member's family during this difficult time.
                 </div>
             </div>
         </div>
@@ -275,8 +92,8 @@
             <p>Monthly contributions system with penalties and benefits calculation.</p>
             
             <div class="warning">
-                <div class="rule-badge">Important Notice</div>
-                <p><strong>Non-contributors will not receive any welfare money.</strong> There will be no separate contributions for people who do not contribute regularly. Personal donations between members are allowed.</p>
+                <div class="important-badge">Important Notice</div>
+                <p><strong>Those who are eligible to receive the welfare money are only those who contribute</strong>; therefore, those who do not contribute are not eligible to receive the money.</p>
             </div>
 
             <h3 class="subsection-title">Contribution Guidelines</h3>
@@ -320,8 +137,8 @@
             
             <div class="highlight">
                 <div class="rule-badge">Medical Support</div>
-                <div style="text-align: center;">
-                    <div class="amount">K5,000</div>
+                <div class="special-amount">
+                    <div class="amount">K15,000</div>
                     <div class="period">per hospital admission</div>
                 </div>
             </div>
@@ -334,12 +151,12 @@
             
             <div class="highlight">
                 <div class="rule-badge">Wedding Support</div>
-                <div style="text-align: center;">
-                    <div class="amount">K50,000</div>
+                <div class="special-amount">
+                    <div class="amount">K80,000</div>
                     <div class="period">per wedding ceremony</div>
                 </div>
             </div>
-            <p style="text-align: center; font-size: 10pt; color: #64748b; margin-top: 0.3cm;">
+            <p class="wedding-note">
                 Available to contributing members for their own wedding ceremony
             </p>
         </div>
@@ -361,12 +178,20 @@
                     <p>Benefits are proportional to your contributions - more contributions = more support eligibility</p>
                 </div>
                 <div class="key-point">
+                    <h4>Member Death Support</h4>
+                    <p>K80,000 support when a contributing member passes away</p>
+                </div>
+                <div class="key-point">
                     <h4>Family Support</h4>
                     <p>Immediate family coverage for funerals including spouses and children</p>
                 </div>
                 <div class="key-point">
-                    <h4>Hospitalization Required</h4>
-                    <p>Sickness support only for hospital admissions of multiple days</p>
+                    <h4>Enhanced Medical Support</h4>
+                    <p>K15,000 for hospital admissions requiring multiple days</p>
+                </div>
+                <div class="key-point">
+                    <h4>Wedding Celebration</h4>
+                    <p>K80,000 support for members getting married</p>
                 </div>
                 <div class="key-point">
                     <h4>No Separate Collections</h4>
@@ -411,7 +236,7 @@
                 <div class="example">
                     <span class="example-title">Scenario 1:</span><br>
                     6 months contributed = Eligible for support 6 times total<br>
-                    (Can be any combination of funeral, sickness, or wedding support)
+                    (Can be any combination of funeral, sickness, wedding, or member death support)
                 </div>
                 
                 <div class="example">
@@ -419,7 +244,52 @@
                     2 months contributed = Eligible for support 2 times only<br>
                     Once used, must contribute more to be eligible again
                 </div>
+                
+                <div class="example">
+                    <span class="example-title">Scenario 3:</span><br>
+                    Member death support counts as one support instance<br>
+                    If a member contributed for 5 months and passes away:<br>
+                    - Family receives K80,000 support<br>
+                    - This counts as 1 support instance used<br>
+                    - Member had contributed for 4 other potential support instances
+                </div>
             </div>
+        </div>
+        
+        <!-- Support Comparison Table -->
+        <div class="section">
+            <h2 class="section-title">Support Amounts Comparison</h2>
+            <table class="support-table">
+                <thead>
+                    <tr>
+                        <th>Support Type</th>
+                        <th>Amount</th>
+                        <th>Eligibility</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Funeral Support</td>
+                        <td class="amount-cell">K50,000</td>
+                        <td>Immediate family members</td>
+                    </tr>
+                    <tr class="important-row">
+                        <td><strong>Member Death Support</strong></td>
+                        <td class="important-amount">K80,000</td>
+                        <td>When a contributing member passes away</td>
+                    </tr>
+                    <tr>
+                        <td>Wedding Support</td>
+                        <td class="amount-cell">K80,000</td>
+                        <td>Member's own wedding</td>
+                    </tr>
+                    <tr>
+                        <td>Sickness Support</td>
+                        <td class="amount-cell">K15,000</td>
+                        <td>Hospital admission (multiple days)</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
     

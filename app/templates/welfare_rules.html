@@ -2,12 +2,16 @@
 {% extends 'base.html' %}
 {% block title %}Welfare Rules - Mzugoss Welfare{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/welfare_rules.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="rules-container">
     <!-- Action Bar -->
     <div class="action-bar">
         <div class="action-buttons">
-            <button class="btn btn-primary btn-action" onclick="printRules()">
+            <button class="btn btn-primary btn-action" data-action="print">
                 <i class="fas fa-print"></i>
                 Print Rules
             </button>
@@ -71,7 +75,7 @@
             </div>
             <div class="summary-content">
                 <h3>Funeral Support</h3>
-                <div class="summary-amount">K20,000</div>
+                <div class="summary-amount">K50,000</div>
                 <span class="summary-period">per incident</span>
             </div>
         </div>
@@ -82,7 +86,7 @@
             </div>
             <div class="summary-content">
                 <h3>Wedding Support</h3>
-                <div class="summary-amount">K50,000</div>
+                <div class="summary-amount">K80,000</div>
                 <span class="summary-period">per wedding</span>
             </div>
         </div>
@@ -93,7 +97,7 @@
             </div>
             <div class="summary-content">
                 <h3>Sickness Support</h3>
-                <div class="summary-amount">K5,000</div>
+                <div class="summary-amount">K15,000</div>
                 <span class="summary-period">per admission</span>
             </div>
         </div>
@@ -135,9 +139,40 @@
                     </div>
                     <div class="amount-display">
                         <span class="currency">K</span>
-                        <span class="amount">20,000</span>
+                        <span class="amount">50,000</span>
                         <span class="purpose">per funeral</span>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Deceased Member Support -->
+        <section class="rule-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <i class="fas fa-user-friends"></i>
+                </div>
+                <div class="section-title">
+                    <h2>Deceased Member Support</h2>
+                    <p>Support for when a contributing member passes away</p>
+                </div>
+            </div>
+            <div class="rule-content">
+                <div class="rule-card important">
+                    <div class="rule-badge important">
+                        <i class="fas fa-hand-holding-heart"></i>
+                        Special Support
+                    </div>
+                    <p><strong>When a contributing member dies:</strong></p>
+                    <div class="amount-display">
+                        <span class="currency">K</span>
+                        <span class="amount">80,000</span>
+                        <span class="purpose">support for family</span>
+                    </div>
+                    <p class="clarification-note">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Clarification:</strong> This support is specifically for when a member (someone who contributes regularly) passes away. The K80,000 is provided to support the member's family during this difficult time.
+                    </p>
                 </div>
             </div>
         </section>
@@ -224,7 +259,7 @@
                     </div>
                     <div class="amount-display">
                         <span class="currency">K</span>
-                        <span class="amount">5,000</span>
+                        <span class="amount">15,000</span>
                         <span class="purpose">per hospital admission</span>
                     </div>
                 </div>
@@ -250,7 +285,7 @@
                     </div>
                     <div class="amount-display">
                         <span class="currency">K</span>
-                        <span class="amount">50,000</span>
+                        <span class="amount">80,000</span>
                         <span class="purpose">per wedding ceremony</span>
                     </div>
                 </div>
@@ -282,9 +317,19 @@
                     <p>Benefits are proportional to your contributions - more contributions = more support eligibility</p>
                 </div>
                 <div class="key-point">
+                    <i class="fas fa-user-friends"></i>
+                    <h4>Member Death Support</h4>
+                    <p>K80,000 support when a contributing member passes away</p>
+                </div>
+                <div class="key-point">
                     <i class="fas fa-family"></i>
                     <h4>Family Support</h4>
                     <p>Immediate family coverage for funerals including spouses and children</p>
+                </div>
+                <div class="key-point">
+                    <i class="fas fa-hospital-alt"></i>
+                    <h4>Enhanced Medical Support</h4>
+                    <p>K15,000 for hospital admissions requiring multiple days</p>
                 </div>
             </div>
         </section>
@@ -340,870 +385,8 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
-<style>
-/* Rules Container */
-.rules-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
-}
-
-/* Hero Section */
-.rules-hero {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-    color: white;
-    padding: 3rem 2rem;
-    border-radius: var(--radius-xl);
-    margin-bottom: 2rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: var(--shadow-lg);
-    position: relative;
-    overflow: hidden;
-}
-
-.rules-hero::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 200px;
-    height: 200px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 50%;
-    transform: translate(30%, -30%);
-}
-
-.hero-content {
-    flex: 1;
-    z-index: 1;
-}
-
-.hero-title {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.hero-subtitle {
-    font-size: 1.2rem;
-    opacity: 0.9;
-    margin-bottom: 1.5rem;
-}
-
-.hero-stats {
-    display: flex;
-    gap: 1rem;
-}
-
-.stat-badge {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: rgba(255, 255, 255, 0.2);
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius-lg);
-    font-size: 0.9rem;
-    backdrop-filter: blur(10px);
-}
-
-.hero-icon {
-    font-size: 6rem;
-    opacity: 0.8;
-    z-index: 1;
-}
-
-/* Summary Cards */
-.summary-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 3rem;
-}
-
-.summary-card {
-    background: var(--bg-card);
-    padding: 1.5rem;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    transition: var(--transition);
-    border-left: 4px solid;
-}
-
-.summary-card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--shadow-lg);
-}
-
-.summary-icon {
-    width: 4rem;
-    height: 4rem;
-    border-radius: var(--radius-lg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    color: white;
-}
-
-.summary-icon.monthly {
-    background: linear-gradient(135deg, #10b981, #34d399);
-    border-left-color: #10b981;
-}
-
-.summary-icon.funeral {
-    background: linear-gradient(135deg, #6b7280, #9ca3af);
-    border-left-color: #6b7280;
-}
-
-.summary-icon.wedding {
-    background: linear-gradient(135deg, #f59e0b, #fbbf24);
-    border-left-color: #f59e0b;
-}
-
-.summary-icon.sickness {
-    background: linear-gradient(135deg, #ef4444, #f87171);
-    border-left-color: #ef4444;
-}
-
-.summary-content h3 {
-    font-size: 1rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.5rem;
-    font-weight: 600;
-}
-
-.summary-amount {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    line-height: 1;
-}
-
-.summary-period {
-    font-size: 0.875rem;
-    color: var(--text-light);
-}
-
-/* Rule Sections */
-.rule-section {
-    background: var(--bg-card);
-    border-radius: var(--radius-xl);
-    padding: 2rem;
-    margin-bottom: 2rem;
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-light);
-}
-
-.section-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 2px solid var(--border-light);
-}
-
-.section-icon {
-    width: 3rem;
-    height: 3rem;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-    border-radius: var(--radius-lg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 1.25rem;
-}
-
-.section-title h2 {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 0.25rem;
-}
-
-.section-title p {
-    color: var(--text-secondary);
-    margin: 0;
-}
-
-/* Rule Content */
-.rule-content {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.rule-card {
-    background: var(--bg-color);
-    padding: 1.5rem;
-    border-radius: var(--radius-lg);
-    border-left: 4px solid var(--border-color);
-}
-
-.rule-card.highlight {
-    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-    border-left-color: var(--primary-color);
-}
-
-.rule-card.warning {
-    background: linear-gradient(135deg, #fefce8, #fef3c7);
-    border-left-color: var(--warning-color);
-}
-
-.rule-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius-full);
-    font-size: 0.875rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-}
-
-.rule-badge.eligibility {
-    background: rgba(16, 185, 129, 0.1);
-    color: var(--success-color);
-}
-
-.rule-badge.amount {
-    background: rgba(37, 99, 235, 0.1);
-    color: var(--primary-color);
-}
-
-.rule-badge.important {
-    background: rgba(245, 158, 11, 0.1);
-    color: var(--warning-color);
-}
-
-/* Relationships Grid */
-.relationships-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 0.75rem;
-    margin-top: 1rem;
-}
-
-.relationship-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    background: white;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-    font-size: 0.875rem;
-    font-weight: 500;
-}
-
-.relationship-item i {
-    color: var(--success-color);
-}
-
-/* Amount Display */
-.amount-display {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-}
-
-.amount-display .currency {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--primary-color);
-}
-
-.amount-display .amount {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.amount-display .purpose {
-    font-size: 1rem;
-    color: var(--text-secondary);
-    margin-left: 0.5rem;
-}
-
-/* Rules Grid */
-.rules-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.rule-item {
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-}
-
-.rule-number {
-    width: 2.5rem;
-    height: 2.5rem;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    flex-shrink: 0;
-    margin-top: 0.25rem;
-}
-
-.rule-text h4 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
-}
-
-.rule-text p {
-    color: var(--text-secondary);
-    margin-bottom: 0.5rem;
-}
-
-.penalty-example,
-.benefit-example {
-    background: rgba(255, 255, 255, 0.8);
-    padding: 0.5rem 0.75rem;
-    border-radius: var(--radius-md);
-    border-left: 3px solid var(--warning-color);
-    margin-top: 0.5rem;
-}
-
-.example-title {
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-right: 0.5rem;
-}
-
-.example-text {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-}
-
-/* Key Points */
-.key-points-section {
-    background: linear-gradient(135deg, #f8fafc, #e2e8f0);
-    border-radius: var(--radius-xl);
-    padding: 2rem;
-    margin-bottom: 2rem;
-}
-
-.key-points-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
-    margin-top: 1.5rem;
-}
-
-.key-point {
-    background: white;
-    padding: 1.5rem;
-    border-radius: var(--radius-lg);
-    text-align: center;
-    box-shadow: var(--shadow-sm);
-    transition: var(--transition);
-}
-
-.key-point:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
-}
-
-.key-point i {
-    font-size: 2rem;
-    color: var(--primary-color);
-    margin-bottom: 1rem;
-}
-
-.key-point h4 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
-}
-
-.key-point p {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    line-height: 1.5;
-}
-
-/* Footer */
-.rules-footer {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: 1.5rem;
-    text-align: center;
-    border-top: 3px solid var(--primary-color);
-}
-
-.footer-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.footer-content i {
-    color: var(--primary-color);
-    font-size: 1.25rem;
-}
-
-.footer-content p {
-    color: var(--text-secondary);
-    margin: 0;
-    max-width: 600px;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .rules-container {
-        padding: 1rem;
-    }
-    
-    .rules-hero {
-        flex-direction: column;
-        text-align: center;
-        padding: 2rem 1rem;
-    }
-    
-    .hero-title {
-        font-size: 2rem;
-        justify-content: center;
-    }
-    
-    .hero-stats {
-        justify-content: center;
-        flex-wrap: wrap;
-    }
-    
-    .hero-icon {
-        font-size: 4rem;
-        margin-top: 1rem;
-    }
-    
-    .summary-cards {
-        grid-template-columns: 1fr;
-    }
-    
-    .rule-section {
-        padding: 1.5rem;
-    }
-    
-    .section-header {
-        flex-direction: column;
-        text-align: center;
-        gap: 0.5rem;
-    }
-    
-    .relationships-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .key-points-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .amount-display {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: 0.25rem;
-    }
-    
-    .amount-display .amount {
-        font-size: 2rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .hero-title {
-        font-size: 1.75rem;
-    }
-    
-    .rule-item {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .rule-number {
-        align-self: center;
-    }
-}
-
-/* Print Styles */
-@media print {
-    .action-bar,
-    .modal {
-        display: none !important;
-    }
-    
-    .rules-hero {
-        background: #f8f9fa !important;
-        color: #000 !important;
-        box-shadow: none !important;
-    }
-    
-    .summary-card {
-        break-inside: avoid;
-    }
-    
-    .rule-section {
-        break-inside: avoid;
-    }
-}
-
-/* Action Bar Styles */
-.action-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-    padding: 1.5rem;
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    border-left: 4px solid var(--primary-color);
-}
-
-.action-buttons {
-    display: flex;
-    gap: 1rem;
-}
-
-.btn-action {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.875rem 1.5rem;
-    border: none;
-    border-radius: var(--radius-md);
-    font-weight: 600;
-    cursor: pointer;
-    transition: var(--transition);
-    text-decoration: none;
-}
-
-.btn-action:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-    color: white;
-}
-
-.btn-success {
-    background: linear-gradient(135deg, var(--success-color), #34d399);
-    color: white;
-}
-
-.btn-info {
-    background: linear-gradient(135deg, var(--info-color), #22d3ee);
-    color: white;
-}
-
-.last-updated {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-light);
-    font-size: 0.875rem;
-}
-
-/* Modal Styles */
-.modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 10000;
-    backdrop-filter: blur(5px);
-}
-
-.modal-content {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--bg-card);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-xl);
-    width: 90%;
-    max-width: 500px;
-    max-height: 90vh;
-    overflow-y: auto;
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem 2rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.modal-header h3 {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1.5rem;
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 1.25rem;
-    color: var(--text-light);
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: var(--radius-sm);
-    transition: var(--transition);
-}
-
-.modal-close:hover {
-    background: var(--border-light);
-    color: var(--text-primary);
-}
-
-.modal-body {
-    padding: 2rem;
-}
-
-/* Share Options */
-.share-options {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    margin-bottom: 2rem;
-}
-
-.share-option {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1.5rem 1rem;
-    background: var(--bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    cursor: pointer;
-    transition: var(--transition);
-    color: var(--text-primary);
-}
-
-.share-option:hover {
-    background: var(--primary-color);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.share-option i {
-    font-size: 2rem;
-}
-
-.share-option span {
-    font-weight: 500;
-    font-size: 0.9rem;
-}
-
-/* Share Link Container */
-.share-link-container {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 1rem;
-}
-
-#shareLink {
-    flex: 1;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-color);
-    color: var(--text-primary);
-    font-size: 0.875rem;
-}
-
-.btn-copy {
-    padding: 0.75rem 1rem;
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.btn-copy:hover {
-    background: var(--primary-dark);
-}
-
-@media (max-width: 768px) {
-    .action-bar {
-        flex-direction: column;
-        gap: 1rem;
-        text-align: center;
-    }
-    
-    .action-buttons {
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-    
-    .share-options {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 480px) {
-    .action-buttons {
-        flex-direction: column;
-        width: 100%;
-    }
-    
-    .btn-action {
-        width: 100%;
-        justify-content: center;
-    }
-}
-</style>
-
-<script>
-// Print functionality
-function printRules() {
-    // Show loading feedback
-    if (typeof showToast === 'function') {
-        showToast('Preparing document for printing...', 'info');
-    }
-    
-    setTimeout(() => {
-        window.print();
-    }, 500);
-}
-
-// Download PDF functionality
-function downloadRulesPDF() {
-    // Show loading state
-    if (typeof showToast === 'function') {
-        showToast('Generating PDF document...', 'info');
-    }
-    
-    // Redirect to PDF download endpoint
-    window.location.href = "{{ url_for('main.download_welfare_rules_pdf') }}";
-}
-
-// Share functionality
-function shareRules() {
-    const modal = document.getElementById('shareModal');
-    modal.style.display = 'block';
-}
-
-function closeShareModal() {
-    const modal = document.getElementById('shareModal');
-    modal.style.display = 'none';
-}
-
-// Close modal when clicking outside
-window.onclick = function(event) {
-    const modal = document.getElementById('shareModal');
-    if (event.target === modal) {
-        closeShareModal();
-    }
-}
-
-// Share via WhatsApp
-function shareViaWhatsApp() {
-    const text = "Mzugoss Welfare Rules & Guidelines - Check out our community welfare rules and contribution system";
-    const url = "{{ request.url }}";
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`;
-    window.open(whatsappUrl, '_blank');
-    closeShareModal();
-    showToast('Opening WhatsApp...', 'success');
-}
-
-// Share via Email
-function shareViaEmail() {
-    const subject = "Mzugoss Welfare Rules & Guidelines";
-    const body = `Hello,
-
-I wanted to share the Mzugoss Welfare Rules with you. These outline our community's contribution system and benefits:
-
-{{ request.url }}
-
-Key Points:
-- Monthly Contribution: K1,000
-- Funeral Support: K20,000
-- Wedding Support: K50,000  
-- Sickness Support: K5,000
-
-Please review the full rules at the link above.
-
-Best regards`;
-    
-    const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoUrl;
-    closeShareModal();
-}
-
-// Share via SMS
-function shareViaSMS() {
-    const text = "Mzugoss Welfare Rules: {{ request.url }} - Monthly: K1000, Funeral: K20000, Wedding: K50000, Sickness: K5000";
-    const smsUrl = `sms:?body=${encodeURIComponent(text)}`;
-    window.location.href = smsUrl;
-    closeShareModal();
-}
-
-// Copy share link
-function copyShareLink() {
-    const shareLink = document.getElementById('shareLink');
-    shareLink.select();
-    shareLink.setSelectionRange(0, 99999);
-    
-    try {
-        navigator.clipboard.writeText(shareLink.value).then(() => {
-            showToast('Link copied to clipboard!', 'success');
-        }).catch(() => {
-            document.execCommand('copy');
-            showToast('Link copied to clipboard!', 'success');
-        });
-    } catch (err) {
-        document.execCommand('copy');
-        showToast('Link copied to clipboard!', 'success');
-    }
-}
-
-// Keyboard shortcuts
-document.addEventListener('keydown', function(e) {
-    // Ctrl+P or Cmd+P for print
-    if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
-        e.preventDefault();
-        printRules();
-    }
-    
-    // Escape to close modal
-    if (e.key === 'Escape') {
-        closeShareModal();
-    }
-})
-</script>
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/welfare_rules.js') }}"></script>
 {% endblock %}

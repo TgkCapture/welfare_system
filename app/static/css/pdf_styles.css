@@ -1,0 +1,371 @@
+/* static/css/pdf_styles.css */
+
+/* Base Styles */
+body { 
+    font-family: Arial, sans-serif; 
+    line-height: 1.6; 
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+/* Header Styles */
+.header { 
+    text-align: center; 
+    margin-bottom: 1.5cm; 
+    padding: 1cm;
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    color: white;
+    margin: -1cm -1cm 1.5cm -1cm;
+}
+
+.header h1 {
+    margin: 0 0 0.5cm 0;
+    font-size: 24pt;
+}
+
+.header p {
+    margin: 0;
+    opacity: 0.9;
+}
+
+/* Content Area */
+.content {
+    padding: 0 1cm;
+}
+
+/* Section Styles */
+.section { 
+    margin-bottom: 1cm; 
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.section-title { 
+    color: #2563eb; 
+    border-bottom: 2px solid #2563eb; 
+    padding-bottom: 0.3cm;
+    margin-bottom: 0.5cm;
+    font-size: 18pt;
+}
+
+.subsection-title {
+    color: #1e293b;
+    font-size: 14pt;
+    margin: 0.5cm 0 0.3cm 0;
+    font-weight: bold;
+}
+
+/* Fee Grid */
+.fee-grid { 
+    display: grid; 
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 0.5cm; 
+    margin: 0.5cm 0; 
+}
+
+.fee-item { 
+    border: 1px solid #ddd; 
+    padding: 0.5cm; 
+    text-align: center; 
+    border-radius: 0.2cm;
+    background: #f8fafc;
+}
+
+.fee-item h3 {
+    margin: 0 0 0.3cm 0;
+    font-size: 12pt;
+    color: #64748b;
+}
+
+/* Amount Styles */
+.amount { 
+    font-size: 16pt; 
+    font-weight: bold; 
+    color: #2563eb; 
+    margin: 0.2cm 0;
+}
+
+.period {
+    font-size: 10pt;
+    color: #64748b;
+}
+
+/* Rule Cards */
+.rule-card {
+    background: #f8fafc;
+    padding: 0.5cm;
+    margin: 0.3cm 0;
+    border-radius: 0.2cm;
+    border-left: 4px solid #2563eb;
+}
+
+.rule-badge {
+    background: #dbeafe;
+    color: #2563eb;
+    padding: 0.2cm 0.5cm;
+    border-radius: 1cm;
+    font-size: 10pt;
+    font-weight: bold;
+    display: inline-block;
+    margin-bottom: 0.3cm;
+}
+
+.important-badge {
+    background: #fee2e2;
+    color: #dc2626;
+    padding: 0.2cm 0.5cm;
+    border-radius: 1cm;
+    font-size: 10pt;
+    font-weight: bold;
+    display: inline-block;
+    margin-bottom: 0.3cm;
+}
+
+/* Relationships Grid */
+.relationships-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.3cm;
+    margin: 0.3cm 0;
+}
+
+.relationship-item {
+    background: white;
+    padding: 0.3cm;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.2cm;
+    font-size: 10pt;
+    display: flex;
+    align-items: center;
+    gap: 0.3cm;
+}
+
+/* Rule Items */
+.rule-item {
+    margin: 0.3cm 0;
+    padding-left: 0.5cm;
+    border-left: 3px solid #cbd5e1;
+}
+
+.rule-item h4 {
+    margin: 0 0 0.2cm 0;
+    color: #1e293b;
+    font-size: 12pt;
+}
+
+/* Example Styles */
+.example {
+    background: #fffbeb;
+    padding: 0.3cm;
+    margin: 0.3cm 0;
+    border-radius: 0.2cm;
+    border-left: 3px solid #f59e0b;
+    font-size: 10pt;
+}
+
+.example-title {
+    font-weight: bold;
+    color: #d97706;
+}
+
+/* Key Points Grid */
+.key-points-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5cm;
+    margin: 0.5cm 0;
+}
+
+.key-point {
+    border: 1px solid #e2e8f0;
+    padding: 0.5cm;
+    border-radius: 0.2cm;
+    text-align: center;
+    background: white;
+}
+
+.key-point h4 {
+    margin: 0 0 0.3cm 0;
+    color: #2563eb;
+    font-size: 11pt;
+}
+
+.key-point p {
+    margin: 0;
+    font-size: 9pt;
+    color: #64748b;
+}
+
+/* Footer */
+.footer { 
+    text-align: center; 
+    margin-top: 2cm; 
+    font-size: 8pt; 
+    color: #666;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 0.5cm;
+}
+
+/* Page Break */
+.page-break {
+    page-break-before: always;
+}
+
+/* Highlight Styles */
+.highlight {
+    background: #f0f9ff;
+    padding: 0.3cm;
+    border-radius: 0.2cm;
+    margin: 0.3cm 0;
+}
+
+.important-section {
+    background: #fef2f2;
+    padding: 0.3cm;
+    border-radius: 0.2cm;
+    border-left: 4px solid #dc2626;
+    margin: 0.3cm 0;
+}
+
+.warning {
+    background: #fefce8;
+    padding: 0.3cm;
+    border-radius: 0.2cm;
+    border-left: 4px solid #f59e0b;
+    margin: 0.3cm 0;
+}
+
+/* Text Styles */
+strong {
+    color: #1e293b;
+}
+
+/* Clarification Note */
+.clarification-note {
+    background: #fef2f2;
+    padding: 0.3cm;
+    border-radius: 0.2cm;
+    border-left: 3px solid #dc2626;
+    margin-top: 0.3cm;
+    font-size: 9pt;
+}
+
+.clarification-note strong {
+    color: #dc2626;
+}
+
+/* Special Amount Display */
+.special-amount {
+    text-align: center;
+    margin: 0.5cm 0;
+}
+
+.special-amount .amount {
+    font-size: 20pt;
+    color: #2563eb;
+}
+
+.important-section .special-amount .amount {
+    color: #dc2626;
+}
+
+/* Wedding Note */
+.wedding-note {
+    text-align: center; 
+    font-size: 10pt; 
+    color: #64748b; 
+    margin-top: 0.3cm;
+}
+
+/* Support Table */
+.support-table {
+    width: 100%; 
+    border-collapse: collapse; 
+    margin: 0.5cm 0;
+}
+
+.support-table thead tr {
+    background: #f8fafc;
+}
+
+.support-table th,
+.support-table td {
+    border: 1px solid #e2e8f0; 
+    padding: 0.3cm;
+}
+
+.support-table th {
+    text-align: left;
+    font-weight: bold;
+    color: #1e293b;
+}
+
+.support-table td {
+    font-size: 10pt;
+}
+
+.amount-cell {
+    font-weight: bold; 
+    color: #2563eb;
+}
+
+.important-row {
+    background: #fef2f2;
+}
+
+.important-amount {
+    font-weight: bold; 
+    color: #dc2626;
+}
+
+/* Print Optimizations */
+@media print {
+    .header {
+        background: #2563eb !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .fee-item {
+        background: #f8fafc !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .highlight {
+        background: #f0f9ff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .important-section {
+        background: #fef2f2 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .warning {
+        background: #fefce8 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .example {
+        background: #fffbeb !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .support-table thead tr {
+        background: #f8fafc !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .important-row {
+        background: #fef2f2 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
