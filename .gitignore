@@ -1,5 +1,6 @@
 .history/
 .env
+.env.prod
 venv/
 *.pyc
 __pycache__/
