@@ -76,6 +76,20 @@ class PDFGenerator:
             # Normal Style
             normal_style = styles['Normal']
             
+            # Important Notice Style
+            important_style = ParagraphStyle(
+                'Important',
+                parent=normal_style,
+                backColor=colors.HexColor('#fef3c7'),
+                borderColor=colors.HexColor('#f59e0b'),
+                borderWidth=1,
+                borderPadding=15,
+                leftIndent=10,
+                rightIndent=10,
+                spaceBefore=10,
+                spaceAfter=20
+            )
+            
             # Add Title
             title = Paragraph("Mzugoss Welfare Rules & Guidelines", title_style)
             story.append(title)
@@ -92,9 +106,9 @@ class PDFGenerator:
             fee_data = [
                 ['Service', 'Amount', 'Period'],
                 ['Monthly Contribution', 'K1,000', 'per month'],
-                ['Funeral Support', 'K20,000', 'per incident'],
-                ['Wedding Support', 'K50,000', 'per wedding'],
-                ['Sickness Support', 'K5,000', 'per admission']
+                ['Funeral Support', 'K50,000', 'per incident'],
+                ['Wedding Support', 'K80,000', 'per wedding'],
+                ['Sickness Support', 'K15,000', 'per admission']
             ]
             
             fee_table = Table(fee_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
@@ -122,10 +136,26 @@ class PDFGenerator:
                 "• Mother, Father, Sister, Brother",
                 "• Legal Guardian, Husband/Wife, Children",
                 "",
-                "Support Amount: K20,000 per funeral incident"
+                "Support Amount: K50,000 per funeral incident"
             ]
             
             for rule in funeral_rules:
+                story.append(Paragraph(rule, normal_style))
+                story.append(Spacer(1, 6))
+            
+            story.append(Spacer(1, 15))
+            
+            # Deceased Member Support Section
+            story.append(Paragraph("Deceased Member Support", heading_style))
+            story.append(Paragraph("Support for when a contributing member passes away", subheading_style))
+            
+            deceased_member_rules = [
+                "<b>Special Support:</b> K80,000 support for family",
+                "",
+                "<b>Clarification:</b> This support is specifically for when a member (someone who contributes regularly) passes away. The K80,000 is provided to support the member's family during this difficult time."
+            ]
+            
+            for rule in deceased_member_rules:
                 story.append(Paragraph(rule, normal_style))
                 story.append(Spacer(1, 6))
             
@@ -135,23 +165,12 @@ class PDFGenerator:
             story.append(Paragraph("Contribution Rules", heading_style))
             story.append(Paragraph("Monthly contributions and penalties", subheading_style))
             
-            # Important Notice
-            important_style = ParagraphStyle(
-                'Important',
-                parent=normal_style,
-                backColor=colors.HexColor('#fef3c7'),
-                borderColor=colors.HexColor('#f59e0b'),
-                borderWidth=1,
-                borderPadding=10,
-                leftIndent=10
-            )
-            
+            # Add Important Notice at the beginning of Contribution Rules
             story.append(Paragraph(
-                "<b>Important Notice:</b> Non-contributors will not receive any welfare money. "
-                "There will be no separate contributions for people who do not contribute regularly.",
+                "<b>Important Notice:</b> Those who are eligible to receive the welfare money are only those who contribute; "
+                "therefore, those who do not contribute are not eligible to receive the money.",
                 important_style
             ))
-            story.append(Spacer(1, 12))
             
             contribution_rules = [
                 "<b>1. Late Payment Penalties</b>",
@@ -163,10 +182,7 @@ class PDFGenerator:
                 "",
                 "<b>3. Benefits Calculation</b>",
                 "Number of times you can receive help = Number of months you've contributed.",
-                "<i>Example: 3 months contribution = 3 times eligible for support</i>",
-                "",
-                "<b>4. Partial Contributions</b>",
-                "For irregular contributions, penalties apply based on months skipped."
+                "<i>Example: 3 months contribution = 3 times eligible for support</i>"
             ]
             
             for rule in contribution_rules:
@@ -187,7 +203,7 @@ class PDFGenerator:
                 "Support is provided for members who are admitted in the hospital for a couple of days.",
                 "Outpatient visits and minor illnesses are not covered.",
                 "",
-                "<b>Support Amount:</b> K5,000 per hospital admission"
+                "<b>Support Amount:</b> K15,000 per hospital admission"
             ]
             
             for rule in sickness_rules:
@@ -201,7 +217,7 @@ class PDFGenerator:
             story.append(Paragraph("Celebratory financial assistance", subheading_style))
             
             wedding_rules = [
-                "<b>Support Amount:</b> K50,000 per wedding ceremony",
+                "<b>Support Amount:</b> K80,000 per wedding ceremony",
                 "Available to contributing members for their own wedding ceremony"
             ]
             
@@ -219,7 +235,9 @@ class PDFGenerator:
                 "• Pay on time to avoid 5% monthly penalties",
                 "• Benefits are proportional to your contributions", 
                 "• Immediate family coverage for funerals",
-                "• Sickness support only for hospital admissions",
+                "• Sickness support: K15,000 for hospital admissions",
+                "• Wedding support: K80,000 per ceremony",
+                "• Member death support: K80,000 for family",
                 "• No welfare money for non-contributors"
             ]
             
@@ -273,9 +291,14 @@ class ShareUtils:
                        f"{base_url}\n\n"
                        f"*Key Fees:*\n"
                        f"• Monthly: K1,000\n"
-                       f"• Funeral: K20,000\n" 
-                       f"• Wedding: K50,000\n"
-                       f"• Sickness: K5,000\n\n"
+                       f"• Funeral: K50,000\n" 
+                       f"• Wedding: K80,000\n"
+                       f"• Sickness: K15,000\n"
+                       f"• Member Death: K80,000\n\n"
+                       f"*Important Rules:*\n"
+                       f"• Only contributors receive benefits\n"
+                       f"• Late payment penalty: 5% per month\n"
+                       f"• Benefits = Months contributed\n\n"
                        f"Please review the full rules at the link above.",
                 'url': base_url
             },
@@ -283,21 +306,24 @@ class ShareUtils:
                 'subject': "Mzugoss Welfare Rules & Guidelines",
                 'body': f"""Hello,
 
-I wanted to share the Mzugoss Welfare Rules with you. These outline our community's contribution system and benefits:
+I wanted to share the updated Mzugoss Welfare Rules with you. These outline our community's contribution system and benefits:
 
 {base_url}
 
 Key Information:
 • Monthly Contribution: K1,000
-• Funeral Support: K20,000 (immediate family only)
-• Wedding Support: K50,000  
-• Sickness Support: K5,000 (hospital admission required)
+• Funeral Support: K50,000 (immediate family only)
+• Wedding Support: K80,000  
+• Sickness Support: K15,000 (hospital admission required)
+• Member Death Support: K80,000 (for contributing members)
 • Late Payment Penalty: 5% per month
 
 Important Rules:
 - Benefits are proportional to months contributed
-- Non-contributors receive no welfare support
+- Those who don't contribute are not eligible for any welfare money
 - Immediate family coverage for funerals
+- Funeral support covers: Mother, Father, Sister, Brother, Legal Guardian, Spouse, Children
+- Deceased member support: K80,000 for family when a contributing member passes away
 
 Please review the full rules at the link above.
 
@@ -305,7 +331,7 @@ Best regards"""
             },
             'sms': {
                 'text': f"Mzugoss Welfare Rules: {base_url} "
-                       f"Monthly: K1000, Funeral: K20000, Wedding: K50000, Sickness: K5000"
+                       f"Monthly: K1000, Funeral: K50000, Wedding: K80000, Sickness: K15000, Member Death: K80000"
             },
             'general': {
                 'text': f"Check out Mzugoss Welfare Rules: {base_url}",
