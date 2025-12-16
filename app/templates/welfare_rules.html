@@ -71,7 +71,7 @@
             </div>
             <div class="summary-content">
                 <h3>Funeral Support</h3>
-                <div class="summary-amount">K20,000</div>
+                <div class="summary-amount">K50,000</div>
                 <span class="summary-period">per incident</span>
             </div>
         </div>
@@ -82,7 +82,7 @@
             </div>
             <div class="summary-content">
                 <h3>Wedding Support</h3>
-                <div class="summary-amount">K50,000</div>
+                <div class="summary-amount">K80,000</div>
                 <span class="summary-period">per wedding</span>
             </div>
         </div>
@@ -93,7 +93,7 @@
             </div>
             <div class="summary-content">
                 <h3>Sickness Support</h3>
-                <div class="summary-amount">K5,000</div>
+                <div class="summary-amount">K15,000</div>
                 <span class="summary-period">per admission</span>
             </div>
         </div>
@@ -135,8 +135,37 @@
                     </div>
                     <div class="amount-display">
                         <span class="currency">K</span>
-                        <span class="amount">20,000</span>
+                        <span class="amount">50,000</span>
                         <span class="purpose">per funeral</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Deceased Member Support -->
+        <section class="rule-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <i class="fas fa-user-minus"></i>
+                </div>
+                <div class="section-title">
+                    <h2>Deceased Member Support</h2>
+                    <p>Support for when a contributing member passes away</p>
+                </div>
+            </div>
+            <div class="rule-content">
+                <div class="rule-card highlight">
+                    <div class="rule-badge amount">
+                        <i class="fas fa-hands-helping"></i>
+                        Special Support
+                    </div>
+                    <div class="amount-display">
+                        <span class="currency">K</span>
+                        <span class="amount">80,000</span>
+                        <span class="purpose">support for family</span>
+                    </div>
+                    <div class="clarification-note">
+                        <p><strong>Clarification:</strong> This support is specifically for when a member (someone who contributes regularly) passes away. The K80,000 is provided to support the member's family during this difficult time.</p>
                     </div>
                 </div>
             </div>
@@ -159,7 +188,7 @@
                         <i class="fas fa-exclamation-triangle"></i>
                         Important Notice
                     </div>
-                    <p><strong>Non-contributors will not receive any welfare money.</strong> There will be no separate contributions for people who do not contribute regularly.</p>
+                    <p><strong>Those who are eligible to receive the welfare money are only those who contribute; therefore, those who do not contribute are not eligible to receive the money.</strong></p>
                 </div>
 
                 <div class="rules-grid">
@@ -224,7 +253,7 @@
                     </div>
                     <div class="amount-display">
                         <span class="currency">K</span>
-                        <span class="amount">5,000</span>
+                        <span class="amount">15,000</span>
                         <span class="purpose">per hospital admission</span>
                     </div>
                 </div>
@@ -250,7 +279,7 @@
                     </div>
                     <div class="amount-display">
                         <span class="currency">K</span>
-                        <span class="amount">50,000</span>
+                        <span class="amount">80,000</span>
                         <span class="purpose">per wedding ceremony</span>
                     </div>
                 </div>
@@ -282,9 +311,19 @@
                     <p>Benefits are proportional to your contributions - more contributions = more support eligibility</p>
                 </div>
                 <div class="key-point">
+                    <i class="fas fa-user-minus"></i>
+                    <h4>Member Death Support</h4>
+                    <p>K80,000 support when a contributing member passes away</p>
+                </div>
+                <div class="key-point">
                     <i class="fas fa-family"></i>
                     <h4>Family Support</h4>
                     <p>Immediate family coverage for funerals including spouses and children</p>
+                </div>
+                <div class="key-point">
+                    <i class="fas fa-hospital-user"></i>
+                    <h4>Enhanced Medical Support</h4>
+                    <p>K15,000 for hospital admissions requiring multiple days</p>
                 </div>
             </div>
         </section>
@@ -584,6 +623,25 @@
 .rule-badge.important {
     background: rgba(245, 158, 11, 0.1);
     color: var(--warning-color);
+}
+
+/* Clarification Note */
+.clarification-note {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--info-color);
+    font-size: 0.95rem;
+}
+
+.clarification-note p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+.clarification-note strong {
+    color: var(--info-color);
 }
 
 /* Relationships Grid */
@@ -1146,15 +1204,16 @@ function shareViaEmail() {
     const subject = "Mzugoss Welfare Rules & Guidelines";
     const body = `Hello,
 
-I wanted to share the Mzugoss Welfare Rules with you. These outline our community's contribution system and benefits:
+I wanted to share the updated Mzugoss Welfare Rules with you. These outline our community's contribution system and benefits:
 
 {{ request.url }}
 
-Key Points:
+Key Updated Points:
 - Monthly Contribution: K1,000
-- Funeral Support: K20,000
-- Wedding Support: K50,000  
-- Sickness Support: K5,000
+- Funeral Support: K50,000
+- Wedding Support: K80,000  
+- Sickness Support: K15,000
+- Member Death Support: K80,000
 
 Please review the full rules at the link above.
 
@@ -1167,7 +1226,7 @@ Best regards`;
 
 // Share via SMS
 function shareViaSMS() {
-    const text = "Mzugoss Welfare Rules: {{ request.url }} - Monthly: K1000, Funeral: K20000, Wedding: K50000, Sickness: K5000";
+    const text = "Mzugoss Welfare Rules: {{ request.url }} - Monthly: K1000, Funeral: K50000, Wedding: K80000, Sickness: K15000, Member Death: K80000";
     const smsUrl = `sms:?body=${encodeURIComponent(text)}`;
     window.location.href = smsUrl;
     closeShareModal();
