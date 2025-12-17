@@ -1,4 +1,4 @@
-# === app/google_sheets.py ===
+# app/services/google_sheets_service.py
 import os
 import gspread
 from google.oauth2.service_account import Credentials
@@ -10,18 +10,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 class GoogleSheetsService:
-    def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
     
     def init_app(self, app):
+        """Initialize service with Flask app context"""
         self.credentials_path = app.config.get('GOOGLE_CREDENTIALS_PATH')
         self.scopes = [
             'https://www.googleapis.com/auth/spreadsheets',
             'https://www.googleapis.com/auth/drive'
         ]
-        
+    
     def get_client(self):
         """Authenticate and return a Google Sheets client"""
         try:
@@ -31,7 +34,7 @@ class GoogleSheetsService:
                     self.credentials_path, scopes=self.scopes
                 )
             else:
-                # Try to use environment variable (for cloud deployment)
+                # Try to use environment variable
                 creds_info = current_app.config.get('GOOGLE_CREDENTIALS_JSON')
                 if creds_info:
                     current_app.logger.info("Using credentials from environment variable")
@@ -63,7 +66,7 @@ class GoogleSheetsService:
             if sheet_name:
                 worksheet = spreadsheet.worksheet(sheet_name)
             else:
-                worksheet = spreadsheet.sheet1  # Default to first sheet
+                worksheet = spreadsheet.sheet1
             
             # Get all values
             data = worksheet.get_all_values()
@@ -101,5 +104,5 @@ class GoogleSheetsService:
             current_app.logger.error(f"Error converting Google Sheet to Excel: {str(e)}")
             return None
 
-# Initialize the service
+# Singleton instance
 google_sheets_service = GoogleSheetsService()
