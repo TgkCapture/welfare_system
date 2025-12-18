@@ -143,8 +143,7 @@ class ReportDataSerializer:
 @main.route('/')
 @login_required
 def dashboard():
-    """Dashboard page"""
-    from app.models.setting import Setting
+    from app.models.setting import Setting  # Import inside function
     
     sheet_url = Setting.get_value('google_sheets_url', current_app.config.get('DEFAULT_SHEET_URL', ''))
     current_date = datetime.now()
@@ -153,7 +152,8 @@ def dashboard():
                          version=current_app.version,
                          sheet_url=sheet_url,
                          year=current_date.year,  
-                         month=current_date.month)
+                         month=current_date.month,
+                         datetime=datetime)
 
 @main.route('/upload', methods=['POST'])
 @login_required
@@ -301,7 +301,7 @@ def download_paid_members():
 def settings():
     """Application settings page"""
     from app.models.setting import Setting
-
+    
     if request.method == 'POST':
         sheet_url = request.form.get('sheet_url', '')
         Setting.set_value('google_sheets_url', sheet_url)
