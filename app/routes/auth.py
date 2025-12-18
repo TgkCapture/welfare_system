@@ -10,16 +10,20 @@ auth = Blueprint('auth', __name__, url_prefix='/auth')
 
 SESSION_TIMEOUT = 1800  # seconds
 
+def get_user_model():
+    """Get the User model - handles circular imports"""
+
+    from app.models.user import User
+    return User
+
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
-    # Import User inside the function to avoid circular imports
-    from app.models.user import User
-    
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
         
     form = LoginForm()
     if form.validate_on_submit():
+        User = get_user_model()
         user = User.query.filter_by(email=form.email.data).first()
         
         if not user or not check_password_hash(user.password, form.password.data):
@@ -36,14 +40,12 @@ def login():
 
 @auth.route('/register', methods=['GET', 'POST'])
 def register():
-    # Import User inside the function to avoid circular imports
-    from app.models.user import User
-    
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
         
     form = RegisterForm()
     if form.validate_on_submit():
+        User = get_user_model()
         existing_user = User.query.filter_by(email=form.email.data).first()
         if existing_user:
             flash('Email already registered', 'danger')
@@ -62,7 +64,7 @@ def register():
             
         except Exception as e:
             db.session.rollback()
-            flash('Registration failed. Please try again.', 'danger')
+            flash(f'Registration failed: {str(e)}', 'danger')
             return redirect(url_for('auth.register'))
     
     return render_template('auth/register.html', form=form)

@@ -23,20 +23,22 @@ def create_app(config_class=Config):
     if 'LOGS_FOLDER' in app.config:
         os.makedirs(app.config['LOGS_FOLDER'], exist_ok=True)
     
-    # Initialize extensions
     from app.extensions import db, login_manager, init_extensions
     init_extensions(app)
     
-    # Import models AFTER extensions are initialized
-    from app.models.user import User
-    from app.models.setting import Setting
+    with app.app_context():
+
+        from app.models.user import User
+        from app.models.setting import Setting
+        
+        @login_manager.user_loader
+        def load_user(user_id):
+            return User.query.get(int(user_id))
+        
+        # Create tables
+        db.create_all()
     
-    # Setup login manager
-    @login_manager.user_loader
-    def load_user(user_id):
-        return User.query.get(int(user_id))
-    
-    # Register blueprints - FIXED HERE
+    # Register blueprints
     from app.routes.auth import auth as auth_blueprint
     from app.routes.main import main as main_blueprint
     
@@ -46,9 +48,5 @@ def create_app(config_class=Config):
     # Register error handlers
     from app.routes.errors import register_error_handlers
     register_error_handlers(app)
-    
-    # Create tables
-    with app.app_context():
-        db.create_all()
     
     return app
