@@ -224,7 +224,8 @@ def report_preview():
         defaulters=report_data['num_missing'],
         money_dispensed=report_data.get('money_dispensed'),
         total_book_balance=report_data.get('total_book_balance'),
-        filename=report_data['report_filename']
+        filename=report_data['report_filename'],
+        current_date=datetime.now()
     )
 
 @main.route('/download-report')
