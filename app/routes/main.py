@@ -143,17 +143,23 @@ class ReportDataSerializer:
 @main.route('/')
 @login_required
 def dashboard():
-    from app.models.setting import Setting  
+    from app.models.setting import Setting
     
     sheet_url = Setting.get_value('google_sheets_url', current_app.config.get('DEFAULT_SHEET_URL', ''))
     current_date = datetime.now()
+    
+    # Month names for the template
+    month_names = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ]
     
     return render_template('main/dashboard.html', 
                          version=current_app.version,
                          sheet_url=sheet_url,
                          year=current_date.year,  
                          month=current_date.month,
-                         datetime=datetime)
+                         month_names=month_names)
 
 @main.route('/upload', methods=['POST'])
 @login_required
