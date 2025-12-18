@@ -4,7 +4,7 @@ import os
 
 from app.config import Config
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 
 def create_app(config_class=Config):
     app = Flask(__name__, instance_relative_config=True)
