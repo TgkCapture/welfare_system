@@ -88,7 +88,8 @@
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
-                    <input type="file" name="file" id="file-upload" accept=".xlsx,.xls" {% if not sheet_url %}required{% endif %}>
+                    <input type="file" name="file" id="file-upload" accept=".xlsx,.xls" 
+                        {% if sheet_url %}disabled{% else %}required{% endif %}>
                 </div>
             </div>
 
@@ -99,8 +100,8 @@
                     <div class="input-with-icon">
                         <i class="fab fa-google"></i>
                         <input type="url" class="form-control" id="sheet_url" name="sheet_url" 
-                               value="{{ sheet_url }}" placeholder="https://docs.google.com/spreadsheets/d/..." 
-                               {% if sheet_url %}required{% endif %}>
+                            value="{{ sheet_url }}" placeholder="https://docs.google.com/spreadsheets/d/..." 
+                            {% if not sheet_url %}disabled{% else %}required{% endif %}>
                     </div>
                     <small class="form-hint">
                         Make sure the Google Sheet is shared with "Anyone with the link can view"

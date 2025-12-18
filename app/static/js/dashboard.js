@@ -46,13 +46,33 @@ document.addEventListener('DOMContentLoaded', function() {
         if (useSheets) {
             fileUploadSection.classList.remove('active');
             sheetsSection.classList.add('active');
-            if (fileInput) fileInput.removeAttribute('required');
-            if (sheetUrlInput) sheetUrlInput.setAttribute('required', 'required');
+            
+            // Remove required from file input and disable it
+            if (fileInput) {
+                fileInput.removeAttribute('required');
+                fileInput.setAttribute('disabled', 'disabled'); 
+            }
+            
+            // Enable and add required to sheet URL input
+            if (sheetUrlInput) {
+                sheetUrlInput.removeAttribute('disabled');
+                sheetUrlInput.setAttribute('required', 'required');
+            }
         } else {
             fileUploadSection.classList.add('active');
             sheetsSection.classList.remove('active');
-            if (fileInput) fileInput.setAttribute('required', 'required');
-            if (sheetUrlInput) sheetUrlInput.removeAttribute('required');
+            
+            // Enable and add required to file input
+            if (fileInput) {
+                fileInput.removeAttribute('disabled');
+                fileInput.setAttribute('required', 'required');
+            }
+            
+            // Remove required from sheet URL input and disable it
+            if (sheetUrlInput) {
+                sheetUrlInput.removeAttribute('required');
+                sheetUrlInput.setAttribute('disabled', 'disabled'); 
+            }
         }
     }
 
@@ -150,7 +170,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function resetFileInput() {
-            if (fileInput) fileInput.value = '';
+            if (fileInput) {
+                fileInput.value = '';
+                // Clear the file list
+                const dataTransfer = new DataTransfer();
+                fileInput.files = dataTransfer.files;
+            }
             uploadPlaceholder.style.display = 'flex';
             filePreview.style.display = 'none';
         }
@@ -167,18 +192,55 @@ document.addEventListener('DOMContentLoaded', function() {
     // Form submission
     if (uploadForm) {
         uploadForm.addEventListener('submit', function(e) {
-            if (sheetsToggle && sheetsToggle.checked && (!sheetUrlInput || !sheetUrlInput.value.trim())) {
-                e.preventDefault();
-                showAlert('Please enter a Google Sheets URL', 'error');
-                return;
+            // Prevent default browser validation
+            e.preventDefault();
+            
+            let isValid = true;
+            let errorMessage = '';
+            
+            if (sheetsToggle && sheetsToggle.checked) {
+                // Google Sheets validation
+                if (!sheetUrlInput || !sheetUrlInput.value.trim()) {
+                    isValid = false;
+                    errorMessage = 'Please enter a Google Sheets URL';
+                } else if (!isValidGoogleSheetsUrl(sheetUrlInput.value.trim())) {
+                    isValid = false;
+                    errorMessage = 'Please enter a valid Google Sheets URL';
+                }
+                
+                // Clear file input if using sheets
+                if (fileInput) {
+                    fileInput.value = '';
+                }
+            } else {
+                // File upload validation
+                if (!fileInput || fileInput.files.length === 0) {
+                    isValid = false;
+                    errorMessage = 'Please select an Excel file';
+                } else {
+                    const file = fileInput.files[0];
+                    const validExtensions = ['.xlsx', '.xls'];
+                    const isValidExtension = validExtensions.some(ext => 
+                        file.name.toLowerCase().endsWith(ext)
+                    );
+                    
+                    if (!isValidExtension) {
+                        isValid = false;
+                        errorMessage = 'Please select a valid Excel file (.xlsx, .xls)';
+                    }
+                }
+                
+                // Clear sheet URL if using file upload
+                if (sheetUrlInput) {
+                    sheetUrlInput.value = '';
+                }
             }
-
-            if ((!sheetsToggle || !sheetsToggle.checked) && fileInput && fileInput.files.length === 0) {
-                e.preventDefault();
-                showAlert('Please select an Excel file', 'error');
-                return;
+            
+            if (!isValid) {
+                showAlert(errorMessage, 'error');
+                return false;
             }
-
+            
             // Show loading state
             if (submitBtn) {
                 submitBtn.disabled = true;
@@ -187,11 +249,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (btnText) btnText.style.display = 'none';
                 if (btnLoading) btnLoading.style.display = 'flex';
             }
+            
+            // Submit the form
+            this.submit();
         });
+    }
+
+    // Google Sheets URL validation helper
+    function isValidGoogleSheetsUrl(url) {
+        try {
+            const urlObj = new URL(url);
+            const isValidDomain = urlObj.hostname === 'docs.google.com';
+            const isValidPath = urlObj.pathname.includes('/spreadsheets/d/');
+            return isValidDomain && isValidPath;
+        } catch (_) {
+            return false;
+        }
     }
 
     // Show alert/toast notification
     function showAlert(message, type = 'info') {
+        // Remove existing toasts
+        const existingToasts = document.querySelectorAll('.toast');
+        existingToasts.forEach(toast => {
+            if (toast.parentNode) {
+                document.body.removeChild(toast);
+            }
+        });
+        
         // Create toast element
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
@@ -237,82 +322,85 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Add toast styles dynamically
-    const style = document.createElement('style');
-    style.textContent = `
-        .toast {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 1rem 1.5rem;
-            border-radius: var(--radius-lg);
-            background: white;
-            box-shadow: var(--shadow-lg);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            z-index: 10000;
-            transform: translateX(120%);
-            transition: transform 0.3s ease;
-            max-width: 400px;
-        }
-        
-        .toast.show {
-            transform: translateX(0);
-        }
-        
-        .toast-success {
-            border-left: 4px solid var(--success-color);
-            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-        }
-        
-        .toast-error {
-            border-left: 4px solid var(--danger-color);
-            background: linear-gradient(135deg, #fef2f2, #fee2e2);
-        }
-        
-        .toast-info {
-            border-left: 4px solid var(--info-color);
-            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-        }
-        
-        .toast-content {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            flex: 1;
-        }
-        
-        .toast-content i {
-            font-size: 1.25rem;
-        }
-        
-        .toast-success .toast-content i {
-            color: var(--success-color);
-        }
-        
-        .toast-error .toast-content i {
-            color: var(--danger-color);
-        }
-        
-        .toast-info .toast-content i {
-            color: var(--info-color);
-        }
-        
-        .toast-close {
-            background: none;
-            border: none;
-            color: var(--text-light);
-            cursor: pointer;
-            padding: 0.25rem;
-            border-radius: var(--radius-sm);
-            transition: var(--transition);
-        }
-        
-        .toast-close:hover {
-            background: rgba(0, 0, 0, 0.1);
-            color: var(--text-primary);
-        }
-    `;
-    document.head.appendChild(style);
+    if (!document.getElementById('toast-styles')) {
+        const style = document.createElement('style');
+        style.id = 'toast-styles';
+        style.textContent = `
+            .toast {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                border-radius: var(--radius-lg);
+                background: white;
+                box-shadow: var(--shadow-lg);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                z-index: 10000;
+                transform: translateX(120%);
+                transition: transform 0.3s ease;
+                max-width: 400px;
+            }
+            
+            .toast.show {
+                transform: translateX(0);
+            }
+            
+            .toast-success {
+                border-left: 4px solid var(--success-color);
+                background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+            }
+            
+            .toast-error {
+                border-left: 4px solid var(--danger-color);
+                background: linear-gradient(135deg, #fef2f2, #fee2e2);
+            }
+            
+            .toast-info {
+                border-left: 4px solid var(--info-color);
+                background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            }
+            
+            .toast-content {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                flex: 1;
+            }
+            
+            .toast-content i {
+                font-size: 1.25rem;
+            }
+            
+            .toast-success .toast-content i {
+                color: var(--success-color);
+            }
+            
+            .toast-error .toast-content i {
+                color: var(--danger-color);
+            }
+            
+            .toast-info .toast-content i {
+                color: var(--info-color);
+            }
+            
+            .toast-close {
+                background: none;
+                border: none;
+                color: var(--text-light);
+                cursor: pointer;
+                padding: 0.25rem;
+                border-radius: var(--radius-sm);
+                transition: var(--transition);
+            }
+            
+            .toast-close:hover {
+                background: rgba(0, 0, 0, 0.1);
+                color: var(--text-primary);
+            }
+        `;
+        document.head.appendChild(style);
+    }
 });
