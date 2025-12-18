@@ -143,7 +143,7 @@ class ReportDataSerializer:
 @main.route('/')
 @login_required
 def dashboard():
-    from app.models.setting import Setting  # Import inside function
+    from app.models.setting import Setting  
     
     sheet_url = Setting.get_value('google_sheets_url', current_app.config.get('DEFAULT_SHEET_URL', ''))
     current_date = datetime.now()
