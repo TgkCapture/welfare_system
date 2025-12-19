@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from app.config import Config
 from app.services.file_cleanup import FileCleanupService
 
-__version__ = "1.3.1"
+__version__ = "1.3.2"
 
 def create_app(config_class=Config):
     app = Flask(__name__, instance_relative_config=True)
