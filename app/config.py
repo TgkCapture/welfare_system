@@ -23,6 +23,15 @@ class Config:
     # Upload settings
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload
     ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv'}
+
+        # Cleanup settings
+    ENABLE_AUTO_CLEANUP = True
+    AUTO_CLEANUP_DAYS = 3  # Keep files for 3 days
+    CLEANUP_TIME = "02:00"  # Run at 2:00 AM
+    
+    # Storage limits
+    MAX_UPLOAD_FOLDER_SIZE_MB = 1000  # 1GB limit
+    MAX_REPORT_FOLDER_SIZE_MB = 500   # 500MB limit
     
     # Session
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
