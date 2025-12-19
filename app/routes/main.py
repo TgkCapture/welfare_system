@@ -1,5 +1,5 @@
 # app/routes/main.py
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, send_file, make_response, current_app
+from flask import Blueprint, jsonify, render_template, request, redirect, url_for, flash, session, send_file, make_response, current_app
 from flask_login import login_required, current_user
 from datetime import datetime
 import os
@@ -12,6 +12,7 @@ from app.services.report_generator import ReportGenerator
 from app.services.image_generator import ImageGenerator
 from app.services.google_sheets_service import GoogleSheetsService
 from app.services.pdf_service import PDFGenerator
+from app.services.file_cleanup import FileCleanupService
 
 main = Blueprint('main', __name__)
 
@@ -192,6 +193,13 @@ def upload():
         # Cleanup temporary file
         FileProcessor.cleanup_file(filepath)
         
+        # Run quick cleanup of very old files (> 30 days)
+        try:
+            from app.services.file_cleanup import FileCleanupService
+            FileCleanupService.cleanup_old_files(days_to_keep=30)
+        except Exception as e:
+            current_app.logger.warning(f"Quick cleanup failed: {str(e)}")
+        
         return redirect(url_for('main.report_preview'))
         
     except ValueError as e:
@@ -367,3 +375,40 @@ def after_request(response):
     # Clear flash messages after they're displayed
     session.modified = True
     return response
+
+@main.route('/admin/cleanup', methods=['GET', 'POST'])
+@login_required
+def cleanup_files():
+    """Admin endpoint to cleanup old files"""
+    if not current_user.is_admin: 
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    folder_sizes = None
+    cleanup_result = None
+    
+    if request.method == 'POST':
+        days_to_keep = request.form.get('days_to_keep', 7, type=int)
+        cleanup_result = FileCleanupService.cleanup_old_files(days_to_keep)
+        
+        if cleanup_result.get('success'):
+            flash(f"Cleaned up {cleanup_result['deleted_count']} old files", 'success')
+        else:
+            flash(f"Cleanup failed: {cleanup_result.get('error')}", 'error')
+    
+    # Always get folder sizes to show current status
+    folder_sizes = FileCleanupService.get_folder_sizes()
+    
+    return render_template(
+        'main/cleanup.html',
+        version=current_app.version,
+        folder_sizes=folder_sizes,
+        cleanup_result=cleanup_result
+    )
+
+@main.route('/admin/storage-status')
+@login_required
+def storage_status():
+    """API endpoint to check storage status"""
+    folder_sizes = FileCleanupService.get_folder_sizes()
+    return jsonify(folder_sizes)
