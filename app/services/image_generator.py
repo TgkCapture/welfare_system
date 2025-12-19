@@ -1,10 +1,14 @@
 # app/services/image_generator.py
+import matplotlib
+# MUST be set before importing pyplot
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 from io import BytesIO
 import numpy as np
 from flask import current_app
 import logging
+import warnings
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +19,9 @@ class ImageGenerator:
     def generate_paid_members_image(data):
         """Generate PNG image of paid members with financial summary"""
         try:
+            # Ensure we're using the right backend
+            plt.switch_backend('Agg')
+            
             # Ensure data is properly formatted
             if not isinstance(data.get('data'), pd.DataFrame):
                 data['data'] = pd.DataFrame(data['data'])
@@ -191,7 +198,13 @@ class ImageGenerator:
                 y=0.98
             )
             
-            plt.tight_layout(rect=[0, 0, 1, 0.96])
+            plt.subplots_adjust(
+                left=0.05,
+                right=0.95,
+                top=0.92,
+                bottom=0.05,
+                hspace=0.3
+            )
             
             # Save to bytes buffer
             buf = BytesIO()
@@ -201,8 +214,11 @@ class ImageGenerator:
                 bbox_inches='tight',
                 dpi=150,
                 facecolor=fig.get_facecolor(),
-                edgecolor='none'
+                edgecolor='none',
+                pad_inches=0.5  
             )
+            
+            # Clear and close figure
             plt.close(fig)
             buf.seek(0)
             
@@ -211,14 +227,23 @@ class ImageGenerator:
             
         except Exception as e:
             logger.error(f"Error generating image: {str(e)}", exc_info=True)
-            if 'fig' in locals():
-                plt.close(fig)
+            # Ensure cleanup even on error
+            try:
+                plt.close('all')
+            except:
+                pass
             return None
+        finally:
+            # Final cleanup
+            plt.close('all')
     
     @staticmethod
     def generate_contribution_chart(data):
         """Generate a bar chart of contributions"""
         try:
+            # Ensure we're using the right backend
+            plt.switch_backend('Agg')
+            
             if not isinstance(data.get('data'), pd.DataFrame):
                 data['data'] = pd.DataFrame(data['data'])
             
@@ -283,11 +308,18 @@ class ImageGenerator:
                 pad=20
             )
             
-            plt.tight_layout()
+            # Use subplots_adjust for better control
+            plt.subplots_adjust(left=0.2, right=0.95, top=0.9, bottom=0.1)
             
             # Save to bytes buffer
             buf = BytesIO()
-            plt.savefig(buf, format='png', bbox_inches='tight', dpi=150)
+            plt.savefig(buf, 
+                       format='png', 
+                       bbox_inches='tight', 
+                       dpi=150,
+                       pad_inches=0.3)
+            
+            # Clear and close figure
             plt.close(fig)
             buf.seek(0)
             
@@ -295,4 +327,61 @@ class ImageGenerator:
             
         except Exception as e:
             logger.error(f"Error generating chart: {str(e)}")
+            # Ensure cleanup even on error
+            try:
+                plt.close('all')
+            except:
+                pass
             return None
+        finally:
+            # Final cleanup
+            plt.close('all')
+
+    @classmethod
+    def generate_report_image(cls, data, image_type='paid_members'):
+        """
+        Safe wrapper for generating images with proper matplotlib context
+        
+        Args:
+            data: The data dictionary
+            image_type: 'paid_members' or 'chart'
+        
+        Returns:
+            BytesIO buffer or None
+        """
+        try:
+            # Set matplotlib to non-interactive mode
+            original_backend = matplotlib.get_backend()
+            matplotlib.use('Agg')
+            plt.switch_backend('Agg')
+            
+            # Suppress specific warnings
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", 
+                                      category=UserWarning,
+                                      message=".*tight_layout.*")
+                warnings.filterwarnings("ignore",
+                                      category=UserWarning,
+                                      message=".*Starting a Matplotlib GUI.*")
+                
+                if image_type == 'paid_members':
+                    result = cls.generate_paid_members_image(data)
+                elif image_type == 'chart':
+                    result = cls.generate_contribution_chart(data)
+                else:
+                    logger.error(f"Unknown image type: {image_type}")
+                    result = None
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in generate_report_image: {str(e)}", exc_info=True)
+            return None
+        finally:
+            # Always cleanup
+            plt.close('all')
+            # Restore original backend
+            try:
+                matplotlib.use(original_backend)
+            except:
+                pass
