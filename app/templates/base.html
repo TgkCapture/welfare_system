@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Mzugoss Welfare System{% endblock %}</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -29,20 +29,18 @@
                 <nav class="main-nav">
                     {% if current_user.is_authenticated %}
                     <div class="nav-links">
-                        <a href="{{ url_for('main.dashboard') }}" class="nav-link">
+                        <a href="{{ url_for('main.dashboard') }}" class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
                             <i class="fas fa-tachometer-alt"></i>
                             <span class="nav-text">Dashboard</span>
                         </a>
-                        <a href="{{ url_for('main.welfare_rules') }}" class="nav-link">
+                        <a href="{{ url_for('main.welfare_rules') }}" class="nav-link {% if request.endpoint == 'main.welfare_rules' %}active{% endif %}">
                             <i class="fas fa-book"></i>
                             <span class="nav-text">Welfare Rules</span>
                         </a>
-                        {% if current_user.is_admin %}
-                        <a href="{{ url_for('main.settings') }}" class="nav-link">
+                        <a href="{{ url_for('main.settings') }}" class="nav-link {% if request.endpoint == 'main.settings' %}active{% endif %}">
                             <i class="fas fa-cog"></i>
                             <span class="nav-text">Settings</span>
                         </a>
-                        {% endif %}
                     </div>
                     <div class="user-menu">
                         <div class="user-info">
@@ -76,12 +74,14 @@
                 <i class="fas fa-tachometer-alt"></i>
                 Dashboard
             </a>
-            {% if current_user.is_admin %}
+            <a href="{{ url_for('main.welfare_rules') }}" class="mobile-nav-link">
+                <i class="fas fa-book"></i>
+                Welfare Rules
+            </a>
             <a href="{{ url_for('main.settings') }}" class="mobile-nav-link">
                 <i class="fas fa-cog"></i>
                 Settings
             </a>
-            {% endif %}
             <div class="mobile-user-info">
                 <i class="fas fa-user-circle"></i>
                 {{ current_user.email }}
@@ -137,38 +137,7 @@
         </div>
     </footer>
 
-    <script>
-        // Mobile Navigation
-        document.addEventListener('DOMContentLoaded', function() {
-            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-            const mobileNavOverlay = document.getElementById('mobileNavOverlay');
-            const closeMobileNav = document.getElementById('closeMobileNav');
-
-            function openMobileNav() {
-                mobileNavOverlay.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            }
-
-            function closeMobileNavFunc() {
-                mobileNavOverlay.classList.remove('active');
-                document.body.style.overflow = '';
-            }
-
-            mobileMenuBtn.addEventListener('click', openMobileNav);
-            closeMobileNav.addEventListener('click', closeMobileNavFunc);
-            mobileNavOverlay.addEventListener('click', function(e) {
-                if (e.target === mobileNavOverlay) {
-                    closeMobileNavFunc();
-                }
-            });
-
-            // Close mobile nav when clicking on links
-            document.querySelectorAll('.mobile-nav-link').forEach(link => {
-                link.addEventListener('click', closeMobileNavFunc);
-            });
-        });
-    </script>
-
+    <script src="{{ url_for('static', filename='js/base.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

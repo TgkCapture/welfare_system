@@ -1,7 +1,11 @@
-<!-- app/templates/dashboard.html -->
+<!-- app/templates/main/dashboard.html -->
 {% extends 'base.html' %}
 
 {% block title %}Dashboard - Mzugoss Welfare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="dashboard-container">
@@ -36,7 +40,7 @@
         <div class="stats-preview">
             <div class="stat-item">
                 <i class="fas fa-calendar"></i>
-                <span id="selectedMonthYear">{{ datetime(year, month, 1).strftime('%B %Y') }}</span>
+                <span id="selectedMonthYear">{{ month_names[month-1] }} {{ year }}</span>
             </div>
         </div>
 
@@ -60,6 +64,7 @@
                         <div class="toggle-content">
                             <i class="fab fa-google"></i>
                             <span>Google Sheets</span>
+                            <span class="coming-soon-badge">Coming Soon</span> <!-- Coming Soon -->
                         </div>
                     </label>
                 </div>
@@ -84,19 +89,50 @@
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
-                    <input type="file" name="file" id="file-upload" accept=".xlsx,.xls" {% if not sheet_url %}required{% endif %}>
+                    <input type="file" name="file" id="file-upload" accept=".xlsx,.xls" 
+                        {% if sheet_url %}disabled{% else %}required{% endif %}>
                 </div>
             </div>
 
             <!-- Google Sheets Section -->
-            <div class="form-section {% if sheet_url %}active{% endif %}" id="sheets_section">
+            <div class="form-section {% if sheet_url %}active{% endif %}" id="sheets_section" style="position: relative;">
+                <!-- semi-transparent overlay when disabled -->
+                <div class="disabled-overlay" style="
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(255, 255, 255, 0.7);
+                    border-radius: var(--radius-lg);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 10;
+                ">
+                    <div class="disabled-message" style="
+                        background: var(--bg-color);
+                        padding: 2rem;
+                        border-radius: var(--radius-lg);
+                        box-shadow: var(--shadow-lg);
+                        text-align: center;
+                        max-width: 400px;
+                    ">
+                        <i class="fas fa-tools" style="font-size: 3rem; color: var(--warning-color); margin-bottom: 1rem;"></i>
+                        <h3 style="margin-bottom: 0.5rem; color: var(--text-primary);">Coming Soon!</h3>
+                        <p style="color: var(--text-secondary); line-height: 1.5;">
+                            Google Sheets integration is currently being improved. 
+                            Please use File Upload for now.
+                        </p>
+                    </div>
+                </div>
                 <div class="sheets-input-group">
                     <label for="sheet_url">Google Sheets URL</label>
                     <div class="input-with-icon">
                         <i class="fab fa-google"></i>
                         <input type="url" class="form-control" id="sheet_url" name="sheet_url" 
-                               value="{{ sheet_url }}" placeholder="https://docs.google.com/spreadsheets/d/..." 
-                               {% if sheet_url %}required{% endif %}>
+                            value="{{ sheet_url }}" placeholder="https://docs.google.com/spreadsheets/d/..." 
+                            {% if not sheet_url %}disabled{% else %}required{% endif %}>
                     </div>
                     <small class="form-hint">
                         Make sure the Google Sheet is shared with "Anyone with the link can view"
@@ -109,9 +145,9 @@
                 <div class="form-group">
                     <label for="year">Report Year</label>
                     <select name="year" id="year" class="form-control" required>
-                        {% set current_year = datetime.now().year %}
+                        {% set current_year = year %}
                         {% for y in range(2018, current_year + 1) %}
-                            <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }}</option>
+                            <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -119,9 +155,8 @@
                 <div class="form-group">
                     <label for="month">Report Month</label>
                     <select name="month" id="month" class="form-control" required>
-                        {% set current_month = datetime.now().month %}
                         {% for m in range(1, 13) %}
-                            <option value="{{ m }}" {% if m == current_month %}selected{% endif %}>{{ datetime(2023, m, 1).strftime('%B') }}</option>
+                            <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ month_names[m-1] }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -189,170 +224,8 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const fileUploadToggle = document.getElementById('file_upload_toggle');
-    const sheetsToggle = document.getElementById('sheets_toggle');
-    const fileUploadSection = document.getElementById('file_upload_section');
-    const sheetsSection = document.getElementById('sheets_section');
-    const fileInput = document.getElementById('file-upload');
-    const dropArea = document.getElementById('dropArea');
-    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
-    const filePreview = document.getElementById('filePreview');
-    const fileName = document.getElementById('fileName');
-    const fileSize = document.getElementById('fileSize');
-    const removeFile = document.getElementById('removeFile');
-    const sheetUrlInput = document.getElementById('sheet_url');
-    const submitBtn = document.getElementById('submitBtn');
-    const yearSelect = document.getElementById('year');
-    const monthSelect = document.getElementById('month');
-    const selectedMonthYear = document.getElementById('selectedMonthYear');
-
-    // Update month/year display
-    function updateDateDisplay() {
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-        const selectedMonth = monthNames[parseInt(monthSelect.value) - 1];
-        selectedMonthYear.textContent = `${selectedMonth} ${yearSelect.value}`;
-    }
-
-    yearSelect.addEventListener('change', updateDateDisplay);
-    monthSelect.addEventListener('change', updateDateDisplay);
-    updateDateDisplay();
-
-    // Toggle between file upload and Google Sheets
-    function toggleInputMethod() {
-        const useSheets = sheetsToggle.checked;
-        
-        if (useSheets) {
-            fileUploadSection.classList.remove('active');
-            sheetsSection.classList.add('active');
-            fileInput.removeAttribute('required');
-            sheetUrlInput.setAttribute('required', 'required');
-        } else {
-            fileUploadSection.classList.add('active');
-            sheetsSection.classList.remove('active');
-            fileInput.setAttribute('required', 'required');
-            sheetUrlInput.removeAttribute('required');
-        }
-    }
-
-    fileUploadToggle.addEventListener('change', toggleInputMethod);
-    sheetsToggle.addEventListener('change', toggleInputMethod);
-
-    // File upload drag and drop functionality
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropArea.addEventListener(eventName, preventDefaults, false);
-    });
-
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropArea.addEventListener(eventName, highlight, false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropArea.addEventListener(eventName, unhighlight, false);
-    });
-
-    function highlight() {
-        if (!sheetsToggle.checked) {
-            dropArea.classList.add('highlight');
-        }
-    }
-
-    function unhighlight() {
-        dropArea.classList.remove('highlight');
-    }
-
-    // Handle dropped files
-    dropArea.addEventListener('drop', handleDrop, false);
-
-    function handleDrop(e) {
-        if (sheetsToggle.checked) return;
-        
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            handleFile(files[0]);
-        }
-    }
-
-    // Handle file selection
-    fileInput.addEventListener('change', function() {
-        if (this.files.length > 0) {
-            handleFile(this.files[0]);
-        }
-    });
-
-    function handleFile(file) {
-        if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-            file.type === 'application/vnd.ms-excel' ||
-            file.name.endsWith('.xlsx') || 
-            file.name.endsWith('.xls')) {
-            
-            // Show file preview
-            fileName.textContent = file.name;
-            fileSize.textContent = formatFileSize(file.size);
-            uploadPlaceholder.style.display = 'none';
-            filePreview.style.display = 'flex';
-            
-            // Update file input
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(file);
-            fileInput.files = dataTransfer.files;
-        } else {
-            showAlert('Please select a valid Excel file (.xlsx, .xls)', 'error');
-            resetFileInput();
-        }
-    }
-
-    // Remove file
-    removeFile.addEventListener('click', function(e) {
-        e.preventDefault();
-        resetFileInput();
-    });
-
-    function resetFileInput() {
-        fileInput.value = '';
-        uploadPlaceholder.style.display = 'flex';
-        filePreview.style.display = 'none';
-    }
-
-    function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    // Form submission
-    const form = document.getElementById('uploadForm');
-    form.addEventListener('submit', function(e) {
-        if (sheetsToggle.checked && !sheetUrlInput.value) {
-            e.preventDefault();
-            showAlert('Please enter a Google Sheets URL', 'error');
-            return;
-        }
-
-        if (!sheetsToggle.checked && fileInput.files.length === 0) {
-            e.preventDefault();
-            showAlert('Please select an Excel file', 'error');
-            return;
-        }
-
-        // Show loading state
-        submitBtn.disabled = true;
-        submitBtn.querySelector('.btn-text').style.display = 'none';
-        submitBtn.querySelector('.btn-loading').style.display = 'flex';
-    });
-
-    function showAlert(message, type) {
-        alert(message); // Temporary simple alert
-    }
-});
-</script>
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

@@ -1,0 +1,230 @@
+<!-- app/templates/main/report_preview.html -->
+{% extends 'base.html' %}
+
+{% block title %}Report Preview - Mzugoss Welfare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/report_preview.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="report-preview-container">
+    <!-- Header -->
+    <div class="report-header">
+        <div class="header-content">
+            <h1 class="header-title">
+                <i class="fas fa-check-circle"></i>
+                Report Generated Successfully
+            </h1>
+            <p class="header-subtitle">
+                {{ month }} {{ year }} Contributions Report
+            </p>
+        </div>
+        <div class="header-icon">
+            <i class="fas fa-file-contract"></i>
+        </div>
+    </div>
+
+    <!-- Success Alert -->
+    <div class="success-alert">
+        <div class="alert-content">
+            <i class="fas fa-check-circle"></i>
+            <div>
+                <strong>Report Ready!</strong> The {{ month }} {{ year }} contributions report has been successfully generated.
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="summary-section">
+        <h2 class="section-title">
+            <i class="fas fa-chart-pie"></i>
+            Summary Statistics
+        </h2>
+        
+        <div class="summary-grid">
+            <!-- Total Contributions -->
+            <div class="summary-card card-success">
+                <div class="card-header">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <h3>Total Contributions</h3>
+                </div>
+                <div class="card-body">
+                    <div class="card-amount">MWK {{ "%.2f"|format(total_contributions) }}</div>
+                </div>
+            </div>
+            
+            <!-- Contributors -->
+            <div class="summary-card card-primary">
+                <div class="card-header">
+                    <i class="fas fa-users"></i>
+                    <h3>Contributors</h3>
+                </div>
+                <div class="card-body">
+                    <div class="card-amount">{{ contributors }}</div>
+                </div>
+            </div>
+            
+            <!-- Defaulters -->
+            <div class="summary-card card-warning">
+                <div class="card-header">
+                    <i class="fas fa-user-times"></i>
+                    <h3>Defaulters</h3>
+                </div>
+                <div class="card-body">
+                    <div class="card-amount">{{ defaulters }}</div>
+                </div>
+            </div>
+            
+            <!-- Money Dispensed -->
+            <div class="summary-card card-info">
+                <div class="card-header">
+                    <i class="fas fa-hand-holding-usd"></i>
+                    <h3>Money Dispensed</h3>
+                </div>
+                <div class="card-body">
+                    <div class="card-amount">
+                        {% if money_dispensed is not none %}
+                            MWK {{ "%.2f"|format(money_dispensed) }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Total Book Balance -->
+            <div class="summary-card card-dark">
+                <div class="card-header">
+                    <i class="fas fa-book"></i>
+                    <h3>Total Book Balance</h3>
+                </div>
+                <div class="card-body">
+                    <div class="card-amount">
+                        {% if total_book_balance is not none %}
+                            MWK {{ "%.2f"|format(total_book_balance) }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-section">
+        <h2 class="section-title">
+            <i class="fas fa-download"></i>
+            Download Options
+        </h2>
+        
+        <div class="actions-grid">
+            <a href="{{ url_for('main.download_report') }}" class="action-card card-primary">
+                <div class="action-icon">
+                    <i class="fas fa-file-pdf"></i>
+                </div>
+                <div class="action-content">
+                    <h3>Download PDF Report</h3>
+                    <p>Complete report with all details and statistics</p>
+                </div>
+                <div class="action-arrow">
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+            </a>
+            
+            <a href="{{ url_for('main.download_paid_members') }}" class="action-card card-success">
+                <div class="action-icon">
+                    <i class="fas fa-file-image"></i>
+                </div>
+                <div class="action-content">
+                    <h3>Download Paid Members (PNG)</h3>
+                    <p>Image file with paid members list</p>
+                </div>
+                <div class="action-arrow">
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+            </a>
+            
+            <a href="{{ url_for('main.dashboard') }}" class="action-card card-secondary">
+                <div class="action-icon">
+                    <i class="fas fa-arrow-left"></i>
+                </div>
+                <div class="action-content">
+                    <h3>Back to Dashboard</h3>
+                    <p>Return to main dashboard</p>
+                </div>
+                <div class="action-arrow">
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Report Details -->
+    <div class="details-section">
+        <h2 class="section-title">
+            <i class="fas fa-info-circle"></i>
+            Report Details
+        </h2>
+        
+        <div class="details-content">
+            <div class="detail-item">
+                <span class="detail-label">Report Period:</span>
+                <span class="detail-value">{{ month }} {{ year }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Generated On:</span>
+                <span class="detail-value">{{ current_date.strftime('%B %d, %Y at %I:%M %p') }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">File Name:</span>
+                <span class="detail-value">{{ filename }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">File Format:</span>
+                <span class="detail-value">PDF Document</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add animation to cards
+    const cards = document.querySelectorAll('.summary-card, .action-card');
+    cards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+    });
+    
+    // Handle download progress
+    document.querySelectorAll('.action-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            const href = this.getAttribute('href');
+            if (href && !href.includes('dashboard')) {
+                // Show loading indicator
+                const originalText = this.querySelector('h3').textContent;
+                this.querySelector('h3').textContent = 'Downloading...';
+                this.querySelector('.action-arrow').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                
+                // Reset after 3 seconds (in case download fails)
+                setTimeout(() => {
+                    this.querySelector('h3').textContent = originalText;
+                    this.querySelector('.action-arrow').innerHTML = '<i class="fas fa-arrow-right"></i>';
+                }, 3000);
+            }
+        });
+    });
+    
+    // Auto-scroll to actions section on page load
+    setTimeout(() => {
+        const actionsSection = document.querySelector('.actions-section');
+        if (actionsSection) {
+            actionsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 500);
+});
+</script>
+{% endblock %}
