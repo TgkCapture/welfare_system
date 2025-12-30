@@ -1,15 +1,20 @@
-# === app/auth/routes.py ===
+# app/routes/auth.py
 from datetime import timedelta
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
-from ..models import User
-from .. import db
-from .forms import LoginForm, RegisterForm
+from app.extensions import db
+from app.auth.forms import LoginForm, RegisterForm
 
-auth = Blueprint('auth', __name__)
+auth = Blueprint('auth', __name__, url_prefix='/auth')
 
 SESSION_TIMEOUT = 1800  # seconds
+
+def get_user_model():
+    """Get the User model - handles circular imports"""
+
+    from app.models.user import User
+    return User
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
@@ -18,6 +23,7 @@ def login():
         
     form = LoginForm()
     if form.validate_on_submit():
+        User = get_user_model()
         user = User.query.filter_by(email=form.email.data).first()
         
         if not user or not check_password_hash(user.password, form.password.data):
@@ -30,7 +36,7 @@ def login():
         next_page = request.args.get('next')
         return redirect(next_page or url_for('main.dashboard'))
     
-    return render_template('login.html', form=form)
+    return render_template('auth/login.html', form=form)
 
 @auth.route('/register', methods=['GET', 'POST'])
 def register():
@@ -39,6 +45,7 @@ def register():
         
     form = RegisterForm()
     if form.validate_on_submit():
+        User = get_user_model()
         existing_user = User.query.filter_by(email=form.email.data).first()
         if existing_user:
             flash('Email already registered', 'danger')
@@ -57,10 +64,10 @@ def register():
             
         except Exception as e:
             db.session.rollback()
-            flash('Registration failed. Please try again.', 'danger')
+            flash(f'Registration failed: {str(e)}', 'danger')
             return redirect(url_for('auth.register'))
     
-    return render_template('register.html', form=form)
+    return render_template('auth/register.html', form=form)
 
 @auth.route('/logout')
 @login_required

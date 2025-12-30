@@ -1,0 +1,386 @@
+<!-- app/templates/main/welfare_rules.html -->
+{% extends 'base.html' %}
+{% block title %}Welfare Rules - Mzugoss Welfare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/welfare_rules.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="rules-container">
+    <!-- Action Bar -->
+    <div class="action-bar">
+        <div class="action-buttons">
+            <button class="btn btn-primary btn-action" onclick="printRules()">
+                <i class="fas fa-print"></i>
+                Print Rules
+            </button>
+            <button class="btn btn-success btn-action" onclick="downloadRulesPDF()">
+                <i class="fas fa-download"></i>
+                Download PDF
+            </button>
+            <button class="btn btn-info btn-action" onclick="shareRules()">
+                <i class="fas fa-share-alt"></i>
+                Share Rules
+            </button>
+        </div>
+        <div class="last-updated">
+            <i class="fas fa-clock"></i>
+            Last updated: 2025
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <div class="rules-hero">
+        <div class="hero-content">
+            <h1 class="hero-title">
+                <i class="fas fa-book-open"></i>
+                Welfare Rules & Guidelines
+            </h1>
+            <p class="hero-subtitle">
+                Understanding our contribution system and benefits
+            </p>
+            <div class="hero-stats">
+                <div class="stat-badge">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>Updated 2025</span>
+                </div>
+                <div class="stat-badge">
+                    <i class="fas fa-users"></i>
+                    <span>Community Rules</span>
+                </div>
+            </div>
+        </div>
+        <div class="hero-icon">
+            <i class="fas fa-hand-holding-heart"></i>
+        </div>
+    </div>
+
+    <!-- Quick Summary Cards -->
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="summary-icon monthly">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div class="summary-content">
+                <h3>Monthly Contribution</h3>
+                <div class="summary-amount">K1,000</div>
+                <span class="summary-period">per month</span>
+            </div>
+        </div>
+        
+        <div class="summary-card">
+            <div class="summary-icon funeral">
+                <i class="fas fa-cross"></i>
+            </div>
+            <div class="summary-content">
+                <h3>Funeral Support</h3>
+                <div class="summary-amount">K50,000</div>
+                <span class="summary-period">per incident</span>
+            </div>
+        </div>
+        
+        <div class="summary-card">
+            <div class="summary-icon wedding">
+                <i class="fas fa-ring"></i>
+            </div>
+            <div class="summary-content">
+                <h3>Wedding Support</h3>
+                <div class="summary-amount">K80,000</div>
+                <span class="summary-period">per wedding</span>
+            </div>
+        </div>
+        
+        <div class="summary-card">
+            <div class="summary-icon sickness">
+                <i class="fas fa-hospital"></i>
+            </div>
+            <div class="summary-content">
+                <h3>Sickness Support</h3>
+                <div class="summary-amount">K15,000</div>
+                <span class="summary-period">per admission</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Rules Sections -->
+    <div class="rules-content">
+        <!-- Funeral Rules -->
+        <section class="rule-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <i class="fas fa-cross"></i>
+                </div>
+                <div class="section-title">
+                    <h2>Funeral Support Rules</h2>
+                    <p>Financial assistance during bereavement</p>
+                </div>
+            </div>
+            <div class="rule-content">
+                <div class="rule-card">
+                    <div class="rule-badge eligibility">
+                        <i class="fas fa-check-circle"></i>
+                        Eligibility
+                    </div>
+                    <p>Money will only be released for immediate family members:</p>
+                    <div class="relationships-grid">
+                        {% for relation in ["Mother", "Father", "Sister", "Brother", "Legal Guardian", "Husband/Wife", "Children"] %}
+                        <div class="relationship-item">
+                            <i class="fas fa-user-check"></i>
+                            <span>{{ relation }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="rule-card highlight">
+                    <div class="rule-badge amount">
+                        <i class="fas fa-money-bill"></i>
+                        Support Amount
+                    </div>
+                    <div class="amount-display">
+                        <span class="currency">K</span>
+                        <span class="amount">50,000</span>
+                        <span class="purpose">per funeral</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Deceased Member Support -->
+        <section class="rule-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <i class="fas fa-user-minus"></i>
+                </div>
+                <div class="section-title">
+                    <h2>Deceased Member Support</h2>
+                    <p>Support for when a contributing member passes away</p>
+                </div>
+            </div>
+            <div class="rule-content">
+                <div class="rule-card highlight">
+                    <div class="rule-badge amount">
+                        <i class="fas fa-hands-helping"></i>
+                        Special Support
+                    </div>
+                    <div class="amount-display">
+                        <span class="currency">K</span>
+                        <span class="amount">80,000</span>
+                        <span class="purpose">support for family</span>
+                    </div>
+                    <div class="clarification-note">
+                        <p><strong>Clarification:</strong> This support is specifically for when a member (someone who contributes regularly) passes away. The K80,000 is provided to support the member's family during this difficult time.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contribution Rules -->
+        <section class="rule-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="section-title">
+                    <h2>Contribution Rules</h2>
+                    <p>Monthly contributions and penalties</p>
+                </div>
+            </div>
+            <div class="rule-content">
+                <div class="rule-card warning">
+                    <div class="rule-badge important">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Important Notice
+                    </div>
+                    <p><strong>Those who are eligible to receive the welfare money are only those who contribute; therefore, those who do not contribute are not eligible to receive the money.</strong></p>
+                </div>
+
+                <div class="rules-grid">
+                    <div class="rule-item">
+                        <div class="rule-number">1</div>
+                        <div class="rule-text">
+                            <h4>Late Payment Penalties</h4>
+                            <p>5% penalty per month for late contributions. Multiple months accumulate penalties.</p>
+                            <div class="penalty-example">
+                                <span class="example-title">Example:</span>
+                                <span class="example-text">2 months late = 10% penalty</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rule-item">
+                        <div class="rule-number">2</div>
+                        <div class="rule-text">
+                            <h4>Back Payments</h4>
+                            <p>Missed months must be paid for the specific period they were missed.</p>
+                        </div>
+                    </div>
+
+                    <div class="rule-item">
+                        <div class="rule-number">3</div>
+                        <div class="rule-text">
+                            <h4>Benefits Calculation</h4>
+                            <p>Number of times you can receive help = Number of months you've contributed.</p>
+                            <div class="benefit-example">
+                                <span class="example-title">Example:</span>
+                                <span class="example-text">3 months contribution = 3 times eligible for support</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sickness Rules -->
+        <section class="rule-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <i class="fas fa-heartbeat"></i>
+                </div>
+                <div class="section-title">
+                    <h2>Sickness Support</h2>
+                    <p>Medical and hospitalization assistance</p>
+                </div>
+            </div>
+            <div class="rule-content">
+                <div class="rule-card">
+                    <div class="rule-badge eligibility">
+                        <i class="fas fa-stethoscope"></i>
+                        Eligibility Criteria
+                    </div>
+                    <p>Support is provided for members who are <strong>admitted in the hospital for a couple of days</strong>.</p>
+                </div>
+                <div class="rule-card highlight">
+                    <div class="rule-badge amount">
+                        <i class="fas fa-pills"></i>
+                        Medical Support
+                    </div>
+                    <div class="amount-display">
+                        <span class="currency">K</span>
+                        <span class="amount">15,000</span>
+                        <span class="purpose">per hospital admission</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Wedding Rules -->
+        <section class="rule-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <i class="fas fa-glass-cheers"></i>
+                </div>
+                <div class="section-title">
+                    <h2>Wedding Support</h2>
+                    <p>Celebratory financial assistance</p>
+                </div>
+            </div>
+            <div class="rule-content">
+                <div class="rule-card highlight">
+                    <div class="rule-badge amount">
+                        <i class="fas fa-ring"></i>
+                        Wedding Support
+                    </div>
+                    <div class="amount-display">
+                        <span class="currency">K</span>
+                        <span class="amount">80,000</span>
+                        <span class="purpose">per wedding ceremony</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Key Points Summary -->
+        <section class="key-points-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <i class="fas fa-key"></i>
+                </div>
+                <h2>Key Points to Remember</h2>
+            </div>
+            <div class="key-points-grid">
+                <div class="key-point">
+                    <i class="fas fa-hand-holding-usd"></i>
+                    <h4>Regular Contributions</h4>
+                    <p>Consistent monthly payments ensure you're eligible for support when needed</p>
+                </div>
+                <div class="key-point">
+                    <i class="fas fa-calendar-times"></i>
+                    <h4>Avoid Penalties</h4>
+                    <p>Pay on time to avoid 5% monthly penalties on late contributions</p>
+                </div>
+                <div class="key-point">
+                    <i class="fas fa-balance-scale"></i>
+                    <h4>Fair System</h4>
+                    <p>Benefits are proportional to your contributions - more contributions = more support eligibility</p>
+                </div>
+                <div class="key-point">
+                    <i class="fas fa-user-minus"></i>
+                    <h4>Member Death Support</h4>
+                    <p>K80,000 support when a contributing member passes away</p>
+                </div>
+                <div class="key-point">
+                    <i class="fas fa-family"></i>
+                    <h4>Family Support</h4>
+                    <p>Immediate family coverage for funerals including spouses and children</p>
+                </div>
+                <div class="key-point">
+                    <i class="fas fa-hospital-user"></i>
+                    <h4>Enhanced Medical Support</h4>
+                    <p>K15,000 for hospital admissions requiring multiple days</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Footer Note -->
+    <div class="rules-footer">
+        <div class="footer-content">
+            <i class="fas fa-info-circle"></i>
+            <p>These rules are designed to ensure fair and sustainable welfare support for all contributing members. For any clarifications, please contact the welfare committee.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Share Modal -->
+<div id="shareModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Share Welfare Rules</h3>
+            <button class="modal-close" onclick="closeShareModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="share-options">
+                <button class="share-option" onclick="shareViaWhatsApp()">
+                    <i class="fab fa-whatsapp"></i>
+                    <span>WhatsApp</span>
+                </button>
+                <button class="share-option" onclick="shareViaEmail()">
+                    <i class="fas fa-envelope"></i>
+                    <span>Email</span>
+                </button>
+                <button class="share-option" onclick="copyShareLink()">
+                    <i class="fas fa-link"></i>
+                    <span>Copy Link</span>
+                </button>
+                <button class="share-option" onclick="shareViaSMS()">
+                    <i class="fas fa-sms"></i>
+                    <span>SMS</span>
+                </button>
+            </div>
+            <div class="share-link-container">
+                <input type="text" id="shareLink" readonly value="{{ request.url }}">
+                <button class="btn-copy" onclick="copyShareLink()">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/welfare_rules.js') }}"></script>
+{% endblock %}

@@ -1,17 +1,14 @@
-# === app/models.py ===
-from flask_login import UserMixin
-from . import db
-from flask import current_app
-
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(100), unique=True)
-    password = db.Column(db.String(100))
+# app/models/setting.py
+from app.extensions import db
 
 class Setting(db.Model):
+    __tablename__ = 'settings'
+    
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(100), unique=True, nullable=False)
     value = db.Column(db.Text, nullable=True)
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), 
+                          onupdate=db.func.current_timestamp())
     
     @classmethod
     def get_value(cls, key, default=None):
@@ -28,3 +25,6 @@ class Setting(db.Model):
             db.session.add(setting)
         db.session.commit()
         return setting
+    
+    def __repr__(self):
+        return f'<Setting {self.key}>'

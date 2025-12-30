@@ -1,3 +1,4 @@
+<!-- Welfare Rules PDF Template -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -201,8 +202,29 @@
             margin: 0.3cm 0;
         }
         
+        .important-note {
+            background: #fef3c7;
+            padding: 0.5cm;
+            border-radius: 0.2cm;
+            border-left: 4px solid #f59e0b;
+            margin: 0.3cm 0 0.5cm 0;
+        }
+        
         strong {
             color: #1e293b;
+        }
+        
+        .clarification {
+            background: #f0f9ff;
+            padding: 0.3cm;
+            border-radius: 0.2cm;
+            margin: 0.3cm 0;
+            border-left: 3px solid #3b82f6;
+            font-size: 9pt;
+        }
+        
+        .clarification strong {
+            color: #2563eb;
         }
     </style>
 </head>
@@ -225,17 +247,17 @@
                 </div>
                 <div class="fee-item">
                     <h3>Funeral Support</h3>
-                    <div class="amount">K20,000</div>
+                    <div class="amount">K50,000</div>
                     <div class="period">per incident</div>
                 </div>
                 <div class="fee-item">
                     <h3>Wedding Support</h3>
-                    <div class="amount">K50,000</div>
+                    <div class="amount">K80,000</div>
                     <div class="period">per wedding</div>
                 </div>
                 <div class="fee-item">
                     <h3>Sickness Support</h3>
-                    <div class="amount">K5,000</div>
+                    <div class="amount">K15,000</div>
                     <div class="period">per admission</div>
                 </div>
             </div>
@@ -263,8 +285,25 @@
             <div class="highlight">
                 <div class="rule-badge">Support Amount</div>
                 <div style="text-align: center;">
-                    <div class="amount">K20,000</div>
+                    <div class="amount">K50,000</div>
                     <div class="period">per funeral incident</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deceased Member Support Section -->
+        <div class="section">
+            <h2 class="section-title">Deceased Member Support</h2>
+            <p>Support for when a contributing member passes away.</p>
+            
+            <div class="highlight">
+                <div class="rule-badge">Special Support</div>
+                <div style="text-align: center;">
+                    <div class="amount">K80,000</div>
+                    <div class="period">support for family</div>
+                </div>
+                <div class="clarification">
+                    <strong>Clarification:</strong> This support is specifically for when a member (someone who contributes regularly) passes away. The K80,000 is provided to support the member's family during this difficult time.
                 </div>
             </div>
         </div>
@@ -274,37 +313,32 @@
             <h2 class="section-title">Contribution Rules</h2>
             <p>Monthly contributions system with penalties and benefits calculation.</p>
             
-            <div class="warning">
+            <div class="important-note">
                 <div class="rule-badge">Important Notice</div>
-                <p><strong>Non-contributors will not receive any welfare money.</strong> There will be no separate contributions for people who do not contribute regularly. Personal donations between members are allowed.</p>
+                <p><strong>Those who are eligible to receive the welfare money are only those who contribute; therefore, those who do not contribute are not eligible to receive the money.</strong></p>
             </div>
 
             <h3 class="subsection-title">Contribution Guidelines</h3>
             
             <div class="rule-item">
                 <h4>1. Late Payment Penalties</h4>
-                <p>5% penalty per month for late contributions. Multiple months accumulate penalties progressively.</p>
+                <p>5% penalty per month for late contributions. Multiple months accumulate penalties.</p>
                 <div class="example">
-                    <span class="example-title">Example:</span> 2 months late = 10% penalty, 3 months late = 15% penalty
+                    <span class="example-title">Example:</span> 2 months late = 10% penalty
                 </div>
             </div>
             
             <div class="rule-item">
                 <h4>2. Back Payments</h4>
-                <p>Missed months must be paid for the specific period they were missed. Payments are applied to the oldest outstanding month first.</p>
+                <p>Missed months must be paid for the specific period they were missed.</p>
             </div>
             
             <div class="rule-item">
                 <h4>3. Benefits Calculation</h4>
                 <p>Number of times you can receive help = Number of months you've contributed.</p>
                 <div class="example">
-                    <span class="example-title">Example:</span> 3 months contribution = eligible for support 3 times
+                    <span class="example-title">Example:</span> 3 months contribution = 3 times eligible for support
                 </div>
-            </div>
-            
-            <div class="rule-item">
-                <h4>4. Partial Contributions</h4>
-                <p>For those contributing irregularly ("mwa apo ndi apo"), penalties apply based on the number of months skipped.</p>
             </div>
         </div>
 
@@ -315,13 +349,13 @@
             
             <div class="rule-card">
                 <div class="rule-badge">Eligibility Criteria</div>
-                <p>Support is provided for members who are <strong>admitted in the hospital for a couple of days</strong>. Outpatient visits and minor illnesses are not covered.</p>
+                <p>Support is provided for members who are <strong>admitted in the hospital for a couple of days</strong>.</p>
             </div>
             
             <div class="highlight">
                 <div class="rule-badge">Medical Support</div>
                 <div style="text-align: center;">
-                    <div class="amount">K5,000</div>
+                    <div class="amount">K15,000</div>
                     <div class="period">per hospital admission</div>
                 </div>
             </div>
@@ -335,13 +369,10 @@
             <div class="highlight">
                 <div class="rule-badge">Wedding Support</div>
                 <div style="text-align: center;">
-                    <div class="amount">K50,000</div>
+                    <div class="amount">K80,000</div>
                     <div class="period">per wedding ceremony</div>
                 </div>
             </div>
-            <p style="text-align: center; font-size: 10pt; color: #64748b; margin-top: 0.3cm;">
-                Available to contributing members for their own wedding ceremony
-            </p>
         </div>
 
         <!-- Key Points Summary -->
@@ -361,16 +392,16 @@
                     <p>Benefits are proportional to your contributions - more contributions = more support eligibility</p>
                 </div>
                 <div class="key-point">
+                    <h4>Member Death Support</h4>
+                    <p>K80,000 support when a contributing member passes away</p>
+                </div>
+                <div class="key-point">
                     <h4>Family Support</h4>
                     <p>Immediate family coverage for funerals including spouses and children</p>
                 </div>
                 <div class="key-point">
-                    <h4>Hospitalization Required</h4>
-                    <p>Sickness support only for hospital admissions of multiple days</p>
-                </div>
-                <div class="key-point">
-                    <h4>No Separate Collections</h4>
-                    <p>No welfare money for non-contributors; only personal donations allowed</p>
+                    <h4>Enhanced Medical Support</h4>
+                    <p>K15,000 for hospital admissions requiring multiple days</p>
                 </div>
             </div>
         </div>
@@ -419,6 +450,11 @@
                     2 months contributed = Eligible for support 2 times only<br>
                     Once used, must contribute more to be eligible again
                 </div>
+            </div>
+            
+            <div class="important-note" style="margin-top: 0.5cm;">
+                <div class="rule-badge">Important</div>
+                <p><strong>Remember:</strong> Only those who contribute regularly are eligible for any welfare support. Non-contributors cannot receive any welfare money from the community fund.</p>
             </div>
         </div>
     </div>
