@@ -64,7 +64,6 @@
                         <div class="toggle-content">
                             <i class="fab fa-google"></i>
                             <span>Google Sheets</span>
-                            <span class="coming-soon-badge">Coming Soon</span> <!-- Coming Soon -->
                         </div>
                     </label>
                 </div>
@@ -95,37 +94,7 @@
             </div>
 
             <!-- Google Sheets Section -->
-            <div class="form-section {% if sheet_url %}active{% endif %}" id="sheets_section" style="position: relative;">
-                <!-- semi-transparent overlay when disabled -->
-                <div class="disabled-overlay" style="
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(255, 255, 255, 0.7);
-                    border-radius: var(--radius-lg);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    z-index: 10;
-                ">
-                    <div class="disabled-message" style="
-                        background: var(--bg-color);
-                        padding: 2rem;
-                        border-radius: var(--radius-lg);
-                        box-shadow: var(--shadow-lg);
-                        text-align: center;
-                        max-width: 400px;
-                    ">
-                        <i class="fas fa-tools" style="font-size: 3rem; color: var(--warning-color); margin-bottom: 1rem;"></i>
-                        <h3 style="margin-bottom: 0.5rem; color: var(--text-primary);">Coming Soon!</h3>
-                        <p style="color: var(--text-secondary); line-height: 1.5;">
-                            Google Sheets integration is currently being improved. 
-                            Please use File Upload for now.
-                        </p>
-                    </div>
-                </div>
+            <div class="form-section {% if sheet_url %}active{% endif %}" id="sheets_section">
                 <div class="sheets-input-group">
                     <label for="sheet_url">Google Sheets URL</label>
                     <div class="input-with-icon">
