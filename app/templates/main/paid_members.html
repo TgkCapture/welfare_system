@@ -107,3 +107,7 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/paid_members.js') }}"></script>
+{% endblock %}

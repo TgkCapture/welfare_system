@@ -28,18 +28,28 @@
 
                 <nav class="main-nav">
                     {% if current_user.is_authenticated %}
+                    <!-- Desktop Navigation -->
                     <div class="nav-links">
                         <a href="{{ url_for('main.dashboard') }}" class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
                             <i class="fas fa-tachometer-alt"></i>
                             <span class="nav-text">Dashboard</span>
                         </a>
+                        
+                        {% if current_user.has_permission('upload_files') %}
+                        <a href="{{ url_for('main.upload_dashboard') }}" class="nav-link {% if request.endpoint == 'main.upload_dashboard' %}active{% endif %}">
+                            <i class="fas fa-file-upload"></i>
+                            <span class="nav-text">Generate Report</span>
+                        </a>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('main.reports_list') }}" class="nav-link {% if request.endpoint == 'main.reports_list' %}active{% endif %}">
+                            <i class="fas fa-file-alt"></i>
+                            <span class="nav-text">Reports</span>
+                        </a>
+                        
                         <a href="{{ url_for('main.welfare_rules') }}" class="nav-link {% if request.endpoint == 'main.welfare_rules' %}active{% endif %}">
                             <i class="fas fa-book"></i>
                             <span class="nav-text">Welfare Rules</span>
-                        </a>
-                        <a href="{{ url_for('main.settings') }}" class="nav-link {% if request.endpoint == 'main.settings' %}active{% endif %}">
-                            <i class="fas fa-cog"></i>
-                            <span class="nav-text">Settings</span>
                         </a>
                     </div>
                     
@@ -59,7 +69,7 @@
                                     <i class="fas fa-user-circle user-icon"></i>
                                     <div class="user-details">
                                         <strong>{{ current_user.email }}</strong>
-                                        <small class="user-role">{{ current_user.role|title }}</small>
+                                        <small class="user-role {{ current_user.role }}">{{ current_user.role|title }}</small>
                                     </div>
                                 </div>
                             </div>
@@ -131,7 +141,7 @@
                 <i class="fas fa-user-circle"></i>
                 <div class="mobile-user-details">
                     <strong>{{ current_user.email }}</strong>
-                    <small class="mobile-user-role">{{ current_user.role|title }}</small>
+                    <small class="mobile-user-role {{ current_user.role }}">{{ current_user.role|title }}</small>
                 </div>
             </div>
             
@@ -142,20 +152,34 @@
                 Dashboard
             </a>
             
+            {% if current_user.has_permission('upload_files') %}
+            <a href="{{ url_for('main.upload_dashboard') }}" class="mobile-nav-link">
+                <i class="fas fa-file-upload"></i>
+                Generate Report
+            </a>
+            {% endif %}
+            
+            <a href="{{ url_for('main.reports_list') }}" class="mobile-nav-link">
+                <i class="fas fa-file-alt"></i>
+                Reports
+            </a>
+            
             <a href="{{ url_for('main.welfare_rules') }}" class="mobile-nav-link">
                 <i class="fas fa-book"></i>
                 Welfare Rules
-            </a>
-            
-            <a href="{{ url_for('main.settings') }}" class="mobile-nav-link">
-                <i class="fas fa-cog"></i>
-                Settings
             </a>
             
             <a href="{{ url_for('auth.profile') }}" class="mobile-nav-link">
                 <i class="fas fa-user"></i>
                 Profile
             </a>
+            
+            {% if current_user.has_permission('manage_settings') %}
+            <a href="{{ url_for('main.settings') }}" class="mobile-nav-link">
+                <i class="fas fa-cog"></i>
+                Settings
+            </a>
+            {% endif %}
             
             {% if current_user.is_admin %}
             <div class="mobile-nav-divider"></div>
@@ -221,7 +245,7 @@
         <div class="container">
             <div class="footer-content">
                 <div class="footer-section">
-                    <p>&copy; 2025 Mzugoss Welfare System. All rights reserved.</p>
+                    <p>&copy; {{ now().year if now else '2025' }} Mzugoss Welfare System. All rights reserved.</p>
                 </div>
                 <div class="footer-section">
                     <div class="version-info">
@@ -234,71 +258,6 @@
     </footer>
 
     <script src="{{ url_for('static', filename='js/base.js') }}"></script>
-    
-    <!-- Dropdown JavaScript -->
-    <script>
-        // User dropdown toggle
-        const userDropdownToggle = document.getElementById('userDropdownToggle');
-        const userDropdownMenu = document.getElementById('userDropdownMenu');
-        
-        if (userDropdownToggle) {
-            userDropdownToggle.addEventListener('click', function(e) {
-                e.stopPropagation();
-                userDropdownMenu.classList.toggle('show');
-            });
-            
-            // Close dropdown when clicking outside
-            document.addEventListener('click', function(e) {
-                if (!userDropdownToggle.contains(e.target) && !userDropdownMenu.contains(e.target)) {
-                    userDropdownMenu.classList.remove('show');
-                }
-            });
-            
-            // Close dropdown when clicking on a dropdown item
-            const dropdownItems = userDropdownMenu.querySelectorAll('.dropdown-item');
-            dropdownItems.forEach(item => {
-                item.addEventListener('click', function() {
-                    userDropdownMenu.classList.remove('show');
-                });
-            });
-        }
-        
-        // Mobile menu toggle
-        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-        const mobileNavOverlay = document.getElementById('mobileNavOverlay');
-        const closeMobileNav = document.getElementById('closeMobileNav');
-        
-        if (mobileMenuBtn) {
-            mobileMenuBtn.addEventListener('click', function() {
-                mobileNavOverlay.classList.add('show');
-            });
-        }
-        
-        if (closeMobileNav) {
-            closeMobileNav.addEventListener('click', function() {
-                mobileNavOverlay.classList.remove('show');
-            });
-        }
-        
-        // Close mobile menu when clicking outside
-        mobileNavOverlay.addEventListener('click', function(e) {
-            if (e.target === mobileNavOverlay) {
-                mobileNavOverlay.classList.remove('show');
-            }
-        });
-        
-        // Auto-hide flash messages after 5 seconds
-        setTimeout(function() {
-            const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(alert => {
-                alert.style.opacity = '0';
-                setTimeout(() => {
-                    alert.style.display = 'none';
-                }, 500);
-            });
-        }, 5000);
-    </script>
-    
     {% block extra_js %}{% endblock %}
 </body>
 </html>
