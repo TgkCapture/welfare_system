@@ -185,6 +185,12 @@ def viewer_dashboard():
     """Dashboard for viewers - shows available reports and paid members"""
     current_date = datetime.now()
     
+    # Month names for the template
+    month_names = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    
     # Get available reports from session or database
     available_reports = get_available_reports()
     
@@ -200,6 +206,7 @@ def viewer_dashboard():
                          available_reports=available_reports,
                          paid_members_data=paid_members_data,
                          recent_activity=recent_activity,
+                         month_names=month_names, 
                          current_date=current_date)
 
 def get_available_reports():
