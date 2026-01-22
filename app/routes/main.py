@@ -6,8 +6,10 @@ from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
 import pandas as pd
+from sqlalchemy import desc
 
 from app.models.setting import Setting
+from app.models.user import User
 from app.services.excel_parser import ExcelParser
 from app.services.report_generator import ReportGenerator
 from app.services.image_generator import ImageGenerator
@@ -145,6 +147,16 @@ class ReportDataSerializer:
 @main.route('/')
 @login_required
 def dashboard():
+    """Main dashboard - redirects based on user role"""
+    if current_user.is_admin or current_user.is_clerk:
+        return redirect(url_for('main.upload_dashboard'))
+    else:
+        return redirect(url_for('main.viewer_dashboard'))
+
+@main.route('/upload-dashboard')
+@permission_required('upload_files')
+def upload_dashboard():
+    """Dashboard for users who can upload files (Admin & Clerk)"""
     from app.models.setting import Setting
     
     sheet_url = Setting.get_value('google_sheets_url', current_app.config.get('DEFAULT_SHEET_URL', ''))
@@ -155,18 +167,70 @@ def dashboard():
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
     ]
-
-    user_role = current_user.role
-    show_upload = current_user.has_permission('upload_files')
     
-    return render_template('main/dashboard.html', 
+    recent_reports = []  # Placeholder for now
+    
+    return render_template('main/upload_dashboard.html', 
                          version=current_app.version,
                          sheet_url=sheet_url,
                          year=current_date.year,  
                          month=current_date.month,
                          month_names=month_names,
-                         user_role=user_role,
-                         show_upload=show_upload)
+                         user_role=current_user.role,
+                         recent_reports=recent_reports)
+
+@main.route('/viewer-dashboard')
+@login_required
+def viewer_dashboard():
+    """Dashboard for viewers - shows available reports and paid members"""
+    current_date = datetime.now()
+    
+    # Get available reports from session or database
+    available_reports = get_available_reports()
+    
+    # Get paid members data (for future implementation)
+    paid_members_data = get_paid_members_data()
+    
+    # Get recent activity
+    recent_activity = get_recent_activity()
+    
+    return render_template('main/viewer_dashboard.html',
+                         version=current_app.version,
+                         user_role=current_user.role,
+                         available_reports=available_reports,
+                         paid_members_data=paid_members_data,
+                         recent_activity=recent_activity,
+                         current_date=current_date)
+
+def get_available_reports():
+    """Get list of available reports (placeholder )"""
+    
+    if 'report_data' in session:
+        report_data = session['report_data']
+        return [{
+            'month': report_data['month'],
+            'year': report_data['year'],
+            'total_contributions': report_data['total_contributions'],
+            'contributors': report_data['num_contributors'],
+            'defaulters': report_data['num_missing'],
+            'generated_date': datetime.now().strftime('%Y-%m-%d'),
+            'download_url': url_for('main.download_report')
+        }]
+    
+    return []
+
+def get_paid_members_data():
+    """Get paid members data"""
+    return {
+        'total_paid': 0,
+        'members': [],
+        'last_updated': None
+    }
+
+def get_recent_activity():
+    """Get recent activity """
+
+    return []
 
 @main.route('/upload', methods=['POST'])
 @permission_required('upload_files')
@@ -182,7 +246,7 @@ def upload():
         
         if not year or not month:
             flash('Year and month are required', 'error')
-            return redirect(url_for('main.dashboard'))
+            return redirect(url_for('main.upload_dashboard'))
         
         # Parse Excel data
         data = ExcelParser.parse_excel(filepath, year=year, month=month)
@@ -206,17 +270,18 @@ def upload():
         except Exception as e:
             current_app.logger.warning(f"Quick cleanup failed: {str(e)}")
         
+        flash('Report generated successfully!', 'success')
         return redirect(url_for('main.report_preview'))
         
     except ValueError as e:
         current_app.logger.warning(f"Upload validation error: {str(e)}")
         flash(str(e), 'error')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.upload_dashboard'))
         
     except Exception as e:
         current_app.logger.error(f"Upload error: {str(e)}")
         flash(f'Error generating report: {str(e)}', 'error')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.upload_dashboard'))
 
 @main.route('/report-preview')
 @login_required
@@ -439,3 +504,59 @@ def admin_dashboard():
         active_users=active_users,
         recent_logins=recent_logins
     )
+
+@main.route('/reports')
+@login_required
+def reports_list():
+    """View all available reports"""
+    # Get all reports from database or storage
+    available_reports = get_available_reports()
+    
+    return render_template('main/reports_list.html',
+                         version=current_app.version,
+                         reports=available_reports,
+                         user_role=current_user.role)
+
+@main.route('/paid-members')
+@login_required
+def paid_members_view():
+    """View paid members list"""
+    if 'report_data' not in session:
+        flash('No report data available. Please generate a report first.', 'info')
+        return redirect(url_for('main.viewer_dashboard'))
+    
+    report_data = session['report_data']
+    
+    # Convert data to DataFrame for processing
+    data = pd.DataFrame(report_data['data'])
+    
+    paid_members = []
+    try:
+        month_col = report_data['month_col']
+        name_col = report_data['name_col']
+        
+        for _, row in data.iterrows():
+            member_name = row.get(name_col, '')
+            payment = row.get(month_col, 0)
+            
+            try:
+                payment_value = float(payment)
+                if payment_value > 0:
+                    paid_members.append({
+                        'name': member_name,
+                        'amount': payment_value,
+                        'status': 'Paid'
+                    })
+            except (ValueError, TypeError):
+                pass
+        
+    except Exception as e:
+        current_app.logger.error(f"Error processing paid members: {str(e)}")
+        paid_members = []
+    
+    return render_template('main/paid_members.html',
+                         version=current_app.version,
+                         paid_members=paid_members,
+                         month=report_data['month'],
+                         year=report_data['year'],
+                         total_paid=len(paid_members))

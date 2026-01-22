@@ -1,0 +1,103 @@
+<!-- app/templates/main/reports_list.html -->
+{% extends 'base.html' %}
+
+{% block title %}Reports - Mzugoss Welfare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reports_list.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <h1 class="page-title">
+            <i class="fas fa-file-alt"></i>
+            Contribution Reports
+        </h1>
+        <div class="page-actions">
+            <a href="{{ url_for('main.viewer_dashboard') }}" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <div class="content-card">
+        {% if reports %}
+        <div class="reports-grid">
+            {% for report in reports %}
+            <div class="report-card">
+                <div class="report-header">
+                    <div class="report-period">
+                        <i class="fas fa-calendar"></i>
+                        {{ month_names[report.month-1] if month_names else report.month }} {{ report.year }}
+                    </div>
+                    <div class="report-date">
+                        <i class="fas fa-clock"></i>
+                        {{ report.generated_date }}
+                    </div>
+                </div>
+                
+                <div class="report-body">
+                    <div class="report-stat">
+                        <div class="stat-icon">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value">MWK {{ "%.2f"|format(report.total_contributions) }}</div>
+                            <div class="stat-label">Total Contributions</div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-stat">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value">{{ report.contributors }}</div>
+                            <div class="stat-label">Contributors</div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-stat">
+                        <div class="stat-icon">
+                            <i class="fas fa-user-times"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value">{{ report.defaulters }}</div>
+                            <div class="stat-label">Defaulters</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="report-footer">
+                    <a href="{{ url_for('main.report_preview') }}" class="btn btn-outline">
+                        <i class="fas fa-eye"></i>
+                        Preview
+                    </a>
+                    {% if report.download_url %}
+                    <a href="{{ report.download_url }}" class="btn btn-primary">
+                        <i class="fas fa-download"></i>
+                        Download PDF
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-file-excel"></i>
+            <h3>No Reports Available</h3>
+            <p>No contribution reports have been generated yet.</p>
+            {% if user_role in ['admin', 'clerk'] %}
+            <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                Generate Report
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
