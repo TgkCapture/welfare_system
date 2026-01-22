@@ -1,6 +1,7 @@
 # app/routes/main.py
 from flask import Blueprint, jsonify, render_template, request, redirect, url_for, flash, session, send_file, make_response, current_app
 from flask_login import login_required, current_user
+from app.decorators.permissions import role_required, permission_required
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
@@ -154,16 +155,21 @@ def dashboard():
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
     ]
+
+    user_role = current_user.role
+    show_upload = current_user.has_permission('upload_files')
     
     return render_template('main/dashboard.html', 
                          version=current_app.version,
                          sheet_url=sheet_url,
                          year=current_date.year,  
                          month=current_date.month,
-                         month_names=month_names)
+                         month_names=month_names,
+                         user_role=user_role,
+                         show_upload=show_upload)
 
 @main.route('/upload', methods=['POST'])
-@login_required
+@permission_required('upload_files')
 def upload():
     """Handle file upload and report generation"""
     try:
@@ -377,13 +383,9 @@ def after_request(response):
     return response
 
 @main.route('/admin/cleanup', methods=['GET', 'POST'])
-@login_required
+@role_required('admin') 
 def cleanup_files():
     """Admin endpoint to cleanup old files"""
-    if not current_user.is_admin: 
-        flash('Access denied', 'error')
-        return redirect(url_for('main.dashboard'))
-    
     folder_sizes = None
     cleanup_result = None
     
@@ -396,7 +398,6 @@ def cleanup_files():
         else:
             flash(f"Cleanup failed: {cleanup_result.get('error')}", 'error')
     
-    # Always get folder sizes to show current status
     folder_sizes = FileCleanupService.get_folder_sizes()
     
     return render_template(
@@ -412,3 +413,29 @@ def storage_status():
     """API endpoint to check storage status"""
     folder_sizes = FileCleanupService.get_folder_sizes()
     return jsonify(folder_sizes)
+
+@main.route('/admin')
+@role_required('admin')
+def admin_dashboard():
+    """Admin dashboard with system overview"""
+    from app.models.user import User
+    from app.models.setting import Setting
+    
+    # Get statistics
+    total_users = User.query.count()
+    active_users = User.query.filter_by(is_active=True).count()
+    
+    # Get recent logins
+    recent_logins = User.query.filter(
+        User.last_login.isnot(None)
+    ).order_by(
+        User.last_login.desc()
+    ).limit(10).all()
+    
+    return render_template(
+        'main/admin_dashboard.html',
+        version=current_app.version,
+        total_users=total_users,
+        active_users=active_users,
+        recent_logins=recent_logins
+    )
