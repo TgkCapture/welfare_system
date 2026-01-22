@@ -1,8 +1,9 @@
 
 # === app/auth/forms.py ===
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, BooleanField
-from wtforms.validators import InputRequired, Email, Length, EqualTo
+from wtforms import StringField, PasswordField, SubmitField, BooleanField, SelectField
+from wtforms.validators import InputRequired, Email, Length, EqualTo, Optional
+from app.models.user import User 
 
 class LoginForm(FlaskForm):
     email = StringField('Email', validators=[
@@ -30,4 +31,23 @@ class RegisterForm(FlaskForm):
     ], render_kw={"placeholder": "••••••••"})
     
     confirm = PasswordField('Confirm Password', render_kw={"placeholder": "••••••••"})
+    
+    role = SelectField('Role', 
+                      choices=[('viewer', 'Viewer'), ('clerk', 'Clerk'), ('admin', 'Admin')],
+                      default='viewer',
+                      validators=[Optional()])
+    
     submit = SubmitField('Register', render_kw={"class": "btn btn-primary"})
+
+class UserEditForm(FlaskForm):
+    email = StringField('Email', validators=[
+        InputRequired("Email is required"),
+        Email("Please enter a valid email address")
+    ])
+    
+    role = SelectField('Role', 
+                      choices=[('viewer', 'Viewer'), ('clerk', 'Clerk'), ('admin', 'Admin')])
+    
+    is_active = BooleanField('Active')
+    
+    submit = SubmitField('Update User', render_kw={"class": "btn btn-primary"})
