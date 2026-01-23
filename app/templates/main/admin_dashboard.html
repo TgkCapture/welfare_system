@@ -1,0 +1,322 @@
+<!-- app/templates/main/admin_dashboard.html -->
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard - Mzugoss Welfare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard">
+    <!-- Welcome Section -->
+    <div class="welcome-section">
+        <div class="welcome-content">
+            <h1 class="welcome-title">
+                <i class="fas fa-shield-alt"></i>
+                Admin Dashboard
+            </h1>
+            <p class="welcome-subtitle">
+                System overview and administration controls
+            </p>
+        </div>
+        <div class="welcome-icon">
+            <i class="fas fa-cogs"></i>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-grid">
+        <!-- Users Card -->
+        <div class="stat-card card-primary">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-value">{{ total_users }}</h3>
+                <p class="stat-label">Total Users</p>
+                <div class="stat-details">
+                    <span class="detail-item">
+                        <i class="fas fa-check-circle"></i>
+                        {{ active_users }} Active
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Storage Card -->
+        <div class="stat-card card-info">
+            <div class="stat-icon">
+                <i class="fas fa-database"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-value">
+                    {% if file_stats.total_size %}
+                        {{ (file_stats.total_size / 1024 / 1024)|round(2) }} MB
+                    {% else %}
+                        0 MB
+                    {% endif %}
+                </h3>
+                <p class="stat-label">Storage Used</p>
+                <div class="stat-details">
+                    <span class="detail-item">
+                        <i class="fas fa-file-upload"></i>
+                        {{ file_stats.upload_file_count|default(0) }} uploads
+                    </span>
+                    <span class="detail-item">
+                        <i class="fas fa-file-pdf"></i>
+                        {{ file_stats.report_file_count|default(0) }} reports
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Google Sheets Card -->
+        <div class="stat-card {{ 'card-success' if sheets_status.configured else 'card-warning' }}">
+            <div class="stat-icon">
+                <i class="fab fa-google"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-value">
+                    {% if sheets_status.configured %}
+                        <i class="fas fa-check"></i>
+                    {% else %}
+                        <i class="fas fa-times"></i>
+                    {% endif %}
+                </h3>
+                <p class="stat-label">Google Sheets</p>
+                <div class="stat-details">
+                    <span class="detail-item">
+                        {% if sheets_status.configured %}
+                            Connected
+                        {% else %}
+                            Not Configured
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Reports Card -->
+        <div class="stat-card card-secondary">
+            <div class="stat-icon">
+                <i class="fas fa-file-alt"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-value">{{ recent_reports|length }}</h3>
+                <p class="stat-label">Recent Reports</p>
+                <div class="stat-details">
+                    <span class="detail-item">
+                        <i class="fas fa-clock"></i>
+                        Last 30 days
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="content-grid">
+        <!-- Users by Role -->
+        <div class="content-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-user-tag"></i>
+                    Users by Role
+                </h2>
+                <a href="{{ url_for('main.admin_users') }}" class="btn btn-sm btn-outline">
+                    <i class="fas fa-users-cog"></i>
+                    Manage Users
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="role-distribution">
+                    {% for role_data in users_by_role %}
+                    <div class="role-item">
+                        <div class="role-info">
+                            <span class="role-name {{ role_data.role }}">
+                                <i class="fas fa-{{ 'user-shield' if role_data.role == 'admin' else 'user-edit' if role_data.role == 'clerk' else 'user' }}"></i>
+                                {{ role_data.role|title }}
+                            </span>
+                            <span class="role-count">{{ role_data.count }} users</span>
+                        </div>
+                        <div class="role-progress">
+                            <div class="progress-bar" style="width: {{ (role_data.count / total_users * 100) if total_users > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('main.create_user') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-user-plus"></i>
+                    Add New User
+                </a>
+            </div>
+        </div>
+
+        <!-- Recent Logins -->
+        <div class="content-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Recent Logins
+                </h2>
+                <span class="badge">Last 7 days</span>
+            </div>
+            <div class="card-body">
+                {% if recent_logins %}
+                <div class="login-list">
+                    {% for user in recent_logins %}
+                    <div class="login-item">
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="user-details">
+                                <strong>{{ user.email }}</strong>
+                                <span class="user-role {{ user.role }}">{{ user.role|title }}</span>
+                            </div>
+                        </div>
+                        <div class="login-time">
+                            <i class="fas fa-clock"></i>
+                            {{ user.last_login.strftime('%b %d, %I:%M %p') }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-user-clock"></i>
+                    <p>No recent logins</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- System Actions -->
+        <div class="content-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-tools"></i>
+                    System Actions
+                </h2>
+            </div>
+            <div class="card-body">
+                <div class="actions-grid">
+                    <a href="{{ url_for('main.upload_dashboard') }}" class="action-item">
+                        <div class="action-icon">
+                            <i class="fas fa-file-upload"></i>
+                        </div>
+                        <div class="action-content">
+                            <h4>Generate Report</h4>
+                            <p>Create new contribution reports</p>
+                        </div>
+                    </a>
+                    
+                    <a href="{{ url_for('main.cleanup_files') }}" class="action-item">
+                        <div class="action-icon">
+                            <i class="fas fa-trash-alt"></i>
+                        </div>
+                        <div class="action-content">
+                            <h4>Cleanup Files</h4>
+                            <p>Remove old temporary files</p>
+                        </div>
+                    </a>
+                    
+                    <a href="{{ url_for('main.settings') }}" class="action-item">
+                        <div class="action-icon">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <div class="action-content">
+                            <h4>System Settings</h4>
+                            <p>Configure application settings</p>
+                        </div>
+                    </a>
+                    
+                    <a href="{{ url_for('main.admin_users') }}" class="action-item">
+                        <div class="action-icon">
+                            <i class="fas fa-users-cog"></i>
+                        </div>
+                        <div class="action-content">
+                            <h4>User Management</h4>
+                            <p>Manage system users</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Reports -->
+        {% if recent_reports %}
+        <div class="content-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Recent Reports
+                </h2>
+                <a href="{{ url_for('main.reports_list') }}" class="btn btn-sm btn-outline">
+                    <i class="fas fa-list"></i>
+                    View All
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="reports-list">
+                    {% for report in recent_reports %}
+                    <div class="report-item">
+                        <div class="report-period">
+                            <i class="fas fa-calendar"></i>
+                            {{ report.month }} {{ report.year }}
+                        </div>
+                        <div class="report-stats">
+                            <span class="stat">
+                                <i class="fas fa-money-bill-wave"></i>
+                                MWK {{ "%.2f"|format(report.total_contributions) }}
+                            </span>
+                            <span class="stat">
+                                <i class="fas fa-users"></i>
+                                {{ report.contributors }} contributors
+                            </span>
+                        </div>
+                        <div class="report-date">
+                            {{ report.generated_date }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Links -->
+    <div class="quick-links">
+        <h3 class="section-title">
+            <i class="fas fa-bolt"></i>
+            Quick Links
+        </h3>
+        <div class="links-grid">
+            <a href="{{ url_for('main.create_user') }}" class="link-card">
+                <i class="fas fa-user-plus"></i>
+                <span>Add User</span>
+            </a>
+            <a href="{{ url_for('main.upload_dashboard') }}" class="link-card">
+                <i class="fas fa-file-excel"></i>
+                <span>Upload Data</span>
+            </a>
+            <a href="{{ url_for('main.settings') }}" class="link-card">
+                <i class="fas fa-sliders-h"></i>
+                <span>Settings</span>
+            </a>
+            <a href="{{ url_for('main.cleanup_files') }}" class="link-card">
+                <i class="fas fa-broom"></i>
+                <span>Cleanup</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin_dashboard.js') }}"></script>
+{% endblock %}
