@@ -151,10 +151,73 @@ class ReportDataSerializer:
 @login_required
 def dashboard():
     """Main dashboard - redirects based on user role"""
-    if current_user.is_admin or current_user.is_clerk:
-        return redirect(url_for('main.upload_dashboard'))
+    if current_user.is_admin:
+        return redirect(url_for('main.admin_dashboard'))
+    elif current_user.is_clerk:
+        return redirect(url_for('main.clerk_dashboard'))
     else:
         return redirect(url_for('main.viewer_dashboard'))
+    
+@main.route('/clerk-dashboard')
+@role_required('clerk')
+def clerk_dashboard():
+    """Dashboard for clerks - shows report generation tools and recent activity"""
+    from app.models.setting import Setting
+    from app.models.user import User
+    
+    current_date = datetime.now()
+    
+    # Month names for the template
+    month_names = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    
+    # Get Google Sheets status
+    sheet_url = Setting.get_value('google_sheets_url', '')
+    sheets_status = {
+        'configured': bool(sheet_url),
+        'url': sheet_url
+    }
+    
+    # Get recent reports from session
+    recent_reports = []
+    if 'report_data' in session:
+        report_data = session['report_data']
+        recent_reports = [{
+            'month': report_data['month'],
+            'year': report_data['year'],
+            'total_contributions': report_data['total_contributions'],
+            'contributors': report_data['num_contributors'],
+            'defaulters': report_data['num_missing'],
+            'generated_date': datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'download_url': url_for('main.download_report')
+        }]
+    
+    # Get clerk's activity statistics
+    try:
+        reports_generated = len(recent_reports)
+        
+        # Get recent login activity
+        user = User.query.get(current_user.id)
+        last_login = user.last_login.strftime('%B %d, %Y %I:%M %p') if user.last_login else 'Never'
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting clerk stats: {str(e)}")
+        reports_generated = 0
+        last_login = 'Unknown'
+    
+    return render_template(
+        'main/clerk_dashboard.html',
+        version=current_app.version,
+        current_date=current_date,
+        month_names=month_names,
+        sheets_status=sheets_status,
+        recent_reports=recent_reports,
+        reports_generated=reports_generated,
+        last_login=last_login,
+        user=current_user
+    )
 
 @main.route('/upload-dashboard')
 @permission_required('upload_files')
