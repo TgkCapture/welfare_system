@@ -30,11 +30,23 @@
                     {% if current_user.is_authenticated %}
                     <!-- Desktop Navigation -->
                     <div class="nav-links">
-                        <a href="{{ url_for('main.dashboard') }}" class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+                        {% if current_user.is_admin %}
+                        <a href="{{ url_for('main.admin_dashboard') }}" class="nav-link {% if request.endpoint == 'main.admin_dashboard' %}active{% endif %}">
                             <i class="fas fa-tachometer-alt"></i>
-                            <span class="nav-text">Dashboard</span>
+                            <span class="nav-text">Admin Dashboard</span>
                         </a>
-                        
+                        {% elif current_user.is_clerk %}
+                        <a href="{{ url_for('main.clerk_dashboard') }}" class="nav-link {% if request.endpoint == 'main.clerk_dashboard' %}active{% endif %}">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span class="nav-text">Clerk Dashboard</span>
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('main.viewer_dashboard') }}" class="nav-link {% if request.endpoint == 'main.viewer_dashboard' %}active{% endif %}">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span class="nav-text">Viewer Dashboard</span>
+                        </a>
+                        {% endif %}
+                      
                         {% if current_user.has_permission('upload_files') %}
                         <a href="{{ url_for('main.upload_dashboard') }}" class="nav-link {% if request.endpoint == 'main.upload_dashboard' %}active{% endif %}">
                             <i class="fas fa-file-upload"></i>
@@ -147,10 +159,22 @@
             
             <div class="mobile-nav-divider"></div>
             
-            <a href="{{ url_for('main.dashboard') }}" class="mobile-nav-link">
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('main.admin_dashboard') }}" class="mobile-nav-link">
                 <i class="fas fa-tachometer-alt"></i>
-                Dashboard
+                Admin Dashboard
             </a>
+            {% elif current_user.is_clerk %}
+            <a href="{{ url_for('main.clerk_dashboard') }}" class="mobile-nav-link">
+                <i class="fas fa-tachometer-alt"></i>
+                Clerk Dashboard
+            </a>
+            {% else %}
+            <a href="{{ url_for('main.viewer_dashboard') }}" class="mobile-nav-link">
+                <i class="fas fa-tachometer-alt"></i>
+                Viewer Dashboard
+            </a>
+            {% endif %}
             
             {% if current_user.has_permission('upload_files') %}
             <a href="{{ url_for('main.upload_dashboard') }}" class="mobile-nav-link">
