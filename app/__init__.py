@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from app.config import Config
 from app.services.file_cleanup import FileCleanupService
 
+from app.extensions import db, login_manager
+
 __version__ = "1.3.2"
 
 def create_app(config_class=Config):
@@ -26,9 +28,8 @@ def create_app(config_class=Config):
         os.makedirs(app.config['LOGS_FOLDER'], exist_ok=True)
     
     # Initialize extensions
-    from app.extensions import db, login_manager, init_extensions
+    from app.extensions import init_extensions
     init_extensions(app)
-    
     
     from app.models.user import User
     
