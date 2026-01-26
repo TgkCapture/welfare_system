@@ -8,7 +8,7 @@ from app.services.file_cleanup import FileCleanupService
 
 from app.extensions import db, login_manager
 
-__version__ = "1.3.2"
+__version__ = "2.0.0"
 
 def create_app(config_class=Config):
     app = Flask(__name__, instance_relative_config=True)
