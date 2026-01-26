@@ -1,0 +1,435 @@
+<!-- app/templates/auth/activity_log.html -->
+{% extends 'base.html' %}
+
+{% block title %}Activity Log - Mzugoss Welfare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/activity_log.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="activity-log-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1 class="page-title">
+                <i class="fas fa-history"></i>
+                Activity Log
+            </h1>
+            <p class="page-subtitle">
+                View your account activity history
+            </p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('auth.profile') }}" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i>
+                Back to Profile
+            </a>
+            <button class="btn btn-outline" id="exportActivityBtn">
+                <i class="fas fa-download"></i>
+                Export Log
+            </button>
+            <button class="btn btn-warning" id="clearActivityBtn">
+                <i class="fas fa-trash"></i>
+                Clear Log
+            </button>
+        </div>
+    </div>
+
+    <!-- User Summary -->
+    <div class="user-summary-card">
+        <div class="user-avatar">
+            <i class="fas fa-user-circle"></i>
+        </div>
+        <div class="user-info">
+            <h3>{{ user.email }}</h3>
+            <div class="user-meta">
+                <span class="badge {{ user.role }}">
+                    <i class="fas fa-{{ 'user-shield' if user.role == 'admin' else 'user-edit' if user.role == 'clerk' else 'user' }}"></i>
+                    {{ user.role|title }}
+                </span>
+                <span class="meta-item">
+                    <i class="fas fa-calendar-plus"></i>
+                    Member since {{ user.created_at.strftime('%B %Y') }}
+                </span>
+                <span class="meta-item">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Last login: {{ user.last_login.strftime('%b %d, %Y %I:%M %p') if user.last_login else 'Never' }}
+                </span>
+            </div>
+        </div>
+        <div class="activity-stats">
+            <div class="stat">
+                <span class="stat-value">{{ activities|length }}</span>
+                <span class="stat-label">Activities</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value">{{ (now - user.created_at).days + 1 }}</span>
+                <span class="stat-label">Days Active</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Filters -->
+    <div class="filters-section">
+        <div class="filters-header">
+            <h3>
+                <i class="fas fa-filter"></i>
+                Filter Activities
+            </h3>
+            <button class="btn btn-sm btn-outline" id="clearFiltersBtn">
+                <i class="fas fa-times"></i>
+                Clear Filters
+            </button>
+        </div>
+        <div class="filters-grid">
+            <div class="filter-group">
+                <label for="activityType">
+                    <i class="fas fa-tag"></i>
+                    Activity Type
+                </label>
+                <select id="activityType" class="form-control">
+                    <option value="">All Types</option>
+                    <option value="login">Logins</option>
+                    <option value="password">Password Changes</option>
+                    <option value="profile">Profile Updates</option>
+                    <option value="report">Report Activities</option>
+                    <option value="system">System Activities</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="dateRange">
+                    <i class="fas fa-calendar"></i>
+                    Date Range
+                </label>
+                <select id="dateRange" class="form-control">
+                    <option value="">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="quarter">Last 3 Months</option>
+                    <option value="year">This Year</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="searchActivity">
+                    <i class="fas fa-search"></i>
+                    Search Activities
+                </label>
+                <input type="text" 
+                       id="searchActivity" 
+                       class="form-control" 
+                       placeholder="Search activity descriptions...">
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Timeline -->
+    <div class="activity-timeline-section">
+        <div class="section-header">
+            <h2>
+                <i class="fas fa-stream"></i>
+                Activity Timeline
+            </h2>
+            <div class="timeline-stats">
+                <span class="badge" id="visibleActivitiesCount">{{ activities|length }}</span>
+                <span>activities</span>
+            </div>
+        </div>
+        
+        {% if activities %}
+        <div class="timeline" id="activityTimeline">
+            {% for activity in activities %}
+            <div class="timeline-item" 
+                 data-type="{{ activity.type|default('system') }}"
+                 data-date="{{ activity.timestamp }}">
+                <div class="timeline-marker">
+                    <div class="marker-icon">
+                        <i class="fas fa-{{ activity.icon }}"></i>
+                    </div>
+                </div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <div class="activity-description">
+                            <h4>{{ activity.description }}</h4>
+                            <div class="activity-meta">
+                                {% if activity.type %}
+                                <span class="activity-type {{ activity.type }}">
+                                    <i class="fas fa-tag"></i>
+                                    {{ activity.type|title }}
+                                </span>
+                                {% endif %}
+                                {% if activity.ip_address %}
+                                <span class="activity-ip">
+                                    <i class="fas fa-globe"></i>
+                                    {{ activity.ip_address }}
+                                </span>
+                                {% endif %}
+                                {% if activity.browser %}
+                                <span class="activity-browser">
+                                    <i class="fas fa-window-restore"></i>
+                                    {{ activity.browser }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="activity-time">
+                            <i class="fas fa-clock"></i>
+                            <span class="time-display">{{ activity.timestamp }}</span>
+                        </div>
+                    </div>
+                    
+                    {% if activity.details %}
+                    <div class="timeline-details">
+                        <button class="btn btn-sm btn-outline toggle-details">
+                            <i class="fas fa-chevron-down"></i>
+                            View Details
+                        </button>
+                        <div class="details-content" style="display: none;">
+                            <pre>{{ activity.details|tojson|safe }}</pre>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Timeline Navigation -->
+        <div class="timeline-navigation">
+            <button class="btn btn-outline" id="loadMoreBtn">
+                <i class="fas fa-plus"></i>
+                Load More Activities
+            </button>
+            <button class="btn btn-outline" id="scrollToTopBtn">
+                <i class="fas fa-arrow-up"></i>
+                Back to Top
+            </button>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-history"></i>
+            </div>
+            <h3>No Activity Found</h3>
+            <p>You don't have any recorded activities yet.</p>
+            <p class="text-muted">Activities will appear here as you use the system.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Activity Summary -->
+    <div class="summary-section">
+        <h3>
+            <i class="fas fa-chart-bar"></i>
+            Activity Summary
+        </h3>
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-icon login">
+                    <i class="fas fa-sign-in-alt"></i>
+                </div>
+                <div class="summary-content">
+                    <h4 id="loginCount">{{ activities|selectattr('type', 'equalto', 'login')|list|length }}</h4>
+                    <p>Login Sessions</p>
+                </div>
+            </div>
+            
+            <div class="summary-card">
+                <div class="summary-icon profile">
+                    <i class="fas fa-user-edit"></i>
+                </div>
+                <div class="summary-content">
+                    <h4 id="profileCount">{{ activities|selectattr('type', 'equalto', 'profile')|list|length }}</h4>
+                    <p>Profile Updates</p>
+                </div>
+            </div>
+            
+            <div class="summary-card">
+                <div class="summary-icon password">
+                    <i class="fas fa-key"></i>
+                </div>
+                <div class="summary-content">
+                    <h4 id="passwordCount">{{ activities|selectattr('type', 'equalto', 'password')|list|length }}</h4>
+                    <p>Password Changes</p>
+                </div>
+            </div>
+            
+            <div class="summary-card">
+                <div class="summary-icon report">
+                    <i class="fas fa-file-pdf"></i>
+                </div>
+                <div class="summary-content">
+                    <h4 id="reportCount">{{ activities|selectattr('type', 'equalto', 'report')|list|length }}</h4>
+                    <p>Report Activities</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Insights -->
+    <div class="insights-section">
+        <h3>
+            <i class="fas fa-lightbulb"></i>
+            Activity Insights
+        </h3>
+        <div class="insights-content">
+            <div class="insight-item">
+                <div class="insight-icon">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <div class="insight-text">
+                    <h5>Most Active Day</h5>
+                    <p id="mostActiveDay">Loading...</p>
+                </div>
+            </div>
+            
+            <div class="insight-item">
+                <div class="insight-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="insight-text">
+                    <h5>Peak Activity Time</h5>
+                    <p id="peakActivityTime">Loading...</p>
+                </div>
+            </div>
+            
+            <div class="insight-item">
+                <div class="insight-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="insight-text">
+                    <h5>Activity Trend</h5>
+                    <p id="activityTrend">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<!-- Clear Activity Confirmation Modal -->
+<div class="modal" id="clearActivityModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Clear Activity Log</h3>
+            <button class="close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="warning-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <p>Are you sure you want to clear your activity log?</p>
+            <p class="text-warning">
+                This will permanently delete all your activity history. This action cannot be undone.
+            </p>
+            <div class="checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="exportBeforeClear">
+                    <span>Export log before clearing</span>
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="keepRecentActivities">
+                    <span>Keep activities from the last 7 days</span>
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline cancel-clear">Cancel</button>
+            <button class="btn btn-warning" id="confirmClearBtn">
+                <i class="fas fa-trash"></i>
+                Clear Activity Log
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Export Options Modal -->
+<div class="modal" id="exportOptionsModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Export Activity Log</h3>
+            <button class="close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="exportFormat">
+                    <i class="fas fa-file-export"></i>
+                    Export Format
+                </label>
+                <select id="exportFormat" class="form-control">
+                    <option value="csv">CSV (Comma Separated Values)</option>
+                    <option value="json">JSON (JavaScript Object Notation)</option>
+                    <option value="pdf">PDF Document</option>
+                    <option value="excel">Excel Spreadsheet</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="exportDateRange">
+                    <i class="fas fa-calendar"></i>
+                    Date Range
+                </label>
+                <select id="exportDateRange" class="form-control">
+                    <option value="all">All Activities</option>
+                    <option value="today">Today Only</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="customDateRange" style="display: none;">
+                <div class="date-range-inputs">
+                    <div class="date-input">
+                        <label for="startDate">From</label>
+                        <input type="date" id="startDate" class="form-control">
+                    </div>
+                    <div class="date-input">
+                        <label for="endDate">To</label>
+                        <input type="date" id="endDate" class="form-control">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <i class="fas fa-filter"></i>
+                    Include Activity Types
+                </label>
+                <div class="checkbox-grid">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="exportType" value="login" checked>
+                        <span>Logins</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="exportType" value="profile" checked>
+                        <span>Profile Updates</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="exportType" value="password" checked>
+                        <span>Password Changes</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="exportType" value="report" checked>
+                        <span>Report Activities</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline cancel-export">Cancel</button>
+            <button class="btn btn-primary" id="startExportBtn">
+                <i class="fas fa-download"></i>
+                Export Now
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/activity_log.js') }}"></script>
+{% endblock %}
