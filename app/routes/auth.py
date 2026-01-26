@@ -109,7 +109,7 @@ def profile():
         if 'report_data' in session:
             reports_generated = 1  # Simplified for now
     
-    # Activity log (simplified)
+    # Activity log 
     recent_activity = [
         {
             'icon': 'sign-in-alt',
@@ -264,7 +264,6 @@ def activity_log():
     # Get activity from settings (simplified)
     activity_data = Setting.get_value(f'user_{user.id}_activity', '[]')
     
-    # Parse activity data (would be JSON in real implementation)
     try:
         import json
         activities = json.loads(activity_data)
@@ -286,6 +285,7 @@ def activity_log():
     return render_template('auth/activity_log.html',
                          activities=activities,
                          user=user,
+                         now=datetime.now(),
                          version=current_app.version)
 
 @auth.route('/export-data', methods=['POST'])
