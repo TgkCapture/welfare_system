@@ -183,7 +183,7 @@ def profile():
                 
                 return redirect(url_for('auth.profile'))
     
-    return render_template('main/profile.html',
+    return render_template('auth/profile.html',
                          user=user,
                          password_form=password_form,
                          profile_form=profile_form,
