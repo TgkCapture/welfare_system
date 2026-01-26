@@ -38,7 +38,6 @@ class FileProcessor:
     @staticmethod
     def _process_google_sheets(request):
         """Process Google Sheets upload"""
-
         sheet_url = request.form.get('sheet_url', '')
         year = request.form.get('year', type=int)
         
@@ -157,14 +156,109 @@ def dashboard():
         return redirect(url_for('main.clerk_dashboard'))
     else:
         return redirect(url_for('main.viewer_dashboard'))
+
+@main.route('/admin')
+@role_required('admin')
+def admin_dashboard():
+    """Admin dashboard with system overview and analytics"""
+    import os
     
+    # Get user statistics
+    total_users = User.query.count()
+    active_users = User.query.filter_by(is_active=True).count()
+    users_by_role = db.session.query(
+        User.role, 
+        func.count(User.id).label('count')
+    ).group_by(User.role).all()
+    
+    # Get recent logins (last 7 days)
+    seven_days_ago = datetime.now() - timedelta(days=7)
+    recent_logins = User.query.filter(
+        User.last_login.isnot(None),
+        User.last_login >= seven_days_ago
+    ).order_by(
+        User.last_login.desc()
+    ).limit(10).all()
+    
+    # Get system statistics
+    try:
+        # File statistics
+        upload_folder = current_app.config.get('UPLOAD_FOLDER', '')
+        report_folder = current_app.config.get('REPORT_FOLDER', '')
+        
+        def get_folder_size(folder_path):
+            if not os.path.exists(folder_path):
+                return 0
+            total_size = 0
+            for dirpath, dirnames, filenames in os.walk(folder_path):
+                for f in filenames:
+                    fp = os.path.join(dirpath, f)
+                    if os.path.exists(fp):
+                        total_size += os.path.getsize(fp)
+            return total_size
+        
+        upload_size = get_folder_size(upload_folder)
+        report_size = get_folder_size(report_folder)
+        
+        # Count files
+        def count_files(folder_path):
+            if not os.path.exists(folder_path):
+                return 0
+            count = 0
+            for _, _, filenames in os.walk(folder_path):
+                count += len(filenames)
+            return count
+        
+        upload_count = count_files(upload_folder)
+        report_count = count_files(report_folder)
+        
+        file_stats = {
+            'upload_folder_size': upload_size,
+            'report_folder_size': report_size,
+            'upload_file_count': upload_count,
+            'report_file_count': report_count,
+            'total_size': upload_size + report_size
+        }
+    except Exception as e:
+        current_app.logger.error(f"Error getting file stats: {str(e)}")
+        file_stats = {}
+    
+    # Get recent reports from session
+    recent_reports = []
+    if 'report_data' in session:
+        report_data = session['report_data']
+        recent_reports = [{
+            'month': report_data['month'],
+            'year': report_data['year'],
+            'total_contributions': report_data['total_contributions'],
+            'contributors': report_data['num_contributors'],
+            'generated_date': datetime.now().strftime('%Y-%m-%d')
+        }]
+    
+    # Get Google Sheets status
+    sheet_url = Setting.get_value('google_sheets_url', '')
+    sheets_status = {
+        'configured': bool(sheet_url),
+        'url': sheet_url
+    }
+    
+    return render_template(
+        'main/admin_dashboard.html',
+        version=current_app.version,
+        total_users=total_users,
+        active_users=active_users,
+        users_by_role=users_by_role,
+        recent_logins=recent_logins,
+        file_stats=file_stats,
+        recent_reports=recent_reports,
+        sheets_status=sheets_status,
+        current_date=datetime.now()
+    )
+
 @main.route('/clerk-dashboard')
 @role_required('clerk')
 def clerk_dashboard():
     """Dashboard for clerks - shows report generation tools and recent activity"""
-    from app.models.setting import Setting
-    from app.models.user import User
-    
     current_date = datetime.now()
     
     # Month names for the template
@@ -276,8 +370,7 @@ def viewer_dashboard():
                          current_date=current_date)
 
 def get_available_reports():
-    """Get list of available reports (placeholder )"""
-    
+    """Get list of available reports"""
     if 'report_data' in session:
         report_data = session['report_data']
         return [{
@@ -301,8 +394,7 @@ def get_paid_members_data():
     }
 
 def get_recent_activity():
-    """Get recent activity """
-
+    """Get recent activity"""
     return []
 
 @main.route('/upload', methods=['POST'])
@@ -608,106 +700,6 @@ def paid_members_view():
                          year=report_data['year'],
                          total_paid=len(paid_members))
 
-@main.route('/admin')
-@role_required('admin')
-def admin_dashboard():
-    """Admin dashboard with system overview and analytics"""
-    from app.models.user import User
-    from app.models.setting import Setting
-    import os
-    
-    # Get user statistics
-    total_users = User.query.count()
-    active_users = User.query.filter_by(is_active=True).count()
-    users_by_role = db.session.query(
-        User.role, 
-        func.count(User.id).label('count')
-    ).group_by(User.role).all()
-    
-    # Get recent logins (last 7 days)
-    seven_days_ago = datetime.now() - timedelta(days=7)
-    recent_logins = User.query.filter(
-        User.last_login.isnot(None),
-        User.last_login >= seven_days_ago
-    ).order_by(
-        User.last_login.desc()
-    ).limit(10).all()
-    
-    # Get system statistics
-    try:
-        # File statistics
-        upload_folder = current_app.config.get('UPLOAD_FOLDER', '')
-        report_folder = current_app.config.get('REPORT_FOLDER', '')
-        
-        def get_folder_size(folder_path):
-            if not os.path.exists(folder_path):
-                return 0
-            total_size = 0
-            for dirpath, dirnames, filenames in os.walk(folder_path):
-                for f in filenames:
-                    fp = os.path.join(dirpath, f)
-                    if os.path.exists(fp):
-                        total_size += os.path.getsize(fp)
-            return total_size
-        
-        upload_size = get_folder_size(upload_folder)
-        report_size = get_folder_size(report_folder)
-        
-        # Count files
-        def count_files(folder_path):
-            if not os.path.exists(folder_path):
-                return 0
-            count = 0
-            for _, _, filenames in os.walk(folder_path):
-                count += len(filenames)
-            return count
-        
-        upload_count = count_files(upload_folder)
-        report_count = count_files(report_folder)
-        
-        file_stats = {
-            'upload_folder_size': upload_size,
-            'report_folder_size': report_size,
-            'upload_file_count': upload_count,
-            'report_file_count': report_count,
-            'total_size': upload_size + report_size
-        }
-    except Exception as e:
-        current_app.logger.error(f"Error getting file stats: {str(e)}")
-        file_stats = {}
-    
-    # Get recent reports from session
-    recent_reports = []
-    if 'report_data' in session:
-        report_data = session['report_data']
-        recent_reports = [{
-            'month': report_data['month'],
-            'year': report_data['year'],
-            'total_contributions': report_data['total_contributions'],
-            'contributors': report_data['num_contributors'],
-            'generated_date': datetime.now().strftime('%Y-%m-%d')
-        }]
-    
-    # Get Google Sheets status
-    sheet_url = Setting.get_value('google_sheets_url', '')
-    sheets_status = {
-        'configured': bool(sheet_url),
-        'url': sheet_url
-    }
-    
-    return render_template(
-        'main/admin_dashboard.html',
-        version=current_app.version,
-        total_users=total_users,
-        active_users=active_users,
-        users_by_role=users_by_role,
-        recent_logins=recent_logins,
-        file_stats=file_stats,
-        recent_reports=recent_reports,
-        sheets_status=sheets_status,
-        current_date=datetime.now()
-    )
-
 @main.route('/admin/users')
 @role_required('admin')
 def admin_users():
@@ -768,93 +760,3 @@ def get_user_model():
     """Get the User model - handles circular imports"""
     from app.models.user import User
     return User
-
-@main.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
-@role_required('admin')
-def edit_user(user_id):
-    """Edit user details"""
-    from app.auth.forms import UserEditForm
-    from app.models.user import User
-    
-    user = User.query.get_or_404(user_id)
-    
-    # Prevent editing self (admin should use profile page)
-    if user.id == current_user.id:
-        flash('Please use your profile page to edit your own account.', 'info')
-        return redirect(url_for('auth.profile'))
-    
-    form = UserEditForm(obj=user)
-    
-    if form.validate_on_submit():
-        try:
-            user.email = form.email.data
-            user.role = form.role.data
-            user.is_active = form.is_active.data
-            
-            # Update password if provided
-            if form.new_password.data:
-                user.password = generate_password_hash(form.new_password.data, method='scrypt')
-            
-            db.session.commit()
-            flash(f'User {user.email} updated successfully!', 'success')
-            return redirect(url_for('main.admin_users'))
-            
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Update failed: {str(e)}', 'danger')
-    
-    return render_template(
-        'main/edit_user.html',
-        version=current_app.version,
-        form=form,
-        user=user
-    )
-
-@main.route('/admin/users/<int:user_id>/delete', methods=['POST'])
-@role_required('admin')
-def delete_user(user_id):
-    """Delete a user"""
-    from app.models.user import User
-    
-    user = User.query.get_or_404(user_id)
-    
-    # Prevent self-deletion
-    if user.id == current_user.id:
-        flash('You cannot delete your own account.', 'danger')
-        return redirect(url_for('main.admin_users'))
-    
-    try:
-        email = user.email
-        db.session.delete(user)
-        db.session.commit()
-        flash(f'User {email} deleted successfully!', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Deletion failed: {str(e)}', 'danger')
-    
-    return redirect(url_for('main.admin_users'))
-
-@main.route('/admin/users/<int:user_id>/toggle-active', methods=['POST'])
-@role_required('admin')
-def toggle_user_active(user_id):
-    """Toggle user active status"""
-    from app.models.user import User
-    
-    user = User.query.get_or_404(user_id)
-    
-    # Prevent deactivating self
-    if user.id == current_user.id:
-        flash('You cannot deactivate your own account.', 'danger')
-        return redirect(url_for('main.admin_users'))
-    
-    try:
-        user.is_active = not user.is_active
-        db.session.commit()
-        
-        status = 'activated' if user.is_active else 'deactivated'
-        flash(f'User {user.email} {status} successfully!', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Update failed: {str(e)}', 'danger')
-    
-    return redirect(url_for('main.admin_users'))
