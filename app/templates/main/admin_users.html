@@ -85,13 +85,13 @@
                         <td class="user-actions">
                             <div class="action-buttons">
                                 {% if user.id != current_user.id %}
-                                <a href="{{ url_for('main.edit_user', user_id=user.id) }}" 
+                                <a href="{{ url_for('auth.edit_user', user_id=user.id) }}" 
                                    class="btn btn-sm btn-outline" 
                                    title="Edit User">
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 
-                                <form action="{{ url_for('main.toggle_user_active', user_id=user.id) }}" 
+                                <form action="{{ url_for('auth.toggle_user_active', user_id=user.id) }}" 
                                       method="POST" 
                                       class="inline-form">
                                     <button type="submit" 
