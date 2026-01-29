@@ -5,7 +5,6 @@ import click
 from datetime import datetime, timedelta
 from app.config import Config
 from app.services.file_cleanup import FileCleanupService
-
 from app.extensions import db, login_manager
 
 __version__ = "2.0.0"
@@ -42,14 +41,30 @@ def create_app(config_class=Config):
     cleanup_scheduler = CleanupScheduler()
     cleanup_scheduler.init_app(app)
     
-    # Register blueprints
+    # Register blueprints (import here to avoid circular imports)
     from app.routes.auth import auth as auth_blueprint
     from app.routes.main import main as main_blueprint
     
     app.register_blueprint(auth_blueprint)
     app.register_blueprint(main_blueprint)
     
-    # Add CLI commands directly
+    # Add CLI commands
+    _register_cli_commands(app)
+    
+    # Create database tables within app context
+    with app.app_context():
+        db.create_all()
+    
+    # Error handlers
+    from app.controllers.error_controller import ErrorController
+    ErrorController.register_error_handlers(app)
+    
+    return app
+
+
+def _register_cli_commands(app):
+    """Register CLI commands for the application"""
+    
     @app.cli.command('cleanup-files')
     @click.option('--days', default=7, help='Days to keep files (default: 7)')
     def cleanup_files_command(days):
@@ -80,12 +95,60 @@ def create_app(config_class=Config):
             click.echo(f"Total: {sizes['total_mb']} MB")
             click.echo("=====================")
     
-    # Create database tables within app context
-    with app.app_context():
-        db.create_all()
+    @app.cli.command('create-admin')
+    @click.option('--email', prompt='Admin email', help='Email for the admin user')
+    @click.option('--password', prompt=True, hide_input=True, 
+                  confirmation_prompt=True, help='Password for the admin user')
+    def create_admin_command(email, password):
+        """Create an admin user"""
+        from werkzeug.security import generate_password_hash
+        from app.models.user import User
+        
+        with app.app_context():
+            # Check if user already exists
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user:
+                click.echo(f"✗ User with email {email} already exists")
+                return
+            
+            try:
+                admin_user = User(
+                    email=email,
+                    password=generate_password_hash(password, method='scrypt'),
+                    role='admin'
+                )
+                db.session.add(admin_user)
+                db.session.commit()
+                click.echo(f"✓ Admin user {email} created successfully")
+            except Exception as e:
+                db.session.rollback()
+                click.echo(f"✗ Failed to create admin user: {str(e)}")
     
-    # Error handlers
-    from app.routes.errors import register_error_handlers
-    register_error_handlers(app)
+    @app.cli.command('list-users')
+    def list_users_command():
+        """List all users in the system"""
+        from app.models.user import User
+        
+        with app.app_context():
+            users = User.query.order_by(User.created_at).all()
+            
+            if not users:
+                click.echo("No users found")
+                return
+            
+            click.echo("=== Users ===")
+            for user in users:
+                status = "Active" if user.is_active else "Inactive"
+                click.echo(f"ID: {user.id}")
+                click.echo(f"Email: {user.email}")
+                click.echo(f"Role: {user.role}")
+                click.echo(f"Status: {status}")
+                click.echo(f"Created: {user.created_at}")
+                if user.last_login:
+                    click.echo(f"Last Login: {user.last_login}")
+                click.echo("---")
     
-    return app
+    @app.cli.command('version')
+    def version_command():
+        """Show application version"""
+        click.echo(f"Welfare System v{__version__}")
