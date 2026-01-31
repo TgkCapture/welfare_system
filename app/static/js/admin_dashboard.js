@@ -61,44 +61,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function animateCounter(selector, duration) {
-        const elements = document.querySelectorAll(selector);
+    const elements = document.querySelectorAll(selector);
+    
+    elements.forEach(element => {
+        // Store the original value
+        const originalText = element.textContent;
         
-        elements.forEach(element => {
-            const current = parseInt(element.textContent.replace(/[^0-9]/g, '')) || 0;
-            const increment = Math.floor(Math.random() * 10); // Demo increment
-            
-            if (increment > 0) {
-                let start = current;
-                const end = current + increment;
-                const step = (end - start) / (duration / 16); // 60fps
-                
-                const timer = setInterval(() => {
-                    start += step;
-                    // Preserve non-numeric characters (like "MB", check marks, etc.)
-                    const isNumericOnly = /^\d+$/.test(element.textContent.trim());
-                    if (isNumericOnly) {
-                        element.textContent = Math.floor(start);
-                    } else {
-                        // Handle mixed content like "12.34 MB"
-                        const text = element.textContent;
-                        const numericMatch = text.match(/(\d+(\.\d+)?)/);
-                        if (numericMatch) {
-                            const prefix = text.substring(0, numericMatch.index);
-                            const suffix = text.substring(numericMatch.index + numericMatch[0].length);
-                            element.textContent = prefix + Math.floor(start) + suffix;
-                        }
-                    }
-                    
-                    if (start >= end) {
-                        if (isNumericOnly) {
-                            element.textContent = end;
-                        }
-                        clearInterval(timer);
-                    }
-                }, 16);
-            }
-        });
-    }
+        // Just add a visual animation without changing the number
+        element.style.transition = 'all 0.3s ease';
+        element.style.color = 'var(--primary-color)';
+        element.style.textShadow = '0 0 8px rgba(var(--primary-rgb), 0.3)';
+        
+        setTimeout(() => {
+            element.style.color = '';
+            element.style.textShadow = '';
+        }, 1000);
+        
+        // Ensure the text stays the same
+        setTimeout(() => {
+            element.textContent = originalText;
+        }, duration);
+    });
+}
     
     function showUpdateNotification() {
         const notification = document.createElement('div');
