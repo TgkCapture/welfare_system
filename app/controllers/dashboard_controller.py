@@ -84,7 +84,7 @@ class DashboardController:
         
         # Get recent reports
         from app.controllers.report_controller import ReportController
-        recent_reports = ReportController._get_available_reports()
+        recent_reports = ReportController._get_available_reports_for_user(current_user)
 
         from app.controllers.report_controller import ReportController
         paid_members_data = ReportController._get_paid_members_data()
@@ -129,7 +129,7 @@ class DashboardController:
         
         # Get available reports
         from app.controllers.report_controller import ReportController
-        available_reports = ReportController._get_available_reports()
+        available_reports = ReportController._get_available_reports_for_user(current_user)
         
         return render_template('main/viewer_dashboard.html',
                              version=current_app.version,
