@@ -101,100 +101,16 @@ class AuthController:
             db.session.commit()
             
             flash(f'User {new_user.email} registered successfully as {new_user.role}!', 'success')
-            return redirect(url_for('auth.user_management'))
+            if current_user.is_adclmin:
+                return redirect(url_for('main.admin_users'))
+            else:
+                return redirect(url_for('auth.login'))
             
         except Exception as e:
             db.session.rollback()
             flash(f'Registration failed: {str(e)}', 'danger')
             return redirect(url_for('auth.register'))
     
-    # ==================== USER MANAGEMENT ====================
-    
-    @staticmethod
-    @role_required('admin')
-    def user_management():
-        """Admin user management page"""
-        users = User.query.order_by(User.created_at.desc()).all()
-        return render_template('auth/users.html', 
-                             users=users,
-                             version=current_app.version)
-    
-    @staticmethod
-    @role_required('admin')
-    def edit_user(user_id):
-        """Edit user details"""
-        user = User.query.get_or_404(user_id)
-        
-        # Prevent editing self 
-        if user.id == current_user.id:
-            flash('Please use your profile page to edit your own account.', 'info')
-            return redirect(url_for('auth.profile'))
-        
-        form = UserEditForm(obj=user)
-        
-        if form.validate_on_submit():
-            try:
-                user.email = form.email.data
-                user.role = form.role.data
-                user.is_active = form.is_active.data
-                
-                db.session.commit()
-                flash(f'User {user.email} updated successfully!', 'success')
-                return redirect(url_for('auth.user_management'))
-                
-            except Exception as e:
-                db.session.rollback()
-                flash(f'Update failed: {str(e)}', 'danger')
-        
-        return render_template('auth/edit_user.html', 
-                             form=form, 
-                             user=user,
-                             version=current_app.version)
-    
-    @staticmethod
-    @role_required('admin')
-    def delete_user(user_id):
-        """Delete a user"""
-        user = User.query.get_or_404(user_id)
-        
-        # Prevent self-deletion
-        if user.id == current_user.id:
-            flash('You cannot delete your own account.', 'danger')
-            return redirect(url_for('auth.user_management'))
-        
-        try:
-            email = user.email
-            db.session.delete(user)
-            db.session.commit()
-            flash(f'User {email} deleted successfully!', 'success')
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Deletion failed: {str(e)}', 'danger')
-        
-        return redirect(url_for('auth.user_management'))
-    
-    @staticmethod
-    @role_required('admin')
-    def toggle_user_active(user_id):
-        """Toggle user active status"""
-        user = User.query.get_or_404(user_id)
-        
-        # Prevent deactivating self
-        if user.id == current_user.id:
-            flash('You cannot deactivate your own account.', 'danger')
-            return redirect(url_for('auth.user_management'))
-        
-        try:
-            user.is_active = not user.is_active
-            db.session.commit()
-            
-            status = 'activated' if user.is_active else 'deactivated'
-            flash(f'User {user.email} {status} successfully!', 'success')
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Update failed: {str(e)}', 'danger')
-        
-        return redirect(url_for('auth.user_management'))
     
     # ==================== USER PROFILE ====================
     
@@ -471,3 +387,41 @@ class AuthController:
         
         flash('Admin accounts cannot be deleted through this interface.', 'danger')
         return redirect(url_for('auth.profile'))
+    
+    # ==================== PUBLIC REGISTRATION ====================
+
+    @staticmethod
+    def public_register():
+        """Public user registration - creates viewer accounts"""
+        if current_user.is_authenticated:
+            return redirect(url_for('main.dashboard'))
+            
+        form = RegisterForm()
+        
+        # Public users can only register as viewers
+        form.role.choices = [('viewer', 'Viewer')]
+        form.role.data = 'viewer'  # Default
+        
+        if form.validate_on_submit():
+            existing_user = User.query.filter_by(email=form.email.data).first()
+            if existing_user:
+                flash('Email already registered. Please login instead.', 'danger')
+                return redirect(url_for('auth.login'))
+                
+            try:
+                new_user = User(
+                    email=form.email.data,
+                    password=generate_password_hash(form.password.data, method='scrypt'),
+                    role='viewer'  # Always viewer for public registration
+                )
+                db.session.add(new_user)
+                db.session.commit()
+                
+                flash('Account created successfully! Please login.', 'success')
+                return redirect(url_for('auth.login'))
+                
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Registration failed: {str(e)}', 'danger')
+        
+        return render_template('auth/register.html', form=form)    
