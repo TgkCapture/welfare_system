@@ -30,7 +30,7 @@
 
     <!-- Edit User Form -->
     <div class="content-card">
-        <form method="POST" action="{{ url_for('auth.edit_user', user_id=user.id) }}" class="user-form" id="editUserForm">
+        <form method="POST" action="{{ url_for('main.edit_user', user_id=user.id) }}" class="user-form" id="editUserForm">
             {{ form.hidden_tag() }}
             
             <div class="user-summary">
@@ -191,7 +191,7 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-outline cancel-delete">Cancel</button>
-            <form method="POST" action="{{ url_for('auth.delete_user', user_id=user.id) }}">
+            <form method="POST" action="{{ url_for('main.delete_user', user_id=user.id) }}">
                 <button type="submit" class="btn btn-danger">Delete User</button>
             </form>
         </div>
