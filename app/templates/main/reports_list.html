@@ -15,7 +15,10 @@
             Contribution Reports
         </h1>
         <div class="page-actions">
-            <a href="{{ url_for('main.viewer_dashboard') }}" class="btn btn-outline">
+            <a href="{% if current_user.is_admin %}{{ url_for('main.admin_dashboard') }}
+                        {% elif current_user.is_clerk %}{{ url_for('main.clerk_dashboard') }}
+                        {% else %}{{ url_for('main.viewer_dashboard') }}{% endif %}" 
+                class="btn btn-outline">
                 <i class="fas fa-arrow-left"></i>
                 Back to Dashboard
             </a>
