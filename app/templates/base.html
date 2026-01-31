@@ -54,7 +54,7 @@
                         </a>
                         {% endif %}
                         
-                        <a href="{{ url_for('main.reports_list') }}" class="nav-link {% if request.endpoint == 'main.reports_list' %}active{% endif %}">
+                        <a href="{{ url_for('report.list') }}" class="nav-link {% if request.endpoint == 'report.list' %}active{% endif %}">
                             <i class="fas fa-file-alt"></i>
                             <span class="nav-text">Reports</span>
                         </a>
@@ -190,7 +190,7 @@
             </a>
             {% endif %}
             
-            <a href="{{ url_for('main.reports_list') }}" class="mobile-nav-link">
+            <a href="{{ url_for('report.list') }}" class="mobile-nav-link">
                 <i class="fas fa-file-alt"></i>
                 Reports
             </a>
