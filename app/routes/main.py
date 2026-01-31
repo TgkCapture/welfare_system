@@ -1,5 +1,6 @@
 # app/routes/main.py
 from flask import Blueprint
+from app.controllers.auth_controller import AuthController
 from app.controllers.dashboard_controller import DashboardController
 from app.controllers.report_controller import ReportController
 from app.controllers.upload_controller import UploadController
@@ -40,6 +41,18 @@ main.route('/admin/storage-status')(DashboardController.storage_status)
 # ==================== USER MANAGEMENT ROUTES ====================
 main.route('/admin/users')(UserController.admin_users)
 main.route('/admin/users/create', methods=['GET', 'POST'])(UserController.create_user)
+main.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])(UserController.edit_user)
+main.route('/admin/users/<int:user_id>/delete', methods=['POST'])(UserController.delete_user)
+main.route('/admin/users/<int:user_id>/toggle-active', methods=['POST'])(UserController.toggle_user_active)
+
+# Clerk user management
+main.route('/clerk/users')(UserController.clerk_users)
+main.route('/clerk/users/create', methods=['GET', 'POST'])(UserController.create_viewer)
+main.route('/clerk/users/<int:user_id>/edit', methods=['GET', 'POST'])(UserController.edit_viewer)
+main.route('/clerk/users/<int:user_id>/toggle-active', methods=['POST'])(UserController.toggle_viewer_active)
+
+# Public registration
+main.route('/register', methods=['GET', 'POST'])(AuthController.public_register)
 
 # ==================== HEALTH CHECK ROUTES ====================
 main.route('/version')(DashboardController.version)
