@@ -76,7 +76,7 @@ class UploadController:
                 current_app.logger.warning(f"Quick cleanup failed: {str(e)}")
             
             flash('Report generated successfully!', 'success')
-            return redirect(url_for('main.report_preview'))
+            return redirect(url_for('report.preview'))
             
         except ValueError as e:
             current_app.logger.warning(f"Upload validation error: {str(e)}")
