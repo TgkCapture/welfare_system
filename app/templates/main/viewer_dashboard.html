@@ -1,0 +1,192 @@
+<!-- app/templates/main/viewer_dashboard.html -->
+{% extends 'base.html' %}
+
+{% block title %}Viewer Dashboard - Mzugoss Welfare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/viewer_dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Welcome Section -->
+    <div class="welcome-section">
+        <div class="welcome-content">
+            <h1 class="welcome-title">
+                Welcome, {{ current_user.email.split('@')[0]|title }}!
+                <span class="user-role-badge {{ user_role }}">{{ user_role|title }}</span>
+            </h1>
+            <p class="welcome-subtitle">
+                View welfare reports and contribution information
+            </p>
+        </div>
+        <div class="welcome-icon">
+            <i class="fas fa-eye"></i>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="stats-overview">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-file-pdf"></i>
+                </div>
+                <div class="stat-info">
+                    <h3 class="stat-value">{{ available_reports|length }}</h3>
+                    <p class="stat-label">Available Reports</p>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-info">
+                    <h3 class="stat-value">{{ paid_members_data.total_paid }}</h3>
+                    <p class="stat-label">Paid Members</p>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div class="stat-info">
+                    <h3 class="stat-value">{{ current_date.strftime('%B %Y') }}</h3>
+                    <p class="stat-label">Current Period</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Available Reports Section -->
+    <div class="section-card">
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="fas fa-file-alt"></i>
+                Available Reports
+            </h2>
+            <p class="section-subtitle">View and download contribution reports</p>
+        </div>
+        
+        {% if available_reports %}
+        <div class="reports-list">
+            {% for report in available_reports %}
+            <div class="report-item" data-report-id="{{ loop.index }}">
+                <div class="report-info">
+                    <div class="report-date">
+                        <i class="fas fa-calendar"></i>
+                        <strong>{{ month_names[report.month-1] if month_names else report.month }} {{ report.year }}</strong>
+                    </div>
+                    <div class="report-stats">
+                        <span class="stat-badge">
+                            <i class="fas fa-users"></i>
+                            {{ report.contributors }} contributors
+                        </span>
+                        <span class="stat-badge">
+                            <i class="fas fa-money-bill-wave"></i>
+                            MWK {{ "%.2f"|format(report.total_contributions) }}
+                        </span>
+                    </div>
+                </div>
+                <div class="report-actions">
+                    <a href="{{ url_for('main.report_preview') }}" class="btn btn-outline btn-sm">
+                        <i class="fas fa-eye"></i>
+                        Preview
+                    </a>
+                    {% if report.download_url %}
+                    <a href="{{ report.download_url }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-download"></i>
+                        Download
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-file-excel"></i>
+            <h3>No Reports Available</h3>
+            <p>No contribution reports have been generated yet.</p>
+            <p class="text-muted">Contact an administrator or clerk to generate reports.</p>
+        </div>
+        {% endif %}
+        
+        <div class="section-footer">
+            <a href="{{ url_for('main.reports_list') }}" class="btn btn-link">
+                <i class="fas fa-list"></i>
+                View All Reports
+            </a>
+        </div>
+    </div>
+
+    <!-- Paid Members Section (Placeholder for Future) -->
+    <div class="section-card">
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="fas fa-user-check"></i>
+                Paid Members
+                <span class="badge">Coming Soon</span>
+            </h2>
+            <p class="section-subtitle">View members who have contributed this period</p>
+        </div>
+        
+        <div class="placeholder-section">
+            <div class="placeholder-content">
+                <i class="fas fa-users"></i>
+                <h3>Paid Members Feature</h3>
+                <p>This feature is currently under development. Soon you'll be able to view all members who have paid their contributions for each period.</p>
+                <div class="placeholder-stats">
+                    <div class="placeholder-stat" data-animate-delay="0.1s">
+                        <div class="placeholder-value">0</div>
+                        <div class="placeholder-label">Paid Members</div>
+                    </div>
+                    <div class="placeholder-stat" data-animate-delay="0.2s">
+                        <div class="placeholder-value">0</div>
+                        <div class="placeholder-label">Pending</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section-footer">
+            <a href="{{ url_for('main.paid_members_view') }}" class="btn btn-link" disabled>
+                <i class="fas fa-eye"></i>
+                View Paid Members
+            </a>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    {% if recent_activity %}
+    <div class="section-card">
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="fas fa-history"></i>
+                Recent Activity
+            </h2>
+        </div>
+        
+        <div class="activity-list">
+            {% for activity in recent_activity %}
+            <div class="activity-item" data-animate-delay="{{ loop.index0 * 0.1 }}s">
+                <div class="activity-icon">
+                    <i class="fas fa-{{ activity.icon }}"></i>
+                </div>
+                <div class="activity-content">
+                    <p class="activity-text">{{ activity.text }}</p>
+                    <span class="activity-time">{{ activity.time }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/viewer_dashboard.js') }}"></script>
+{% endblock %}

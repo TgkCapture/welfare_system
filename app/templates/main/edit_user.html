@@ -1,0 +1,204 @@
+<!-- app/templates/main/edit_user.html -->
+{% extends 'base.html' %}
+
+{% block title %}Edit User - Mzugoss Welfare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/edit_user.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="edit-user">
+    <!-- Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1 class="page-title">
+                <i class="fas fa-user-edit"></i>
+                Edit User
+            </h1>
+            <p class="page-subtitle">
+                Update user account details and permissions
+            </p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('main.admin_users') }}" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i>
+                Back to Users
+            </a>
+        </div>
+    </div>
+
+    <!-- Edit User Form -->
+    <div class="content-card">
+        <form method="POST" action="{{ url_for('main.edit_user', user_id=user.id) }}" class="user-form" id="editUserForm">
+            {{ form.hidden_tag() }}
+            
+            <div class="user-summary">
+                <div class="user-avatar-large">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="user-details-summary">
+                    <h3>{{ user.email }}</h3>
+                    <div class="user-meta">
+                        <span class="badge {{ user.role }}">
+                            <i class="fas fa-{{ 'user-shield' if user.role == 'admin' else 'user-edit' if user.role == 'clerk' else 'user' }}"></i>
+                            {{ user.role|title }}
+                        </span>
+                        <span class="badge {{ 'active' if user.is_active else 'inactive' }}">
+                            <i class="fas fa-{{ 'check-circle' if user.is_active else 'times-circle' }}"></i>
+                            {{ 'Active' if user.is_active else 'Inactive' }}
+                        </span>
+                        <span class="meta-item">
+                            <i class="fas fa-calendar"></i>
+                            Joined {{ user.created_at.strftime('%B %d, %Y') }}
+                        </span>
+                        {% if user.last_login %}
+                        <span class="meta-item">
+                            <i class="fas fa-sign-in-alt"></i>
+                            Last login {{ user.last_login.strftime('%B %d, %Y') }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="fas fa-user-circle"></i>
+                    Basic Information
+                </h2>
+                
+                <div class="form-group">
+                    <label for="{{ form.email.id }}">
+                        <i class="fas fa-envelope"></i>
+                        Email Address
+                    </label>
+                    {{ form.email(class="form-control", placeholder="user@example.com") }}
+                    {% if form.email.errors %}
+                    <div class="error-feedback">
+                        {% for error in form.email.errors %}
+                        <i class="fas fa-exclamation-circle"></i> {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.role.id }}">
+                            <i class="fas fa-user-tag"></i>
+                            User Role
+                        </label>
+                        {{ form.role(class="form-control") }}
+                        {% if form.role.errors %}
+                        <div class="error-feedback">
+                            {% for error in form.role.errors %}
+                            <i class="fas fa-exclamation-circle"></i> {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.is_active.id }}" class="checkbox-label">
+                            {{ form.is_active() }}
+                            <i class="fas fa-toggle-{{ 'on' if user.is_active else 'off' }}"></i>
+                            Account Status
+                        </label>
+                        <small class="form-hint">
+                            {% if user.is_active %}
+                            User can log in and use the system
+                            {% else %}
+                            User cannot log in until activated
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="fas fa-key"></i>
+                    Password Reset
+                </h2>
+                <p class="section-description">
+                    Leave password fields empty to keep current password
+                </p>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.new_password.id }}">
+                            <i class="fas fa-lock"></i>
+                            New Password
+                        </label>
+                        {{ form.new_password(class="form-control", placeholder="Leave empty to keep current") }}
+                        {% if form.new_password.errors %}
+                        <div class="error-feedback">
+                            {% for error in form.new_password.errors %}
+                            <i class="fas fa-exclamation-circle"></i> {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.confirm_password.id }}">
+                            <i class="fas fa-lock"></i>
+                            Confirm Password
+                        </label>
+                        {{ form.confirm_password(class="form-control", placeholder="Confirm new password") }}
+                        {% if form.confirm_password.errors %}
+                        <div class="error-feedback">
+                            {% for error in form.confirm_password.errors %}
+                            <i class="fas fa-exclamation-circle"></i> {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    Save Changes
+                </button>
+                <a href="{{ url_for('main.admin_users') }}" class="btn btn-outline">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </a>
+                {% if user.id != current_user.id %}
+                <button type="button" class="btn btn-danger" id="deleteUserBtn" data-user-id="{{ user.id }}">
+                    <i class="fas fa-trash"></i>
+                    Delete User
+                </button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal" id="deleteUserModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Delete User</h3>
+            <button class="close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete user <strong>{{ user.email }}</strong>?</p>
+            <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline cancel-delete">Cancel</button>
+            <form method="POST" action="{{ url_for('main.delete_user', user_id=user.id) }}">
+                <button type="submit" class="btn btn-danger">Delete User</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/edit_user.js') }}"></script>
+{% endblock %}

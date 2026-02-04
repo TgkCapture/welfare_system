@@ -1,0 +1,410 @@
+/* app/static/css/settings.css */
+/* Settings Page Styles */
+
+.settings-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* Header */
+.settings-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: white;
+    padding: 2rem;
+    border-radius: var(--radius-xl);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--shadow-lg);
+    animation: fadeInUp 0.5s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.header-content h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.header-subtitle {
+    opacity: 0.9;
+    font-size: 1.1rem;
+}
+
+.header-icon {
+    font-size: 4rem;
+    opacity: 0.8;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+/* Settings Card */
+.settings-card {
+    padding: 2rem;
+    animation: fadeInUp 0.5s ease 0.1s both;
+}
+
+.card-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.card-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.card-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+}
+
+/* Settings Form */
+.settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.form-label i {
+    color: var(--primary-color);
+}
+
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-light);
+    font-size: 1.1rem;
+}
+
+.input-with-icon input {
+    padding-left: 3rem;
+    font-size: 1rem;
+    height: 3rem;
+}
+
+.form-hint {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.btn-save {
+    padding: 0.875rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.btn-text, .btn-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.btn-loading {
+    display: none;
+}
+
+.btn-save:disabled .btn-text {
+    display: none;
+}
+
+.btn-save:disabled .btn-loading {
+    display: flex;
+}
+
+/* Instructions Card */
+.instructions-card {
+    padding: 2rem;
+    animation: fadeInUp 0.5s ease 0.2s both;
+}
+
+.instructions-content {
+    margin-top: 1rem;
+}
+
+.instructions-list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.instruction-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-color);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+
+.instruction-item:hover {
+    background: white;
+    border-color: var(--primary-color);
+    transform: translateX(4px);
+}
+
+.instruction-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.instruction-text {
+    flex: 1;
+}
+
+.instruction-text strong {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.instruction-text p {
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.note-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, #fffbeb, #fed7aa);
+    border: 1px solid #fed7aa;
+    border-radius: var(--radius-lg);
+    margin-top: 2rem;
+}
+
+.note-box i {
+    color: #ea580c;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+}
+
+.note-content {
+    flex: 1;
+}
+
+.note-content strong {
+    color: #ea580c;
+    font-weight: 600;
+}
+
+.note-content {
+    color: #92400e;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+}
+
+/* Current Configuration Card */
+.current-config-card {
+    padding: 2rem;
+    animation: fadeInUp 0.5s ease 0.3s both;
+}
+
+.config-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.config-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-color);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+}
+
+.config-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    min-width: 150px;
+}
+
+.config-label i {
+    color: var(--primary-color);
+    width: 1.25rem;
+}
+
+.config-value {
+    flex: 1;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.config-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    word-break: break-all;
+}
+
+.config-link:hover {
+    text-decoration: underline;
+}
+
+.config-actions {
+    display: flex;
+    gap: 1rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+/* Test Connection Button */
+#testConnectionBtn {
+    position: relative;
+    overflow: hidden;
+}
+
+#testConnectionBtn.connecting {
+    background: var(--info-color);
+    border-color: var(--info-color);
+    color: white;
+}
+
+#testConnectionBtn.connecting i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .settings-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 1.5rem;
+        padding: 1.5rem;
+    }
+    
+    .header-icon {
+        font-size: 3rem;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .form-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .instruction-item {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .instruction-icon {
+        margin: 0 auto;
+    }
+    
+    .config-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .config-actions {
+        flex-direction: column;
+    }
+    
+    .settings-card,
+    .instructions-card,
+    .current-config-card {
+        padding: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-content h1 {
+        font-size: 1.5rem;
+    }
+    
+    .card-title {
+        font-size: 1.25rem;
+    }
+    
+    .input-with-icon input {
+        font-size: 0.9375rem;
+    }
+}

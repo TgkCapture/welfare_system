@@ -1,10 +1,10 @@
-<!-- app/templates/main/dashboard.html -->
+<!-- app/templates/main/upload_dashboard.html -->
 {% extends 'base.html' %}
 
-{% block title %}Dashboard - Mzugoss Welfare{% endblock %}
+{% block title %}Upload Dashboard - Mzugoss Welfare{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/upload_dashboard.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -14,6 +14,7 @@
         <div class="welcome-content">
             <h1 class="welcome-title">
                 Welcome back, {{ current_user.email.split('@')[0]|title }}!
+                <span class="user-role-badge {{ user_role }}">{{ user_role|title }}</span>
             </h1>
             <p class="welcome-subtitle">
                 Generate contribution reports for your welfare group
@@ -196,5 +197,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/upload_dashboard.js') }}"></script>
 {% endblock %}

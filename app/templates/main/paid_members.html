@@ -1,0 +1,113 @@
+<!-- app/templates/main/paid_members.html -->
+{% extends 'base.html' %}
+
+{% block title %}Paid Members - {{ month }} {{ year }} - Mzugoss Welfare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/paid_members.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="header-content">
+            <h1 class="page-title">
+                <i class="fas fa-user-check"></i>
+                Paid Members
+                <span class="report-period">{{ month }} {{ year }}</span>
+            </h1>
+            <div class="header-actions">
+                <a href="{{ url_for('main.viewer_dashboard') }}" class="btn btn-outline">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Dashboard
+                </a>
+                <a href="{{ url_for('main.download_paid_members') }}" class="btn btn-primary">
+                    <i class="fas fa-download"></i>
+                    Download as Image
+                </a>
+            </div>
+        </div>
+        <div class="header-stats">
+            <div class="stat-badge">
+                <i class="fas fa-users"></i>
+                <span>{{ total_paid }} Members Paid</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-card">
+        {% if paid_members %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Member Name</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in paid_members %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ member.name }}</td>
+                        <td>
+                            <span class="amount-badge">
+                                MWK {{ "%.2f"|format(member.amount) }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ member.status|lower }}">
+                                <i class="fas fa-{{ 'check-circle' if member.status == 'Paid' else 'times-circle' }}"></i>
+                                {{ member.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline">
+                                <i class="fas fa-print"></i>
+                                Print Receipt
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="summary-section">
+            <div class="summary-card">
+                <h3>Summary</h3>
+                <div class="summary-stats">
+                    <div class="summary-stat">
+                        <span class="stat-label">Total Paid Members:</span>
+                        <span class="stat-value">{{ total_paid }}</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="stat-label">Total Amount:</span>
+                        <span class="stat-value">
+                            MWK {{ "%.2f"|format(paid_members|sum(attribute='amount')) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-user-slash"></i>
+            <h3>No Paid Members Found</h3>
+            <p>There are no paid members for {{ month }} {{ year }}.</p>
+            <a href="{{ url_for('main.viewer_dashboard') }}" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Dashboard
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/paid_members.js') }}"></script>
+{% endblock %}

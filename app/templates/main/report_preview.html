@@ -191,40 +191,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Add animation to cards
-    const cards = document.querySelectorAll('.summary-card, .action-card');
-    cards.forEach((card, index) => {
-        card.style.animationDelay = `${index * 0.1}s`;
-    });
-    
-    // Handle download progress
-    document.querySelectorAll('.action-card').forEach(card => {
-        card.addEventListener('click', function(e) {
-            const href = this.getAttribute('href');
-            if (href && !href.includes('dashboard')) {
-                // Show loading indicator
-                const originalText = this.querySelector('h3').textContent;
-                this.querySelector('h3').textContent = 'Downloading...';
-                this.querySelector('.action-arrow').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                
-                // Reset after 3 seconds (in case download fails)
-                setTimeout(() => {
-                    this.querySelector('h3').textContent = originalText;
-                    this.querySelector('.action-arrow').innerHTML = '<i class="fas fa-arrow-right"></i>';
-                }, 3000);
-            }
-        });
-    });
-    
-    // Auto-scroll to actions section on page load
-    setTimeout(() => {
-        const actionsSection = document.querySelector('.actions-section');
-        if (actionsSection) {
-            actionsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    }, 500);
-});
-</script>
+<script src="{{ url_for('static', filename='js/report_preview.js') }}"></script>
 {% endblock %}
