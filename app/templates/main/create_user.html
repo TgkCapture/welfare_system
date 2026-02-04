@@ -1,0 +1,164 @@
+<!-- app/templates/main/create_user.html -->
+{% extends 'base.html' %}
+
+{% block title %}Add New User - Mzugoss Welfare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/create_user.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="create-user">
+    <!-- Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1 class="page-title">
+                <i class="fas fa-user-plus"></i>
+                Add New User
+            </h1>
+            <p class="page-subtitle">
+                Create a new system user account
+            </p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('main.admin_users') }}" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i>
+                Back to Users
+            </a>
+        </div>
+    </div>
+
+    <!-- Create User Form -->
+    <div class="content-card">
+        <form method="POST" action="{{ url_for('main.create_user') }}" class="user-form" id="createUserForm">
+            {{ form.hidden_tag() }}
+            
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="fas fa-user-circle"></i>
+                    User Information
+                </h2>
+                
+                <div class="form-group">
+                    <label for="{{ form.email.id }}">
+                        <i class="fas fa-envelope"></i>
+                        Email Address
+                    </label>
+                    {{ form.email(class="form-control", placeholder="user@example.com") }}
+                    {% if form.email.errors %}
+                    <div class="error-feedback">
+                        {% for error in form.email.errors %}
+                        <i class="fas fa-exclamation-circle"></i> {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.password.id }}">
+                            <i class="fas fa-lock"></i>
+                            Password
+                        </label>
+                        {{ form.password(class="form-control", placeholder="••••••••") }}
+                        {% if form.password.errors %}
+                        <div class="error-feedback">
+                            {% for error in form.password.errors %}
+                            <i class="fas fa-exclamation-circle"></i> {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <small class="form-hint">Minimum 8 characters</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.confirm.id }}">
+                            <i class="fas fa-lock"></i>
+                            Confirm Password
+                        </label>
+                        {{ form.confirm(class="form-control", placeholder="••••••••") }}
+                        {% if form.confirm.errors %}
+                        <div class="error-feedback">
+                            {% for error in form.confirm.errors %}
+                            <i class="fas fa-exclamation-circle"></i> {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.role.id }}">
+                        <i class="fas fa-user-tag"></i>
+                        User Role
+                    </label>
+                    {{ form.role(class="form-control") }}
+                    {% if form.role.errors %}
+                    <div class="error-feedback">
+                        {% for error in form.role.errors %}
+                        <i class="fas fa-exclamation-circle"></i> {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <div class="role-descriptions">
+                        <div class="role-info admin">
+                            <strong>Admin:</strong> Full system access including user management
+                        </div>
+                        <div class="role-info clerk">
+                            <strong>Clerk:</strong> Can upload data and generate reports
+                        </div>
+                        <div class="role-info viewer">
+                            <strong>Viewer:</strong> Can only view reports and data
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i>
+                    Create User
+                </button>
+                <a href="{{ url_for('main.admin_users') }}" class="btn btn-outline">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- User Creation Notes -->
+    <div class="info-card">
+        <div class="card-header">
+            <h3>
+                <i class="fas fa-info-circle"></i>
+                Important Notes
+            </h3>
+        </div>
+        <div class="card-body">
+            <ul class="notes-list">
+                <li>
+                    <i class="fas fa-key"></i>
+                    <strong>Password Security:</strong> Users will need to use the password you set to log in initially. They can change it later from their profile.
+                </li>
+                <li>
+                    <i class="fas fa-envelope"></i>
+                    <strong>Email Verification:</strong> The email address will be used as the username for login. Make sure it's valid.
+                </li>
+                <li>
+                    <i class="fas fa-shield-alt"></i>
+                    <strong>Role Permissions:</strong> Choose the appropriate role based on what the user needs to do in the system.
+                </li>
+                <li>
+                    <i class="fas fa-user-clock"></i>
+                    <strong>Account Status:</strong> New users are created as active by default. You can deactivate accounts later if needed.
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/create_user.js') }}"></script>
+{% endblock %}

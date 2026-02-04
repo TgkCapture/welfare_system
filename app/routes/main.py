@@ -1,12 +1,18 @@
 # app/routes/main.py
 from flask import Blueprint, jsonify, render_template, request, redirect, url_for, flash, session, send_file, make_response, current_app
 from flask_login import login_required, current_user
+from app.decorators.permissions import role_required, permission_required
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash
 import pandas as pd
+from sqlalchemy import desc, func
+from datetime import timedelta
+from app.extensions import db
 
 from app.models.setting import Setting
+from app.models.user import User
 from app.services.excel_parser import ExcelParser
 from app.services.report_generator import ReportGenerator
 from app.services.image_generator import ImageGenerator
@@ -32,7 +38,6 @@ class FileProcessor:
     @staticmethod
     def _process_google_sheets(request):
         """Process Google Sheets upload"""
-
         sheet_url = request.form.get('sheet_url', '')
         year = request.form.get('year', type=int)
         
@@ -144,6 +149,174 @@ class ReportDataSerializer:
 @main.route('/')
 @login_required
 def dashboard():
+    """Main dashboard - redirects based on user role"""
+    if current_user.is_admin:
+        return redirect(url_for('main.admin_dashboard'))
+    elif current_user.is_clerk:
+        return redirect(url_for('main.clerk_dashboard'))
+    else:
+        return redirect(url_for('main.viewer_dashboard'))
+
+@main.route('/admin')
+@role_required('admin')
+def admin_dashboard():
+    """Admin dashboard with system overview and analytics"""
+    import os
+    
+    # Get user statistics
+    total_users = User.query.count()
+    active_users = User.query.filter_by(is_active=True).count()
+    users_by_role = db.session.query(
+        User.role, 
+        func.count(User.id).label('count')
+    ).group_by(User.role).all()
+    
+    # Get recent logins (last 7 days)
+    seven_days_ago = datetime.now() - timedelta(days=7)
+    recent_logins = User.query.filter(
+        User.last_login.isnot(None),
+        User.last_login >= seven_days_ago
+    ).order_by(
+        User.last_login.desc()
+    ).limit(10).all()
+    
+    # Get system statistics
+    try:
+        # File statistics
+        upload_folder = current_app.config.get('UPLOAD_FOLDER', '')
+        report_folder = current_app.config.get('REPORT_FOLDER', '')
+        
+        def get_folder_size(folder_path):
+            if not os.path.exists(folder_path):
+                return 0
+            total_size = 0
+            for dirpath, dirnames, filenames in os.walk(folder_path):
+                for f in filenames:
+                    fp = os.path.join(dirpath, f)
+                    if os.path.exists(fp):
+                        total_size += os.path.getsize(fp)
+            return total_size
+        
+        upload_size = get_folder_size(upload_folder)
+        report_size = get_folder_size(report_folder)
+        
+        # Count files
+        def count_files(folder_path):
+            if not os.path.exists(folder_path):
+                return 0
+            count = 0
+            for _, _, filenames in os.walk(folder_path):
+                count += len(filenames)
+            return count
+        
+        upload_count = count_files(upload_folder)
+        report_count = count_files(report_folder)
+        
+        file_stats = {
+            'upload_folder_size': upload_size,
+            'report_folder_size': report_size,
+            'upload_file_count': upload_count,
+            'report_file_count': report_count,
+            'total_size': upload_size + report_size
+        }
+    except Exception as e:
+        current_app.logger.error(f"Error getting file stats: {str(e)}")
+        file_stats = {}
+    
+    # Get recent reports from session
+    recent_reports = []
+    if 'report_data' in session:
+        report_data = session['report_data']
+        recent_reports = [{
+            'month': report_data['month'],
+            'year': report_data['year'],
+            'total_contributions': report_data['total_contributions'],
+            'contributors': report_data['num_contributors'],
+            'generated_date': datetime.now().strftime('%Y-%m-%d')
+        }]
+    
+    # Get Google Sheets status
+    sheet_url = Setting.get_value('google_sheets_url', '')
+    sheets_status = {
+        'configured': bool(sheet_url),
+        'url': sheet_url
+    }
+    
+    return render_template(
+        'main/admin_dashboard.html',
+        version=current_app.version,
+        total_users=total_users,
+        active_users=active_users,
+        users_by_role=users_by_role,
+        recent_logins=recent_logins,
+        file_stats=file_stats,
+        recent_reports=recent_reports,
+        sheets_status=sheets_status,
+        current_date=datetime.now()
+    )
+
+@main.route('/clerk-dashboard')
+@role_required('clerk')
+def clerk_dashboard():
+    """Dashboard for clerks - shows report generation tools and recent activity"""
+    current_date = datetime.now()
+    
+    # Month names for the template
+    month_names = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    
+    # Get Google Sheets status
+    sheet_url = Setting.get_value('google_sheets_url', '')
+    sheets_status = {
+        'configured': bool(sheet_url),
+        'url': sheet_url
+    }
+    
+    # Get recent reports from session
+    recent_reports = []
+    if 'report_data' in session:
+        report_data = session['report_data']
+        recent_reports = [{
+            'month': report_data['month'],
+            'year': report_data['year'],
+            'total_contributions': report_data['total_contributions'],
+            'contributors': report_data['num_contributors'],
+            'defaulters': report_data['num_missing'],
+            'generated_date': datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'download_url': url_for('main.download_report')
+        }]
+    
+    # Get clerk's activity statistics
+    try:
+        reports_generated = len(recent_reports)
+        
+        # Get recent login activity
+        user = User.query.get(current_user.id)
+        last_login = user.last_login.strftime('%B %d, %Y %I:%M %p') if user.last_login else 'Never'
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting clerk stats: {str(e)}")
+        reports_generated = 0
+        last_login = 'Unknown'
+    
+    return render_template(
+        'main/clerk_dashboard.html',
+        version=current_app.version,
+        current_date=current_date,
+        month_names=month_names,
+        sheets_status=sheets_status,
+        recent_reports=recent_reports,
+        reports_generated=reports_generated,
+        last_login=last_login,
+        user=current_user
+    )
+
+@main.route('/upload-dashboard')
+@permission_required('upload_files')
+def upload_dashboard():
+    """Dashboard for users who can upload files (Admin & Clerk)"""
     from app.models.setting import Setting
     
     sheet_url = Setting.get_value('google_sheets_url', current_app.config.get('DEFAULT_SHEET_URL', ''))
@@ -155,15 +328,77 @@ def dashboard():
         'July', 'August', 'September', 'October', 'November', 'December'
     ]
     
-    return render_template('main/dashboard.html', 
+    recent_reports = []  # Placeholder for now
+    
+    return render_template('main/upload_dashboard.html', 
                          version=current_app.version,
                          sheet_url=sheet_url,
                          year=current_date.year,  
                          month=current_date.month,
-                         month_names=month_names)
+                         month_names=month_names,
+                         user_role=current_user.role,
+                         recent_reports=recent_reports)
+
+@main.route('/viewer-dashboard')
+@login_required
+def viewer_dashboard():
+    """Dashboard for viewers - shows available reports and paid members"""
+    current_date = datetime.now()
+    
+    # Month names for the template
+    month_names = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    
+    # Get available reports from session or database
+    available_reports = get_available_reports()
+    
+    # Get paid members data (for future implementation)
+    paid_members_data = get_paid_members_data()
+    
+    # Get recent activity
+    recent_activity = get_recent_activity()
+    
+    return render_template('main/viewer_dashboard.html',
+                         version=current_app.version,
+                         user_role=current_user.role,
+                         available_reports=available_reports,
+                         paid_members_data=paid_members_data,
+                         recent_activity=recent_activity,
+                         month_names=month_names, 
+                         current_date=current_date)
+
+def get_available_reports():
+    """Get list of available reports"""
+    if 'report_data' in session:
+        report_data = session['report_data']
+        return [{
+            'month': report_data['month'],
+            'year': report_data['year'],
+            'total_contributions': report_data['total_contributions'],
+            'contributors': report_data['num_contributors'],
+            'defaulters': report_data['num_missing'],
+            'generated_date': datetime.now().strftime('%Y-%m-%d'),
+            'download_url': url_for('main.download_report')
+        }]
+    
+    return []
+
+def get_paid_members_data():
+    """Get paid members data"""
+    return {
+        'total_paid': 0,
+        'members': [],
+        'last_updated': None
+    }
+
+def get_recent_activity():
+    """Get recent activity"""
+    return []
 
 @main.route('/upload', methods=['POST'])
-@login_required
+@permission_required('upload_files')
 def upload():
     """Handle file upload and report generation"""
     try:
@@ -176,7 +411,7 @@ def upload():
         
         if not year or not month:
             flash('Year and month are required', 'error')
-            return redirect(url_for('main.dashboard'))
+            return redirect(url_for('main.upload_dashboard'))
         
         # Parse Excel data
         data = ExcelParser.parse_excel(filepath, year=year, month=month)
@@ -200,17 +435,18 @@ def upload():
         except Exception as e:
             current_app.logger.warning(f"Quick cleanup failed: {str(e)}")
         
+        flash('Report generated successfully!', 'success')
         return redirect(url_for('main.report_preview'))
         
     except ValueError as e:
         current_app.logger.warning(f"Upload validation error: {str(e)}")
         flash(str(e), 'error')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.upload_dashboard'))
         
     except Exception as e:
         current_app.logger.error(f"Upload error: {str(e)}")
         flash(f'Error generating report: {str(e)}', 'error')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.upload_dashboard'))
 
 @main.route('/report-preview')
 @login_required
@@ -377,13 +613,9 @@ def after_request(response):
     return response
 
 @main.route('/admin/cleanup', methods=['GET', 'POST'])
-@login_required
+@role_required('admin') 
 def cleanup_files():
     """Admin endpoint to cleanup old files"""
-    if not current_user.is_admin: 
-        flash('Access denied', 'error')
-        return redirect(url_for('main.dashboard'))
-    
     folder_sizes = None
     cleanup_result = None
     
@@ -396,7 +628,6 @@ def cleanup_files():
         else:
             flash(f"Cleanup failed: {cleanup_result.get('error')}", 'error')
     
-    # Always get folder sizes to show current status
     folder_sizes = FileCleanupService.get_folder_sizes()
     
     return render_template(
@@ -412,3 +643,120 @@ def storage_status():
     """API endpoint to check storage status"""
     folder_sizes = FileCleanupService.get_folder_sizes()
     return jsonify(folder_sizes)
+
+@main.route('/reports')
+@login_required
+def reports_list():
+    """View all available reports"""
+    # Get all reports from database or storage
+    available_reports = get_available_reports()
+    
+    return render_template('main/reports_list.html',
+                         version=current_app.version,
+                         reports=available_reports,
+                         user_role=current_user.role)
+
+@main.route('/paid-members')
+@login_required
+def paid_members_view():
+    """View paid members list"""
+    if 'report_data' not in session:
+        flash('No report data available. Please generate a report first.', 'info')
+        return redirect(url_for('main.viewer_dashboard'))
+    
+    report_data = session['report_data']
+    
+    # Convert data to DataFrame for processing
+    data = pd.DataFrame(report_data['data'])
+    
+    paid_members = []
+    try:
+        month_col = report_data['month_col']
+        name_col = report_data['name_col']
+        
+        for _, row in data.iterrows():
+            member_name = row.get(name_col, '')
+            payment = row.get(month_col, 0)
+            
+            try:
+                payment_value = float(payment)
+                if payment_value > 0:
+                    paid_members.append({
+                        'name': member_name,
+                        'amount': payment_value,
+                        'status': 'Paid'
+                    })
+            except (ValueError, TypeError):
+                pass
+        
+    except Exception as e:
+        current_app.logger.error(f"Error processing paid members: {str(e)}")
+        paid_members = []
+    
+    return render_template('main/paid_members.html',
+                         version=current_app.version,
+                         paid_members=paid_members,
+                         month=report_data['month'],
+                         year=report_data['year'],
+                         total_paid=len(paid_members))
+
+@main.route('/admin/users')
+@role_required('admin')
+def admin_users():
+    """User management page - list all users"""
+    from app.models.user import User
+    
+    users = User.query.order_by(
+        User.created_at.desc()
+    ).all()
+    
+    return render_template(
+        'main/admin_users.html',
+        version=current_app.version,
+        users=users,
+        current_user=current_user
+    )
+
+@main.route('/admin/users/create', methods=['GET', 'POST'])
+@role_required('admin')
+def create_user():
+    """Create a new user"""
+    from app.auth.forms import RegisterForm
+    
+    form = RegisterForm()
+    
+    if form.validate_on_submit():
+        User = get_user_model()
+        
+        # Check if email already exists
+        existing_user = User.query.filter_by(email=form.email.data).first()
+        if existing_user:
+            flash('Email already registered', 'danger')
+            return redirect(url_for('main.create_user'))
+        
+        try:
+            new_user = User(
+                email=form.email.data,
+                password=generate_password_hash(form.password.data, method='scrypt'),
+                role=form.role.data
+            )
+            db.session.add(new_user)
+            db.session.commit()
+            
+            flash(f'User {new_user.email} created successfully as {new_user.role}!', 'success')
+            return redirect(url_for('main.admin_users'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'User creation failed: {str(e)}', 'danger')
+    
+    return render_template(
+        'main/create_user.html',
+        version=current_app.version,
+        form=form
+    )
+
+def get_user_model():
+    """Get the User model - handles circular imports"""
+    from app.models.user import User
+    return User
