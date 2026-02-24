@@ -1,58 +1,169 @@
 // app/static/js/reports_list.js
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize reports list
     initializeReportsList();
     
     function initializeReportsList() {
         setupReportFilters();
-        setupReportSorting();
+        setupReportActions();
         setupReportAnimations();
         setupEmptyState();
+        setupAdminControls();
+        setupKeyboardShortcuts();
     }
     
-    // Setup report filtering (if filters are added in the future)
+    // Filter functionality
     function setupReportFilters() {
-        // This can be expanded when filters are added to the UI
-        const filterButtons = document.querySelectorAll('.filter-btn');
+        const yearFilter = document.getElementById('yearFilter');
+        const monthFilter = document.getElementById('monthFilter');
+        const statusFilter = document.getElementById('statusFilter');
+        const reportCards = document.querySelectorAll('.report-card');
         
-        filterButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                filterButtons.forEach(btn => btn.classList.remove('active'));
-                this.classList.add('active');
+        function applyFilters() {
+            const selectedYear = yearFilter ? yearFilter.value : '';
+            const selectedMonth = monthFilter ? monthFilter.value : '';
+            const selectedStatus = statusFilter ? statusFilter.value : '';
+            
+            let visibleCount = 0;
+            
+            reportCards.forEach(card => {
+                const year = card.getAttribute('data-year');
+                const month = card.getAttribute('data-month');
+                const isArchived = card.getAttribute('data-archived') === 'true';
                 
-                const filterValue = this.dataset.filter;
-                filterReports(filterValue);
+                let show = true;
+                
+                if (selectedYear && year !== selectedYear) {
+                    show = false;
+                }
+                
+                if (selectedMonth && month !== selectedMonth) {
+                    show = false;
+                }
+                
+                if (selectedStatus === 'active' && isArchived) {
+                    show = false;
+                }
+                
+                if (selectedStatus === 'archived' && !isArchived) {
+                    show = false;
+                }
+                
+                if (show) {
+                    card.style.display = 'flex';
+                    visibleCount++;
+                    
+                    // Add animation for showing
+                    setTimeout(() => {
+                        card.style.opacity = '1';
+                        card.style.transform = 'translateY(0)';
+                    }, 10);
+                } else {
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(10px)';
+                    
+                    setTimeout(() => {
+                        card.style.display = 'none';
+                    }, 300);
+                }
+            });
+            
+            updateEmptyState(visibleCount);
+        }
+        
+        // Add event listeners
+        if (yearFilter) yearFilter.addEventListener('change', applyFilters);
+        if (monthFilter) monthFilter.addEventListener('change', applyFilters);
+        if (statusFilter) statusFilter.addEventListener('change', applyFilters);
+        
+        // Initialize filters
+        applyFilters();
+    }
+    
+    // Report actions (download, archive, etc.)
+    function setupReportActions() {
+        // Download buttons
+        const downloadButtons = document.querySelectorAll('.btn-primary[href*="download"]');
+        downloadButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                const isArchiveLink = this.href.includes('archive');
+                const isDeleteLink = this.href.includes('delete');
+                
+                if (isArchiveLink || isDeleteLink) {
+                    // Handled by setupAdminControls
+                    return;
+                }
+                
+                // Show loading state for download
+                const originalHTML = this.innerHTML;
+                this.innerHTML = `
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Preparing...</span>
+                `;
+                this.disabled = true;
+                
+                // Reset after 5 seconds (in case download fails)
+                setTimeout(() => {
+                    this.innerHTML = originalHTML;
+                    this.disabled = false;
+                }, 5000);
+            });
+        });
+        
+        // Preview cards click
+        const reportCards = document.querySelectorAll('.report-card');
+        reportCards.forEach(card => {
+            card.addEventListener('click', function(e) {
+                // Don't trigger if clicking on buttons or links
+                if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.dropdown')) {
+                    return;
+                }
+                
+                const previewLink = this.querySelector('a[href*="preview"]');
+                if (previewLink) {
+                    previewLink.click();
+                }
             });
         });
     }
     
-    function filterReports(filter) {
+    // Report animations
+    function setupReportAnimations() {
         const reportCards = document.querySelectorAll('.report-card');
-        let visibleCount = 0;
         
-        reportCards.forEach(card => {
-            const shouldShow = filter === 'all' || card.dataset.category === filter;
+        reportCards.forEach((card, index) => {
+            // Staggered animation
+            card.style.animationDelay = `${index * 0.1}s`;
             
-            if (shouldShow) {
-                card.style.display = 'block';
-                visibleCount++;
-                
-                // Add animation for showing
-                setTimeout(() => {
-                    card.style.opacity = '1';
-                    card.style.transform = 'translateY(0)';
-                }, 10);
-            } else {
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(10px)';
-                
-                setTimeout(() => {
-                    card.style.display = 'none';
-                }, 300);
-            }
+            // Hover effect
+            card.addEventListener('mouseenter', function() {
+                if (this.style.display !== 'none') {
+                    this.style.transform = 'translateY(-5px)';
+                    this.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
+                }
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                if (this.style.display !== 'none') {
+                    this.style.transform = 'translateY(0)';
+                    this.style.boxShadow = '';
+                }
+            });
         });
-        
-        // Show empty state if no reports visible
+    }
+    
+    // Empty state management
+    function setupEmptyState() {
+        const emptyState = document.querySelector('.empty-state');
+        if (emptyState) {
+            // Add animation to empty state icon
+            const icon = emptyState.querySelector('i');
+            if (icon) {
+                icon.style.animation = 'pulse 2s infinite';
+            }
+        }
+    }
+    
+    function updateEmptyState(visibleCount) {
         const emptyState = document.querySelector('.empty-state');
         if (emptyState) {
             if (visibleCount === 0) {
@@ -71,159 +182,152 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Setup report sorting
-    function setupReportSorting() {
-        const sortSelect = document.querySelector('#sortReports');
-        if (sortSelect) {
-            sortSelect.addEventListener('change', function() {
-                const sortBy = this.value;
-                sortReports(sortBy);
+    // Admin controls functionality
+    function setupAdminControls() {
+        // Archive confirmation
+        const archiveLinks = document.querySelectorAll('a[href*="archive"]');
+        archiveLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                if (!confirm('Are you sure you want to archive this report?\n\nArchived reports are not visible to viewers but can be restored by admins.')) {
+                    e.preventDefault();
+                } else {
+                    showLoadingState(this);
+                }
             });
-        }
-    }
-    
-    function sortReports(sortBy) {
-        const reportsGrid = document.querySelector('.reports-grid');
-        if (!reportsGrid) return;
-        
-        const reportCards = Array.from(reportsGrid.querySelectorAll('.report-card'));
-        
-        reportCards.sort((a, b) => {
-            let aValue, bValue;
-            
-            switch (sortBy) {
-                case 'date-desc':
-                    aValue = getReportDate(a);
-                    bValue = getReportDate(b);
-                    return bValue - aValue;
-                    
-                case 'date-asc':
-                    aValue = getReportDate(a);
-                    bValue = getReportDate(b);
-                    return aValue - bValue;
-                    
-                case 'amount-desc':
-                    aValue = getReportAmount(a);
-                    bValue = getReportAmount(b);
-                    return bValue - aValue;
-                    
-                case 'amount-asc':
-                    aValue = getReportAmount(a);
-                    bValue = getReportAmount(b);
-                    return aValue - bValue;
-                    
-                default:
-                    return 0;
-            }
         });
         
-        // Reorder the grid
-        reportCards.forEach((card, index) => {
-            card.style.order = index;
-            card.style.animationDelay = `${index * 0.05}s`;
+        // Regenerate confirmation
+        const regenerateLinks = document.querySelectorAll('a[href*="regenerate"]');
+        regenerateLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                if (!confirm('Regenerate this report?\n\nA new copy will be created with current date.')) {
+                    e.preventDefault();
+                } else {
+                    showLoadingState(this);
+                }
+            });
+        });
+        
+        // Cleanup confirmation
+        const cleanupLinks = document.querySelectorAll('a[href*="cleanup"]');
+        cleanupLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                if (!confirm('Clean up old reports?\n\nThis will permanently delete files older than the retention period.\n\nThis action cannot be undone.')) {
+                    e.preventDefault();
+                } else {
+                    showLoadingState(this);
+                }
+            });
+        });
+        
+        function showLoadingState(element) {
+            const originalHTML = element.innerHTML;
+            element.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+            element.style.pointerEvents = 'none';
             
-            // Trigger reflow for animation
-            card.style.animation = 'none';
+            // Reset after 5 seconds (in case something goes wrong)
             setTimeout(() => {
-                card.style.animation = '';
-            }, 10);
-        });
-    }
-    
-    function getReportDate(card) {
-        const dateElement = card.querySelector('.report-date');
-        if (dateElement) {
-            const dateText = dateElement.textContent.trim();
-            return new Date(dateText).getTime() || 0;
+                element.innerHTML = originalHTML;
+                element.style.pointerEvents = '';
+            }, 5000);
         }
-        return 0;
     }
     
-    function getReportAmount(card) {
-        const amountElement = card.querySelector('.stat-value');
-        if (amountElement) {
-            const amountText = amountElement.textContent.trim();
-            const amount = parseFloat(amountText.replace(/[^0-9.]/g, ''));
-            return isNaN(amount) ? 0 : amount;
-        }
-        return 0;
-    }
-    
-    // Setup report animations
-    function setupReportAnimations() {
-        const reportCards = document.querySelectorAll('.report-card');
-        
-        reportCards.forEach((card, index) => {
-            // Staggered animation
-            card.style.animationDelay = `${index * 0.1}s`;
-            
-            // Hover effect
-            card.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateY(-5px)';
-            });
-            
-            card.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateY(0)';
-            });
-            
-            // Click effect
-            card.addEventListener('click', function(e) {
-                if (!e.target.closest('a') && !e.target.closest('button')) {
-                    const previewLink = this.querySelector('a[href*="preview"]');
-                    if (previewLink) {
-                        previewLink.click();
-                    }
-                }
-            });
-        });
-    }
-    
-    // Setup empty state
-    function setupEmptyState() {
-        const emptyState = document.querySelector('.empty-state');
-        if (emptyState) {
-            // Add animation to empty state icon
-            const icon = emptyState.querySelector('i');
-            if (icon) {
-                icon.style.animation = 'pulse 2s infinite';
-                
-                // Add CSS for pulse animation if not already added
-                if (!document.getElementById('pulse-animation')) {
-                    const style = document.createElement('style');
-                    style.id = 'pulse-animation';
-                    style.textContent = `
-                        @keyframes pulse {
-                            0% { transform: scale(1); opacity: 0.7; }
-                            50% { transform: scale(1.1); opacity: 1; }
-                            100% { transform: scale(1); opacity: 0.7; }
-                        }
-                    `;
-                    document.head.appendChild(style);
+    // Keyboard shortcuts
+    function setupKeyboardShortcuts() {
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + F to focus filter
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                const yearFilter = document.getElementById('yearFilter');
+                if (yearFilter) {
+                    yearFilter.focus();
                 }
             }
-        }
-    }
-    
-    // Handle report downloads
-    const downloadButtons = document.querySelectorAll('.btn-primary');
-    
-    downloadButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
-            if (this.href.includes('download')) {
-                // Show loading state
-                const originalHTML = this.innerHTML;
-                this.innerHTML = `
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>Downloading...</span>
-                `;
-                this.disabled = true;
+            
+            // Escape to clear filters
+            if (e.key === 'Escape') {
+                const yearFilter = document.getElementById('yearFilter');
+                const monthFilter = document.getElementById('monthFilter');
+                const statusFilter = document.getElementById('statusFilter');
                 
-                // Reset after 5 seconds
-                setTimeout(() => {
-                    this.innerHTML = originalHTML;
-                    this.disabled = false;
-                }, 5000);
+                if (yearFilter) yearFilter.value = '';
+                if (monthFilter) monthFilter.value = '';
+                if (statusFilter) statusFilter.value = '';
+                
+                // Trigger filter change
+                if (yearFilter) yearFilter.dispatchEvent(new Event('change'));
             }
         });
-    });
+    }
+    
+    // Search functionality (if search input is added)
+    const searchInput = document.getElementById('reportSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(function() {
+            const searchTerm = this.value.toLowerCase();
+            const reportCards = document.querySelectorAll('.report-card');
+            
+            let visibleCount = 0;
+            
+            reportCards.forEach(card => {
+                const cardText = card.textContent.toLowerCase();
+                
+                if (cardText.includes(searchTerm)) {
+                    card.style.display = 'flex';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+            
+            updateEmptyState(visibleCount);
+        }, 300));
+    }
+    
+    // Utility: Debounce function
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    // Add CSS for animations if not already added
+    if (!document.getElementById('reports-animations')) {
+        const style = document.createElement('style');
+        style.id = 'reports-animations';
+        style.textContent = `
+            @keyframes pulse {
+                0% { transform: scale(1); opacity: 0.7; }
+                50% { transform: scale(1.1); opacity: 1; }
+                100% { transform: scale(1); opacity: 0.7; }
+            }
+            
+            .empty-state {
+                animation: fadeIn 0.5s ease;
+                transition: all 0.3s ease;
+            }
+            
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(20px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            
+            .fa-spinner {
+                animation: spin 1s linear infinite;
+            }
+            
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
 });

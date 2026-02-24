@@ -87,6 +87,7 @@
                     </div>
                 </div>
                 
+                {% if is_admin %}
                 <div class="form-group">
                     <label for="{{ form.role.id }}">
                         <i class="fas fa-user-tag"></i>
@@ -112,6 +113,20 @@
                         </div>
                     </div>
                 </div>
+                {% else %}
+                
+                <input type="hidden" name="role" value="viewer">
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-user-tag"></i>
+                        User Role
+                    </label>
+                    <div class="form-control" style="background-color: #f8f9fa;">
+                        <strong>Viewer</strong> - Can only view reports and data
+                    </div>
+                    <small class="form-hint">As a clerk, you can only create viewer accounts.</small>
+                </div>
+                {% endif %}
             </div>
             
             <div class="form-actions">

@@ -12,17 +12,20 @@ class FileCleanupService:
     """Service for cleaning up old files with improved error handling and logging"""
     
     @staticmethod
-    def cleanup_old_files(days_to_keep=3):
+    def cleanup_old_files(days_to_keep=None):
         """
         Clean up files older than specified days
         
         Args:
-            days_to_keep: Number of days to keep files (default: 3 from config)
+            days_to_keep: Number of days to keep files (default: from config)
             
         Returns:
             dict: Results with success status, counts, and freed space
         """
         try:
+            if days_to_keep is None:
+                days_to_keep = current_app.config.get('REPORT_RETENTION_DAYS', 7)
+            
             if current_app:
                 upload_folder = current_app.config.get('UPLOAD_FOLDER', 
                     os.path.join(os.getcwd(), 'uploads'))
@@ -37,10 +40,11 @@ class FileCleanupService:
             
             cutoff_timestamp = time.time() - (days_to_keep * 24 * 3600)
             
+            # Different retention for different folders
             folders_to_clean = [
-                ('uploads', upload_folder),
-                ('reports', report_folder),
-                ('logs', logs_folder) 
+                ('uploads', upload_folder, 3),  # Keep uploads for 3 days
+                ('reports', report_folder, days_to_keep),  # Use configured retention
+                ('logs', logs_folder, 30)  # Keep logs for 30 days
             ]
             
             total_stats = {
@@ -49,25 +53,29 @@ class FileCleanupService:
                 'freed_space_mb': 0.0,
                 'folder_stats': {},
                 'cutoff_date': datetime.fromtimestamp(cutoff_timestamp).isoformat(),
+                'retention_days': days_to_keep,
                 'execution_time': None
             }
             
             start_time = time.time()
             
-            for folder_name, folder_path in folders_to_clean:
+            for folder_name, folder_path, retention_days in folders_to_clean:
                 if not os.path.exists(folder_path):
                     logger.debug(f"Folder {folder_name} does not exist: {folder_path}")
                     total_stats['folder_stats'][folder_name] = {
                         'exists': False,
                         'deleted': 0,
                         'freed_mb': 0.0,
+                        'retention_days': retention_days,
                         'error': 'Folder does not exist'
                     }
                     continue
                 
+                folder_cutoff = time.time() - (retention_days * 24 * 3600)
                 folder_result = FileCleanupService._cleanup_single_folder(
-                    folder_path, cutoff_timestamp, folder_name
+                    folder_path, folder_cutoff, folder_name
                 )
+                folder_result['retention_days'] = retention_days
                 
                 total_stats['folder_stats'][folder_name] = folder_result
                 total_stats['deleted_count'] += folder_result.get('deleted', 0)
@@ -80,7 +88,7 @@ class FileCleanupService:
             logger.info(
                 f"Cleanup completed: {total_stats['deleted_count']} files deleted, "
                 f"{total_stats['freed_space_mb']:.2f} MB freed in {execution_time:.2f}s. "
-                f"Cutoff: {total_stats['cutoff_date']}"
+                f"Retention: {days_to_keep} days, Cutoff: {total_stats['cutoff_date']}"
             )
             
             return total_stats
@@ -93,6 +101,53 @@ class FileCleanupService:
                 'deleted_count': 0,
                 'freed_space_mb': 0.0,
                 'folder_stats': {}
+            }
+    
+    @staticmethod
+    def cleanup_scheduled():
+        """Scheduled cleanup with database archiving"""
+        from app import db
+        from app.models.report import GeneratedReport
+        from datetime import datetime
+        
+        try:
+            # Get retention days from config
+            days_to_keep = current_app.config.get('REPORT_RETENTION_DAYS', 7)
+            
+            # Run file cleanup
+            cleanup_result = FileCleanupService.cleanup_old_files(days_to_keep)
+            
+            # Archive old reports in database
+            cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
+            
+            old_reports = GeneratedReport.query.filter(
+                GeneratedReport.generated_at < cutoff_date,
+                GeneratedReport.is_archived == False
+            ).all()
+            
+            for report in old_reports:
+                report.is_archived = True
+                report.archived_at = datetime.utcnow()
+            
+            db.session.commit()
+            
+            logger.info(
+                f"Scheduled cleanup completed. "
+                f"Files: {cleanup_result.get('deleted_count', 0)} deleted, "
+                f"Reports: {len(old_reports)} archived."
+            )
+            
+            return {
+                'file_cleanup': cleanup_result,
+                'reports_archived': len(old_reports),
+                'cutoff_date': cutoff_date.isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in scheduled cleanup: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
             }
     
     @staticmethod

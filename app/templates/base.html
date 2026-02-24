@@ -54,7 +54,7 @@
                         </a>
                         {% endif %}
                         
-                        <a href="{{ url_for('main.reports_list') }}" class="nav-link {% if request.endpoint == 'main.reports_list' %}active{% endif %}">
+                        <a href="{{ url_for('report.list') }}" class="nav-link {% if request.endpoint == 'report.list' %}active{% endif %}">
                             <i class="fas fa-file-alt"></i>
                             <span class="nav-text">Reports</span>
                         </a>
@@ -112,10 +112,17 @@
                                 <span>Admin Dashboard</span>
                             </a>
                             
-                            <a href="{{ url_for('auth.user_management') }}" class="dropdown-item">
+                            {% if current_user.is_admin %}
+                            <a href="{{ url_for('main.admin_users') }}" class="dropdown-item">
                                 <i class="fas fa-users-cog"></i>
                                 <span>User Management</span>
                             </a>
+                            {% elif current_user.is_clerk %}
+                            <a href="{{ url_for('main.clerk_users') }}" class="dropdown-item">
+                                <i class="fas fa-user-plus"></i>
+                                <span>Manage Viewers</span>
+                            </a>
+                            {% endif %}
                             
                             <a href="{{ url_for('main.cleanup_files') }}" class="dropdown-item">
                                 <i class="fas fa-trash-alt"></i>
@@ -183,7 +190,7 @@
             </a>
             {% endif %}
             
-            <a href="{{ url_for('main.reports_list') }}" class="mobile-nav-link">
+            <a href="{{ url_for('report.list') }}" class="mobile-nav-link">
                 <i class="fas fa-file-alt"></i>
                 Reports
             </a>
@@ -217,10 +224,17 @@
                 Admin Dashboard
             </a>
             
-            <a href="{{ url_for('auth.user_management') }}" class="mobile-nav-link">
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('main.admin_users') }}" class="nav-link">
                 <i class="fas fa-users-cog"></i>
-                User Management
+                <span class="nav-text">User Management</span>
             </a>
+            {% elif current_user.is_clerk %}
+            <a href="{{ url_for('main.clerk_users') }}" class="nav-link">
+                <i class="fas fa-user-plus"></i>
+                <span class="nav-text">Manage Viewers</span>
+            </a>
+            {% endif %}
             
             <a href="{{ url_for('main.cleanup_files') }}" class="mobile-nav-link">
                 <i class="fas fa-trash-alt"></i>
