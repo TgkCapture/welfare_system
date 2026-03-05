@@ -1,0 +1,287 @@
+<!-- app/templates/admin/cleanup.html -->
+{% extends 'base.html' %}
+
+{% block title %}File Cleanup - Mzugoss Welfare{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cleanup.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="cleanup-container">
+    <!-- Header -->
+    <div class="cleanup-header">
+        <h1 class="cleanup-title">
+            <i class="fas fa-broom"></i>
+            File Cleanup Management
+        </h1>
+        <div class="cleanup-actions">
+            <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i>
+                Back to Dashboard
+            </a>
+            <a href="{{ url_for('main.admin_storage_status') }}" class="btn btn-info">
+                <i class="fas fa-chart-bar"></i>
+                Storage Status
+            </a>
+        </div>
+    </div>
+
+    <!-- Storage Overview Cards -->
+    <div class="status-grid">
+        <!-- Total Storage Card -->
+        <div class="status-card">
+            <div class="card-header">
+                <i class="fas fa-database"></i>
+                <h3>Total Storage</h3>
+            </div>
+            <div class="stat-number" id="totalStorage">
+                {{ storage_stats.total_size_mb|default(0)|round(2) }} MB
+            </div>
+            <div class="stat-label">Across all folders</div>
+            <div class="stat-details">
+                <strong>{{ storage_stats.total_files|default(0)|intcomma }}</strong> total files
+            </div>
+        </div>
+
+        <!-- Uploads Folder Card -->
+        <div class="status-card {{ 'warning' if storage_stats.folders.uploads.size_mb > 500 else 'success' }}">
+            <div class="card-header {{ 'warning' if storage_stats.folders.uploads.size_mb > 500 }}">
+                <i class="fas fa-upload"></i>
+                <h3>Uploads Folder</h3>
+            </div>
+            <div class="stat-number" id="uploadsSize">
+                {{ storage_stats.folders.uploads.size_mb|default(0)|round(2) }} MB
+            </div>
+            <div class="stat-label">User uploaded files</div>
+            <div class="stat-details">
+                <strong>{{ storage_stats.folders.uploads.file_count|default(0)|intcomma }}</strong> files
+                {% if storage_stats.folders.uploads.oldest_date %}
+                <br>Oldest: {{ storage_stats.folders.uploads.oldest_date|format_date }}
+                {% endif %}
+            </div>
+            <!-- Progress Bar -->
+            <div class="progress">
+                <div class="progress-bar" 
+                     data-folder="uploads" 
+                     data-current="{{ storage_stats.folders.uploads.size_mb|default(0) }}" 
+                     data-limit="1000"
+                     style="width: {{ (storage_stats.folders.uploads.size_mb|default(0) / 1000 * 100)|round(1) }}%">
+                </div>
+            </div>
+            <div class="progress-info">
+                <small class="text-muted">
+                    {{ (storage_stats.folders.uploads.size_mb|default(0) / 1000 * 100)|round(1) }}% of 1 GB limit
+                </small>
+            </div>
+        </div>
+
+        <!-- Reports Folder Card -->
+        <div class="status-card {{ 'warning' if storage_stats.folders.reports.size_mb > 300 else 'success' }}">
+            <div class="card-header {{ 'warning' if storage_stats.folders.reports.size_mb > 300 }}">
+                <i class="fas fa-file-pdf"></i>
+                <h3>Reports Folder</h3>
+            </div>
+            <div class="stat-number" id="reportsSize">
+                {{ storage_stats.folders.reports.size_mb|default(0)|round(2) }} MB
+            </div>
+            <div class="stat-label">Generated PDF reports</div>
+            <div class="stat-details">
+                <strong>{{ storage_stats.folders.reports.file_count|default(0)|intcomma }}</strong> reports
+                {% if storage_stats.folders.reports.oldest_date %}
+                <br>Oldest: {{ storage_stats.folders.reports.oldest_date|format_date }}
+                {% endif %}
+            </div>
+            <!-- Progress Bar -->
+            <div class="progress">
+                <div class="progress-bar" 
+                     data-folder="reports" 
+                     data-current="{{ storage_stats.folders.reports.size_mb|default(0) }}" 
+                     data-limit="500"
+                     style="width: {{ (storage_stats.folders.reports.size_mb|default(0) / 500 * 100)|round(1) }}%">
+                </div>
+            </div>
+            <div class="progress-info">
+                <small class="text-muted">
+                    {{ (storage_stats.folders.reports.size_mb|default(0) / 500 * 100)|round(1) }}% of 500 MB limit
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cleanup Form -->
+    <div class="cleanup-form">
+        <h2><i class="fas fa-filter"></i> Cleanup Configuration</h2>
+        <p class="text-muted">Configure automatic cleanup settings and run manual cleanup operations.</p>
+
+        <form id="cleanupForm" action="{{ url_for('main.admin_cleanup') }}" method="POST">
+            {{ csrf_token() if csrf_token }}
+            
+            <!-- Days to Keep -->
+            <div class="form-group">
+                <label for="daysToKeep">
+                    <i class="fas fa-calendar-day"></i>
+                    Keep Files For (Days)
+                </label>
+                <input type="number" 
+                       id="daysToKeep" 
+                       name="days_to_keep" 
+                       class="form-control" 
+                       value="{{ config.REPORT_RETENTION_DAYS|default(7) }}"
+                       min="1" 
+                       max="365"
+                       required>
+                <div class="form-text">
+                    Files older than this number of days will be deleted during cleanup.
+                    Current setting: {{ config.REPORT_RETENTION_DAYS|default(7) }} days
+                </div>
+            </div>
+
+            <!-- Cleanup Options -->
+            <div class="form-group">
+                <label><i class="fas fa-cog"></i> Cleanup Options</label>
+                
+                <div class="form-check">
+                    <input type="checkbox" 
+                           id="dryRun" 
+                           name="dry_run" 
+                           class="form-check-input">
+                    <label for="dryRun" class="form-check-label">
+                        <strong>Dry Run</strong> - Show what would be deleted without actually deleting
+                    </label>
+                </div>
+
+                <div class="form-check">
+                    <input type="checkbox" 
+                           id="forceCleanup" 
+                           name="force_cleanup" 
+                           class="form-check-input">
+                    <label for="forceCleanup" class="form-check-label">
+                        <strong>Force Cleanup</strong> - Skip confirmation prompts
+                    </label>
+                </div>
+
+                <div class="form-check">
+                    <input type="checkbox" 
+                           id="includeLogs" 
+                           name="include_logs" 
+                           class="form-check-input">
+                    <label for="includeLogs" class="form-check-label">
+                        <strong>Include Log Files</strong> - Cleanup log files older than 30 days
+                    </label>
+                </div>
+
+                <div class="form-check">
+                    <input type="checkbox" 
+                           id="autoRefresh" 
+                           name="auto_refresh" 
+                           class="form-check-input">
+                    <label for="autoRefresh" class="form-check-label">
+                        <strong>Auto-refresh Stats</strong> - Update storage statistics automatically
+                    </label>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button type="submit" class="btn btn-warning">
+                    <i class="fas fa-broom"></i>
+                    Run Cleanup Now
+                </button>
+
+                <button type="button" id="analyzeBtn" class="btn btn-info">
+                    <i class="fas fa-search"></i>
+                    Analyze Storage
+                </button>
+
+                <button type="button" id="resetAll" class="btn btn-outline">
+                    <i class="fas fa-redo"></i>
+                    Reset Settings
+                </button>
+            </div>
+        </form>
+
+        <!-- Emergency Cleanup Section -->
+        <div class="emergency-section mt-4 pt-4 border-top">
+            <h3 class="text-danger">
+                <i class="fas fa-exclamation-triangle"></i>
+                Emergency Cleanup
+            </h3>
+            <p class="text-muted">
+                Use only when storage is critically low. This will delete files older than 1 day.
+            </p>
+            
+            <button type="button" id="emergencyCleanup" class="btn btn-danger">
+                <i class="fas fa-fire"></i>
+                Emergency Cleanup (1 day)
+            </button>
+            
+            <small class="d-block text-muted mt-2">
+                <i class="fas fa-info-circle"></i>
+                Warning: This action cannot be undone. Only use in case of emergency.
+            </small>
+        </div>
+    </div>
+
+    <!-- Results Section (Initially Hidden) -->
+    <div id="cleanupResults" class="results-section" style="display: none;">
+        <div class="results-header">
+            <i class="fas fa-clipboard-check"></i>
+            <h3>Cleanup Results</h3>
+        </div>
+        <div class="results-content">
+            <!-- Results will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Help Section -->
+    <div class="help-section mt-4">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-question-circle"></i> Cleanup Guidelines</h4>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success"></i>
+                        <strong>Regular Cleanup:</strong> Run cleanup weekly to maintain optimal storage
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-exclamation-triangle text-warning"></i>
+                        <strong>Dry Run First:</strong> Always use "Dry Run" to preview what will be deleted
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-archive text-info"></i>
+                        <strong>Report Retention:</strong> Reports are archived in database even when files are deleted
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-shield-alt text-danger"></i>
+                        <strong>Emergency Cleanup:</strong> Only use when storage is at 90%+ capacity
+                    </li>
+                </ul>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Note:</strong> Cleanup only affects files. Report metadata remains in the database 
+                    and can be regenerated if needed.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/cleanup.js') }}"></script>
+<script>
+    // Custom filter for Jinja (if not already defined)
+    function intcomma(value) {
+        return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+    
+    // Apply intcomma filter if available
+    document.addEventListener('DOMContentLoaded', function() {
+        // This will be handled by the cleanup.js file
+        console.log('Cleanup page loaded');
+    });
+</script>
+{% endblock %}

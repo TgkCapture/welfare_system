@@ -91,7 +91,7 @@
                     </div>
                 </div>
                 <div class="report-actions">
-                    <a href="{{ url_for('main.report_preview') }}" class="btn btn-outline btn-sm">
+                    <a href="{{ url_for('report.preview') }}" class="btn btn-outline btn-sm">
                         <i class="fas fa-eye"></i>
                         Preview
                     </a>
@@ -115,7 +115,7 @@
         {% endif %}
         
         <div class="section-footer">
-            <a href="{{ url_for('main.reports_list') }}" class="btn btn-link">
+            <a href="{{ url_for('report.list') }}" class="btn btn-link">
                 <i class="fas fa-list"></i>
                 View All Reports
             </a>
@@ -152,7 +152,7 @@
         </div>
         
         <div class="section-footer">
-            <a href="{{ url_for('main.paid_members_view') }}" class="btn btn-link" disabled>
+            <a href="{{ url_for('report.paid_members_view') }}" class="btn btn-link" disabled>
                 <i class="fas fa-eye"></i>
                 View Paid Members
             </a>

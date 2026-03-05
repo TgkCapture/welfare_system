@@ -1,0 +1,427 @@
+# app/controllers/auth_controller.py
+from datetime import datetime, timedelta
+import json
+import csv
+import io
+from flask import render_template, redirect, url_for, request, flash, session, current_app, make_response
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import login_user, logout_user, login_required, current_user
+from app.extensions import db
+from app.auth.forms import LoginForm, RegisterForm, UserEditForm, ChangePasswordForm, ProfileForm
+from app.decorators.permissions import role_required
+from app.models.user import User
+from app.models.setting import Setting
+
+SESSION_TIMEOUT = 1800  # seconds
+
+class AuthController:
+    """Handles authentication and user management business logic"""
+    
+    # ==================== LOGIN/LOGOUT ====================
+    
+    @staticmethod
+    def login():
+        """Handle user login"""
+        if current_user.is_authenticated:
+            return redirect(url_for('main.dashboard'))
+            
+        form = LoginForm()
+        if form.validate_on_submit():
+            return AuthController._process_login(form)
+        
+        return render_template('auth/login.html', form=form)
+    
+    @staticmethod
+    def _process_login(form):
+        """Process login form submission"""
+        user = User.query.filter_by(email=form.email.data).first()
+        
+        if not user or not check_password_hash(user.password, form.password.data):
+            flash('Invalid email or password', 'danger')
+            return redirect(url_for('auth.login'))
+        
+        # Check if user is active
+        if not user.is_active:
+            flash('Your account has been deactivated. Please contact an administrator.', 'danger')
+            return redirect(url_for('auth.login'))
+            
+        # Update last login time
+        user.last_login = db.func.current_timestamp()
+        db.session.commit()
+        
+        login_user(user, remember=form.remember.data, duration=timedelta(seconds=SESSION_TIMEOUT))
+        
+        flash('You have been logged in successfully!', 'success')
+        next_page = request.args.get('next')
+        return redirect(next_page or url_for('main.dashboard'))
+    
+    @staticmethod
+    @login_required
+    def logout():
+        """Handle user logout"""
+        logout_user()
+        flash('You have been logged out successfully.', 'info')
+        return redirect(url_for('auth.login'))
+    
+    # ==================== USER REGISTRATION ====================
+    
+    @staticmethod
+    @role_required('admin')
+    def register():
+        """Handle user registration (admin only)"""
+        form = RegisterForm()
+        
+        # For regular users, only show viewer option
+        if not current_user.is_admin:
+            form.role.choices = [('viewer', 'Viewer')]
+        
+        if form.validate_on_submit():
+            return AuthController._process_registration(form)
+        
+        return render_template('auth/register.html', form=form)
+    
+    @staticmethod
+    def _process_registration(form):
+        """Process registration form submission"""
+        existing_user = User.query.filter_by(email=form.email.data).first()
+        if existing_user:
+            flash('Email already registered', 'danger')
+            return redirect(url_for('auth.register'))
+            
+        try:
+            # Only admins can create other admins
+            role = form.role.data if current_user.is_admin else 'viewer'
+            
+            new_user = User(
+                email=form.email.data,
+                password=generate_password_hash(form.password.data, method='scrypt'),
+                role=role
+            )
+            db.session.add(new_user)
+            db.session.commit()
+            
+            flash(f'User {new_user.email} registered successfully as {new_user.role}!', 'success')
+            if current_user.is_adclmin:
+                return redirect(url_for('main.admin_users'))
+            else:
+                return redirect(url_for('auth.login'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Registration failed: {str(e)}', 'danger')
+            return redirect(url_for('auth.register'))
+    
+    
+    # ==================== USER PROFILE ====================
+    
+    @staticmethod
+    @login_required
+    def profile():
+        """User profile page - accessible by all users"""
+        user = User.query.get(current_user.id)
+        
+        # Get user statistics
+        stats = AuthController._get_user_statistics(user)
+        
+        # Get activity log
+        recent_activity = AuthController._get_user_activity(user)
+        
+        # Load user preferences
+        notification_preferences = Setting.get_value(f'user_{user.id}_notifications', 'true') == 'true'
+        theme_preference = Setting.get_value(f'user_{user.id}_theme', 'light')
+        
+        # Initialize forms
+        password_form = ChangePasswordForm()
+        profile_form = ProfileForm(obj=user)
+        
+        if request.method == 'POST':
+            return AuthController._handle_profile_post(user, password_form, profile_form)
+        
+        return render_template('auth/profile.html',
+                             user=user,
+                             password_form=password_form,
+                             profile_form=profile_form,
+                             **stats,
+                             recent_activity=recent_activity,
+                             notification_preferences=notification_preferences,
+                             theme_preference=theme_preference,
+                             version=current_app.version)
+    
+    @staticmethod
+    def _get_user_statistics(user):
+        """Get user statistics"""
+        reports_generated = 0
+        login_count = 1  # At least current login
+        days_active = (datetime.now() - user.created_at).days + 1
+        
+        # For admin and clerk, get reports generated
+        if current_user.is_admin or current_user.is_clerk:
+            if 'report_data' in session:
+                reports_generated = 1  # Simplified for now
+        
+        return {
+            'reports_generated': reports_generated,
+            'login_count': login_count,
+            'days_active': days_active
+        }
+    
+    @staticmethod
+    def _get_user_activity(user):
+        """Get user activity log"""
+        recent_activity = [
+            {
+                'icon': 'sign-in-alt',
+                'description': f'Logged in to system',
+                'timestamp': user.last_login.strftime('%B %d, %Y %I:%M %p') if user.last_login else 'Never'
+            }
+        ]
+        
+        # Add created account activity
+        recent_activity.append({
+            'icon': 'user-plus',
+            'description': 'Account created',
+            'timestamp': user.created_at.strftime('%B %d, %Y')
+        })
+        
+        return recent_activity
+    
+    @staticmethod
+    def _handle_profile_post(user, password_form, profile_form):
+        """Handle profile form submission"""
+        # Determine which form was submitted
+        if 'current_password' in request.form:  # Password change form
+            return AuthController._handle_password_change(user)
+        else:  # Profile update form
+            return AuthController._handle_profile_update(user, profile_form)
+    
+    @staticmethod
+    def _handle_password_change(user):
+        """Handle password change"""
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not check_password_hash(user.password, current_password):
+            flash('Current password is incorrect', 'danger')
+        elif new_password != confirm_password:
+            flash('New passwords do not match', 'danger')
+        elif len(new_password) < 8:
+            flash('Password must be at least 8 characters', 'danger')
+        else:
+            user.password = generate_password_hash(new_password, method='scrypt')
+            db.session.commit()
+            flash('Password updated successfully! Please login again.', 'success')
+            return redirect(url_for('auth.logout'))
+        
+        return redirect(url_for('auth.profile'))
+    
+    @staticmethod
+    def _handle_profile_update(user, profile_form):
+        """Handle profile update"""
+        if profile_form.validate_on_submit():
+            user.email = profile_form.email.data
+            
+            # Save preferences
+            Setting.set_value(f'user_{user.id}_notifications', 
+                            'true' if request.form.get('notification_preferences') else 'false')
+            Setting.set_value(f'user_{user.id}_theme', 
+                            request.form.get('theme_preference', 'light'))
+            
+            db.session.commit()
+            flash('Profile updated successfully!', 'success')
+            
+            return redirect(url_for('auth.profile'))
+        
+        return redirect(url_for('auth.profile'))
+    
+    @staticmethod
+    @login_required
+    def change_password():
+        """API endpoint to change password"""
+        user = User.query.get(current_user.id)
+        
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not current_password or not new_password or not confirm_password:
+            flash('All fields are required', 'danger')
+            return redirect(url_for('auth.profile'))
+        
+        return AuthController._handle_password_change(user)
+    
+    @staticmethod
+    @login_required
+    def update_profile():
+        """API endpoint to update profile"""
+        user = User.query.get(current_user.id)
+        
+        email = request.form.get('email')
+        notification_preferences = request.form.get('notification_preferences') == 'on'
+        theme_preference = request.form.get('theme_preference', 'light')
+        
+        if not email:
+            flash('Email is required', 'danger')
+            return redirect(url_for('auth.profile'))
+        
+        # Check if email is already taken by another user
+        existing_user = User.query.filter(User.email == email, User.id != current_user.id).first()
+        if existing_user:
+            flash('Email already in use by another account', 'danger')
+            return redirect(url_for('auth.profile'))
+        
+        user.email = email
+        
+        # Save preferences
+        Setting.set_value(f'user_{user.id}_notifications', 
+                         'true' if notification_preferences else 'false')
+        Setting.set_value(f'user_{user.id}_theme', theme_preference)
+        
+        db.session.commit()
+        flash('Profile updated successfully!', 'success')
+        
+        return redirect(url_for('auth.profile'))
+    
+    # ==================== ACTIVITY LOG ====================
+    
+    @staticmethod
+    @login_required
+    def activity_log():
+        """View full activity log"""
+        user = User.query.get(current_user.id)
+        
+        # Get activity from settings 
+        activity_data = Setting.get_value(f'user_{user.id}_activity', '[]')
+        
+        try:
+            activities = json.loads(activity_data)
+        except:
+            activities = [
+                {
+                    'icon': 'sign-in-alt',
+                    'description': 'Account created',
+                    'timestamp': user.created_at.strftime('%B %d, %Y %I:%M %p')
+                }
+            ]
+            if user.last_login:
+                activities.append({
+                    'icon': 'sign-in-alt',
+                    'description': 'Last login',
+                    'timestamp': user.last_login.strftime('%B %d, %Y %I:%M %p')
+                })
+        
+        return render_template('auth/activity_log.html',
+                             activities=activities,
+                             user=user,
+                             now=datetime.now(),
+                             version=current_app.version)
+    
+    # ==================== DATA EXPORT ====================
+    
+    @staticmethod
+    @login_required
+    def export_data():
+        """Export user data as CSV"""
+        user = User.query.get(current_user.id)
+        
+        # Create CSV data
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write headers
+        writer.writerow(['Data Type', 'Field', 'Value'])
+        
+        # Basic profile info
+        writer.writerow(['Profile', 'Email', user.email])
+        writer.writerow(['Profile', 'Role', user.role])
+        writer.writerow(['Profile', 'Account Created', user.created_at])
+        writer.writerow(['Profile', 'Last Login', user.last_login])
+        writer.writerow(['Profile', 'Account Status', 'Active' if user.is_active else 'Inactive'])
+        
+        # Get preferences
+        notifications = Setting.get_value(f'user_{user.id}_notifications', 'true')
+        theme = Setting.get_value(f'user_{user.id}_theme', 'light')
+        
+        writer.writerow(['Preferences', 'Notifications', 'Enabled' if notifications == 'true' else 'Disabled'])
+        writer.writerow(['Preferences', 'Theme', theme])
+        
+        # Prepare response
+        output.seek(0)
+        
+        response = current_app.make_response(output.getvalue())
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = f'attachment; filename=user_data_{user.id}_{datetime.now().strftime("%Y%m%d")}.csv'
+        
+        return response
+    
+    # ==================== ACCOUNT DELETION ====================
+    
+    @staticmethod
+    @login_required
+    def delete_account():
+        """Delete user account"""
+        if not current_user.is_admin:  # Only non-admins can delete their own account
+            user = User.query.get(current_user.id)
+            
+            # Confirm deletion
+            confirm_text = request.form.get('confirm_text', '')
+            if confirm_text != 'DELETE':
+                flash('Please type "DELETE" to confirm account deletion', 'danger')
+                return redirect(url_for('auth.profile'))
+            
+            try:
+                # Logout user first
+                logout_user()
+                
+                # Delete user
+                db.session.delete(user)
+                db.session.commit()
+                
+                flash('Your account has been deleted successfully.', 'success')
+                return redirect(url_for('auth.login'))
+                
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Account deletion failed: {str(e)}', 'danger')
+                return redirect(url_for('auth.profile'))
+        
+        flash('Admin accounts cannot be deleted through this interface.', 'danger')
+        return redirect(url_for('auth.profile'))
+    
+    # ==================== PUBLIC REGISTRATION ====================
+
+    @staticmethod
+    def public_register():
+        """Public user registration - creates viewer accounts"""
+        if current_user.is_authenticated:
+            return redirect(url_for('main.dashboard'))
+            
+        form = RegisterForm()
+        
+        # Public users can only register as viewers
+        form.role.choices = [('viewer', 'Viewer')]
+        form.role.data = 'viewer'  # Default
+        
+        if form.validate_on_submit():
+            existing_user = User.query.filter_by(email=form.email.data).first()
+            if existing_user:
+                flash('Email already registered. Please login instead.', 'danger')
+                return redirect(url_for('auth.login'))
+                
+            try:
+                new_user = User(
+                    email=form.email.data,
+                    password=generate_password_hash(form.password.data, method='scrypt'),
+                    role='viewer'  # Always viewer for public registration
+                )
+                db.session.add(new_user)
+                db.session.commit()
+                
+                flash('Account created successfully! Please login.', 'success')
+                return redirect(url_for('auth.login'))
+                
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Registration failed: {str(e)}', 'danger')
+        
+        return render_template('auth/register.html', form=form)    

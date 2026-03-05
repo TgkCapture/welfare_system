@@ -15,10 +15,57 @@
             Contribution Reports
         </h1>
         <div class="page-actions">
-            <a href="{{ url_for('main.viewer_dashboard') }}" class="btn btn-outline">
+            {% if user_role in ['admin', 'clerk'] %}
+            <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                Generate New Report
+            </a>
+            {% endif %}
+            <a href="{% if current_user.is_admin %}{{ url_for('main.admin_dashboard') }}
+                        {% elif current_user.is_clerk %}{{ url_for('main.clerk_dashboard') }}
+                        {% else %}{{ url_for('main.viewer_dashboard') }}{% endif %}" 
+                class="btn btn-outline">
                 <i class="fas fa-arrow-left"></i>
                 Back to Dashboard
             </a>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <div class="filter-options">
+            <select id="yearFilter" class="form-select">
+                <option value="">All Years</option>
+                {% set years = [] %}
+                {% for report in reports %}
+                    {% if report.year not in years %}
+                        {% set _ = years.append(report.year) %}
+                        <option value="{{ report.year }}">{{ report.year }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+            
+            <select id="monthFilter" class="form-select">
+                <option value="">All Months</option>
+                {% for i in range(1, 13) %}
+                    <option value="{{ i }}">{{ month_names[i-1] }}</option>
+                {% endfor %}
+            </select>
+            
+            {% if current_user.is_admin %}
+            <select id="statusFilter" class="form-select">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="archived">Archived</option>
+            </select>
+            {% endif %}
+        </div>
+        
+        <div class="filter-info">
+            <span class="badge badge-info">
+                <i class="fas fa-info-circle"></i>
+                Reports are automatically archived after {{ config.REPORT_RETENTION_DAYS }} days
+            </span>
         </div>
     </div>
 
@@ -26,15 +73,25 @@
         {% if reports %}
         <div class="reports-grid">
             {% for report in reports %}
-            <div class="report-card">
+            <div class="report-card" data-year="{{ report.year }}" data-month="{{ report.month }}">
                 <div class="report-header">
                     <div class="report-period">
                         <i class="fas fa-calendar"></i>
-                        {{ month_names[report.month-1] if month_names else report.month }} {{ report.year }}
+                        {{ month_names[report.month-1] }} {{ report.year }}
                     </div>
-                    <div class="report-date">
-                        <i class="fas fa-clock"></i>
-                        {{ report.generated_date }}
+                    <div class="report-meta">
+                        <span class="meta-item">
+                            <i class="fas fa-user"></i>
+                            {{ report.generated_by }}
+                        </span>
+                        <span class="meta-item">
+                            <i class="fas fa-clock"></i>
+                            {{ report.generated_date }}
+                        </span>
+                        <span class="meta-item">
+                            <i class="fas fa-hdd"></i>
+                            {{ report.file_size_mb }} MB
+                        </span>
                     </div>
                 </div>
                 
@@ -71,15 +128,37 @@
                 </div>
                 
                 <div class="report-footer">
-                    <a href="{{ url_for('main.report_preview') }}" class="btn btn-outline">
+                    <a href="{{ report.preview_url }}" class="btn btn-outline" title="Preview Report">
                         <i class="fas fa-eye"></i>
                         Preview
                     </a>
-                    {% if report.download_url %}
-                    <a href="{{ report.download_url }}" class="btn btn-primary">
+                    
+                    <a href="{{ report.download_url }}" class="btn btn-primary" title="Download PDF">
                         <i class="fas fa-download"></i>
-                        Download PDF
+                        Download
                     </a>
+                    
+                    {% if user_role in ['admin', 'clerk'] %}
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline dropdown-toggle" type="button" 
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('report.regenerate_report', report_id=report.id) }}">
+                                    <i class="fas fa-redo"></i> Regenerate
+                                </a>
+                            </li>
+                            {% if current_user.is_admin %}
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('report.archive_report', report_id=report.id) }}">
+                                    <i class="fas fa-archive"></i> Archive
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -93,12 +172,43 @@
             {% if user_role in ['admin', 'clerk'] %}
             <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn-primary">
                 <i class="fas fa-plus"></i>
-                Generate Report
+                Generate First Report
             </a>
             {% endif %}
         </div>
         {% endif %}
     </div>
+
+    <!-- Admin Controls -->
+    {% if current_user.is_admin %}
+    <div class="admin-controls">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-cog"></i> Report Management</h3>
+            </div>
+            <div class="card-body">
+                <div class="admin-actions">
+                    <a href="{{ url_for('report.cleanup_reports') }}" class="btn btn-warning"
+                       onclick="return confirm('Are you sure you want to cleanup old reports?')">
+                        <i class="fas fa-broom"></i>
+                        Cleanup Old Reports
+                    </a>
+                    <a href="{{ url_for('report.get_report_statistics') }}" class="btn btn-info">
+                        <i class="fas fa-chart-bar"></i>
+                        View Statistics
+                    </a>
+                </div>
+                <p class="text-muted mt-2">
+                    <small>
+                        <i class="fas fa-info-circle"></i>
+                        Reports are retained for {{ config.REPORT_RETENTION_DAYS }} days. 
+                        Cleanup will archive old reports and remove associated files.
+                    </small>
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 

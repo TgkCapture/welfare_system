@@ -14,11 +14,28 @@ class Config:
     UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
     REPORT_FOLDER = os.path.join(os.getcwd(), 'reports')
     LOGS_FOLDER = os.path.join(os.getcwd(), 'logs')
+
+    # TEMP Folder
+    TEMP_FOLDER = os.path.join(os.getcwd(), 'temp')
+
+    # Backup Folder
+    BACKUP_FOLDER = os.path.join(os.getcwd(), 'backups')
     
     # Google Sheets
     GOOGLE_CREDENTIALS_PATH = os.environ.get('GOOGLE_CREDENTIALS_PATH')
     GOOGLE_CREDENTIALS_JSON = os.environ.get('GOOGLE_CREDENTIALS_JSON')
     DEFAULT_SHEET_URL = os.environ.get('DEFAULT_SHEET_URL')
+
+    # Report Settings
+    REPORT_RETENTION_DAYS = 7  # Keep reports for 7 days before archiving
+    MAX_REPORT_FOLDER_SIZE_MB = 500  # Maximum size for report folder
+    MAX_UPLOAD_FOLDER_SIZE_MB = 1000  # Maximum size for upload folder
+    
+    # Report Access Settings
+    CLERKS_SEE_ALL_REPORTS = False  # If True, clerks can see all reports
+    
+    # Report Generation
+    REPORT_TIMEZONE = 'Africa/Blantyre'
     
     # Upload settings
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload
@@ -32,6 +49,12 @@ class Config:
     # Storage limits
     MAX_UPLOAD_FOLDER_SIZE_MB = 1000  # 1GB limit
     MAX_REPORT_FOLDER_SIZE_MB = 500   # 500MB limit
+
+    # Month names for display
+    MONTH_NAMES = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ]
     
     # Session
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
