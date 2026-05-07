@@ -1,86 +1,123 @@
 # app/services/file_processor.py
+"""
+File upload processing.
+
+"""
 import os
-from werkzeug.utils import secure_filename
 from datetime import datetime
+
 from flask import current_app
+from werkzeug.utils import secure_filename
+
+
+ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv'}
+GOOGLE_SHEETS_TMP_PREFIX = 'gs_tmp_'
+
 
 class FileProcessor:
-    """Utility class for processing file uploads"""
-    
+    """Utility class for processing file uploads."""
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
     @staticmethod
-    def process_upload(request):
-        """Process file upload from request"""
-        use_google_sheets = request.form.get('input_method') == 'sheets' or request.form.get('use_google_sheets') == 'on'
-        
-        if use_google_sheets:
+    def process_upload(request) -> str:
+        """Dispatch to the correct handler based on form input method.
+        """
+        use_sheets = (
+            request.form.get('input_method') == 'sheets'
+            or request.form.get('use_google_sheets') == 'on'
+        )
+
+        if use_sheets:
             return FileProcessor._process_google_sheets(request)
-        else:
-            return FileProcessor._process_file_upload(request)
-    
+        return FileProcessor._process_file_upload(request)
+
     @staticmethod
-    def _process_google_sheets(request):
-        """Process Google Sheets upload"""
-        from app.services.google_sheets_service import GoogleSheetsService
-        from app.models.setting import Setting
-        
-        sheet_url = request.form.get('sheet_url', '')
-        year = request.form.get('year', type=int)
-        
-        if not sheet_url:
-            raise ValueError("Google Sheets URL is required")
-        
-        if not year:
-            raise ValueError("Year is required")
-        
-        # Save Google Sheets URL
-        Setting.set_value('google_sheets_url', sheet_url)
-        
-        # Get data from Google Sheets
-        google_sheets_service = GoogleSheetsService()
-        google_sheets_service.init_app(current_app)
-        excel_data = google_sheets_service.get_sheet_as_excel(sheet_url, sheet_name=str(year))
-        
-        if excel_data is None:
-            raise ValueError("Failed to fetch data from Google Sheets. Please check the URL and credentials.")
-        
-        # Save temporarily
-        filename = f"google_sheet_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        
-        with open(filepath, 'wb') as f:
-            f.write(excel_data.getvalue())
-        
-        current_app.logger.info(f"Saved Google Sheets data to: {filepath}")
-        return filepath
-    
-    @staticmethod
-    def _process_file_upload(request):
-        """Process file upload from form"""
-        if 'file' not in request.files:
-            raise ValueError("No file selected")
-        
-        file = request.files['file']
-        if file.filename == '':
-            raise ValueError("No file selected")
-        
-        # Check file extension
-        allowed_extensions = {'xlsx', 'xls', 'csv'}
-        filename = secure_filename(file.filename)
-        if '.' not in filename or filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
-            raise ValueError("Invalid file type. Please upload Excel (.xlsx, .xls) or CSV files.")
-        
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        
-        current_app.logger.info(f"Saved uploaded file to: {filepath}")
-        return filepath
-    
-    @staticmethod
-    def cleanup_file(filepath):
-        """Clean up temporary file if needed"""
-        if filepath and os.path.exists(filepath) and 'google_sheet' in os.path.basename(filepath):
+    def cleanup_file(filepath: str) -> None:
+        """Delete *filepath* if it is a Google Sheets temp file.
+        """
+        if not filepath:
+            return
+
+        basename = os.path.basename(filepath)
+        is_temp  = basename.startswith(GOOGLE_SHEETS_TMP_PREFIX)
+
+        if is_temp and os.path.exists(filepath):
             try:
                 os.remove(filepath)
-                current_app.logger.info(f"Cleaned up temporary file: {filepath}")
+                current_app.logger.info(f"FileProcessor: removed temp file {filepath}")
             except Exception as e:
-                current_app.logger.error(f"Error cleaning up file {filepath}: {str(e)}")
+                current_app.logger.warning(
+                    f"FileProcessor: could not remove temp file {filepath}: {e}"
+                )
+
+    # ------------------------------------------------------------------
+    # Private handlers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _process_file_upload(request) -> str:
+        """Save an uploaded Excel / CSV file and return its path."""
+        if 'file' not in request.files:
+            raise ValueError("No file was included in the request.")
+
+        file = request.files['file']
+        if not file or file.filename == '':
+            raise ValueError("No file was selected.")
+
+        filename = secure_filename(file.filename)
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+
+        if ext not in ALLOWED_EXTENSIONS:
+            raise ValueError(
+                f"Invalid file type '.{ext}'. "
+                f"Please upload one of: {', '.join(sorted(ALLOWED_EXTENSIONS))}."
+            )
+
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        current_app.logger.info(f"FileProcessor: saved upload to {filepath}")
+        return filepath
+
+    @staticmethod
+    def _process_google_sheets(request) -> str:
+        """Fetch a Google Sheet and persist it as a temp .xlsx file.
+        """
+        from app.services.google_sheets_service import GoogleSheetsService
+        from app.models.setting import Setting
+
+        sheet_url = request.form.get('sheet_url', '').strip()
+        year      = request.form.get('year', type=int)
+
+        if not sheet_url:
+            raise ValueError("A Google Sheets URL is required.")
+        if not year:
+            raise ValueError("Year is required when importing from Google Sheets.")
+
+        # Persist so the settings page stays in sync
+        Setting.set_value('google_sheets_url', sheet_url)
+
+        service = GoogleSheetsService()
+        service.init_app(current_app._get_current_object())
+        excel_data = service.get_sheet_as_excel(sheet_url, sheet_name=str(year))
+
+        if excel_data is None:
+            raise ValueError(
+                "Could not fetch data from Google Sheets. "
+                "Please check the URL and that the service account has access."
+            )
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename  = f"{GOOGLE_SHEETS_TMP_PREFIX}{year}_{timestamp}.xlsx"
+        filepath  = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+
+        with open(filepath, 'wb') as fh:
+            fh.write(excel_data.getvalue())
+
+        current_app.logger.info(
+            f"FileProcessor: saved Google Sheets data to {filepath}"
+        )
+        return filepath
