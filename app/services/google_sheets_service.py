@@ -1,466 +1,367 @@
 # app/services/google_sheets_service.py
-import os
-import gspread
-import pandas as pd
-from google.oauth2.service_account import Credentials
-from google.auth.exceptions import GoogleAuthError
-from google.api_core.exceptions import PermissionDenied, NotFound
-from flask import current_app
+"""
+Google Sheets integration service.
+
+Authenticates via a service-account JSON (env var or file path),
+fetches sheet data into a pandas DataFrame, and can export it as
+an in-memory Excel file for consumption by ExcelParser.
+
+Thread-safety note: the in-process cache is protected by a lock so
+the service is safe to use from the scheduler thread and request
+threads simultaneously.
+"""
+import json
 import logging
-from io import BytesIO
-from typing import Optional, Dict, Any
-from urllib.parse import urlparse
 import re
+import threading
 import time
 from datetime import datetime
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from io import BytesIO
+from typing import Any, Dict, Optional
+from urllib.parse import urlparse
+
+import gspread
+import pandas as pd
+from flask import current_app
+from google.api_core.exceptions import NotFound, PermissionDenied
+from google.auth.exceptions import GoogleAuthError
+from google.oauth2.service_account import Credentials
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 logger = logging.getLogger(__name__)
 
+_SCOPES = [
+    'https://www.googleapis.com/auth/spreadsheets.readonly',
+    'https://www.googleapis.com/auth/drive.readonly',
+]
+_SHEET_URL_RE = re.compile(
+    r'^https://docs\.google\.com/spreadsheets/d/[a-zA-Z0-9\-_]+'
+)
+
+
 class GoogleSheetsService:
-    _instance = None
-    
+    """Singleton service for Google Sheets access with caching."""
+
+    _instance      = None
+    _instance_lock = threading.Lock()
+
+    # ------------------------------------------------------------------
+    # Singleton
+    # ------------------------------------------------------------------
+
     def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
+        with cls._instance_lock:
+            if cls._instance is None:
+                inst = super().__new__(cls)
+                inst._cache         = {}
+                inst._cache_lock    = threading.Lock()
+                inst._cache_ttl     = 300          # seconds
+                inst._sheet_hashes  = {}
+                inst._creds_path    = None
+                inst._initialized   = False
+                cls._instance       = inst
         return cls._instance
-    
-    def __init__(self):
-        if not self._initialized:
-            self.cache = {}
-            self.cache_timeout = 300  # 5 minutes cache
-            self._last_update_times = {}
-            self._sheet_hashes = {}
-            self._initialized = True
-    
-    def init_app(self, app):
-        """Initialize service with Flask app context"""
-        self.credentials_path = app.config.get('GOOGLE_CREDENTIALS_PATH')
-        self.scopes = [
-            'https://www.googleapis.com/auth/spreadsheets.readonly',
-            'https://www.googleapis.com/auth/drive.readonly'
-        ]
-    
-    def _validate_sheet_url(self, sheet_url: str) -> bool:
-        """Validate Google Sheets URL format"""
-        pattern = r'^https://docs\.google\.com/spreadsheets/d/[a-zA-Z0-9-_]+(/.*)?$'
-        return bool(re.match(pattern, sheet_url))
-    
-    def _extract_sheet_id(self, sheet_url: str) -> Optional[str]:
-        """Extract sheet ID from URL"""
-        try:
-            if '/d/' in sheet_url:
-                parts = sheet_url.split('/d/')[1].split('/')
-                return parts[0]
-            elif 'key=' in sheet_url:
-                parsed = urlparse(sheet_url)
-                params = dict(pair.split('=') for pair in parsed.query.split('&'))
-                return params.get('key')
-        except:
+
+    def init_app(self, app) -> None:
+        """Bind service to a Flask app — call once from the app factory."""
+        self._creds_path  = app.config.get('GOOGLE_CREDENTIALS_PATH')
+        self._creds_json  = app.config.get('GOOGLE_CREDENTIALS_JSON')
+        self._cache_ttl   = app.config.get('SHEETS_CACHE_TTL', 300)
+        self._initialized = True
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def get_sheet_data(
+        self,
+        sheet_url: str,
+        sheet_name: Optional[str] = None,
+        force_refresh: bool = False,
+    ) -> Optional[pd.DataFrame]:
+        """Fetch a worksheet as a DataFrame.
+
+        Returns None on any error so callers can raise ValueError with
+        a user-friendly message.
+        """
+        if not self._validate_url(sheet_url):
+            logger.error(f"Invalid Google Sheets URL: {sheet_url}")
             return None
+
+        cache_key = f"{sheet_url}:{sheet_name}"
+
+        if not force_refresh:
+            cached = self._get_cached(cache_key)
+            if cached is not None:
+                return cached
+
+        client = self._get_client()
+        if client is None:
+            return None
+
+        try:
+            spreadsheet = client.open_by_url(sheet_url)
+            worksheet   = self._resolve_worksheet(spreadsheet, sheet_name)
+            if worksheet is None:
+                return None
+
+            raw = worksheet.get_all_values()
+            if not raw or len(raw) < 2:
+                logger.warning(f"Worksheet '{worksheet.title}' is empty or header-only")
+                return pd.DataFrame()
+
+            headers = [str(h).strip() for h in raw[0]]
+            df      = pd.DataFrame(raw[1:], columns=headers)
+            df      = self._clean_dataframe(df)
+
+            self._set_cached(cache_key, df)
+            logger.info(
+                f"Fetched {len(df)} rows from "
+                f"'{worksheet.title}' in '{spreadsheet.title}'"
+            )
+            return df
+
+        except PermissionDenied:
+            logger.error(f"Permission denied accessing sheet: {sheet_url}")
+        except NotFound:
+            logger.error(f"Spreadsheet not found: {sheet_url}")
+        except gspread.exceptions.APIError as e:
+            logger.error(f"Google Sheets API error: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error fetching sheet: {e}", exc_info=True)
+
         return None
-    
+
+    def get_sheet_as_excel(
+        self,
+        sheet_url: str,
+        sheet_name: Optional[str] = None,
+    ) -> Optional[BytesIO]:
+        """Return the sheet data as an in-memory Excel (.xlsx) file."""
+        df = self.get_sheet_data(sheet_url, sheet_name)
+        if df is None:
+            return None
+
+        if df.empty:
+            df = pd.DataFrame({'Message': ['No data found in Google Sheet']})
+
+        output     = BytesIO()
+        safe_title = (sheet_name or 'Sheet1')[:31]   # Excel tab name limit
+
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name=safe_title)
+
+            wb  = writer.book
+            ws  = writer.sheets[safe_title]
+
+            header_fmt = wb.add_format({
+                'bold': True, 'text_wrap': True,
+                'fg_color': '#D7E4BC', 'border': 1,
+            })
+            for col_idx, col_name in enumerate(df.columns):
+                ws.write(0, col_idx, col_name, header_fmt)
+                col_width = max(
+                    df[col_name].astype(str).str.len().max() if not df.empty else 0,
+                    len(str(col_name)),
+                )
+                ws.set_column(col_idx, col_idx, min(col_width + 2, 50))
+
+            # Metadata sheet
+            meta = pd.DataFrame({
+                'Property': ['Source URL', 'Export Time', 'Rows', 'Columns', 'Sheet'],
+                'Value':    [
+                    sheet_url,
+                    datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    len(df), len(df.columns),
+                    sheet_name or 'Default',
+                ],
+            })
+            meta.to_excel(writer, sheet_name='Metadata', index=False)
+
+        output.seek(0)
+        logger.info(f"Exported sheet to Excel: {len(df)} rows")
+        return output
+
+    def test_connection(self, sheet_url: Optional[str] = None) -> Dict[str, Any]:
+        """Verify credentials and optionally access a specific sheet."""
+        client = self._get_client()
+        if client is None:
+            return {'success': False, 'error': 'Authentication failed.'}
+
+        if not sheet_url:
+            return {'success': True, 'message': 'Authenticated successfully.'}
+
+        if not self._validate_url(sheet_url):
+            return {'success': False, 'error': 'Invalid Google Sheets URL.'}
+
+        try:
+            ss  = client.open_by_url(sheet_url)
+            wss = ss.worksheets()
+            return {
+                'success':          True,
+                'sheet_title':      ss.title,
+                'worksheet_count':  len(wss),
+                'worksheet_names':  [w.title for w in wss],
+                'message':          f'Connected to "{ss.title}".',
+            }
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    def clear_cache(
+        self,
+        sheet_url: Optional[str] = None,
+        sheet_name: Optional[str] = None,
+    ) -> None:
+        """Invalidate cache entries — all, by URL, or by URL+sheet."""
+        with self._cache_lock:
+            if sheet_url and sheet_name:
+                key = f"{sheet_url}:{sheet_name}"
+                self._cache.pop(key, None)
+                self._sheet_hashes.pop(key, None)
+            elif sheet_url:
+                for k in list(self._cache):
+                    if k.startswith(sheet_url):
+                        del self._cache[k]
+                        self._sheet_hashes.pop(k, None)
+            else:
+                self._cache.clear()
+                self._sheet_hashes.clear()
+            logger.info("Google Sheets cache cleared")
+
+    # ------------------------------------------------------------------
+    # Private — auth
+    # ------------------------------------------------------------------
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10),
-        retry=retry_if_exception_type((gspread.exceptions.APIError,))
+        retry=retry_if_exception_type(gspread.exceptions.APIError),
+        reraise=False,
     )
-    def get_client(self):
-        """Authenticate and return a Google Sheets client with retry logic"""
+    def _get_client(self) -> Optional[gspread.Client]:
+        """Return an authenticated gspread client, or None on failure."""
         try:
             creds = None
-            
-            creds_info = current_app.config.get('GOOGLE_CREDENTIALS_JSON')
-            if creds_info:
-                import json
-                try:
-                    creds_dict = json.loads(creds_info)
-                    creds = Credentials.from_service_account_info(
-                        creds_dict, 
-                        scopes=self.scopes
-                    )
-                    logger.info("Using credentials from environment variable")
-                except json.JSONDecodeError:
-                    logger.error("Invalid JSON in GOOGLE_CREDENTIALS_JSON")
-            
-            # Fallback to file
-            if not creds and self.credentials_path and os.path.exists(self.credentials_path):
-                creds = Credentials.from_service_account_file(
-                    self.credentials_path, 
-                    scopes=self.scopes
-                )
-                logger.info(f"Using credentials from file: {self.credentials_path}")
-            
-            if not creds:
-                logger.error("Google Sheets credentials not configured")
-                return None
-            
-            client = gspread.authorize(creds)
-            return client
-            
-        except GoogleAuthError as e:
-            logger.error(f"Google authentication error: {str(e)}")
-            return None
-        except Exception as e:
-            logger.error(f"Unexpected error getting Google Sheets client: {str(e)}")
-            return None
-    
-    def get_sheet_data(self, sheet_url: str, sheet_name: Optional[str] = None, 
-                      force_refresh: bool = False) -> Optional[pd.DataFrame]:
-        """Get data from Google Sheets with caching"""
-        
-        # Validate URL
-        if not self._validate_sheet_url(sheet_url):
-            logger.error(f"Invalid Google Sheets URL: {sheet_url}")
-            return None
-        
-        # Check cache if not forcing refresh
-        cache_key = f"{sheet_url}:{sheet_name}"
-        if not force_refresh and cache_key in self.cache:
-            cached_data, timestamp = self.cache[cache_key]
-            if time.time() - timestamp < self.cache_timeout:
-                logger.debug(f"Returning cached data for {cache_key}")
-                return cached_data
-        
-        client = self.get_client()
-        if not client:
-            return None
-        
-        try:
-            # Open the spreadsheet
-            spreadsheet = client.open_by_url(sheet_url)
-            
-            # Get available worksheets
-            worksheets = spreadsheet.worksheets()
-            logger.info(f"Available worksheets: {[ws.title for ws in worksheets]}")
-            
-            # Get the worksheet
-            worksheet = None
-            if sheet_name:
-                try:
-                    worksheet = spreadsheet.worksheet(sheet_name)
-                except gspread.exceptions.WorksheetNotFound:
-                    logger.warning(f"Worksheet '{sheet_name}' not found, trying case-insensitive match")
-                    # Try case-insensitive match
-                    for ws in worksheets:
-                        if sheet_name.lower() in ws.title.lower():
-                            worksheet = ws
-                            logger.info(f"Using worksheet with similar name: {ws.title}")
-                            break
-            
-            # If still no worksheet, use first sheet or sheet1
-            if not worksheet:
-                try:
-                    worksheet = spreadsheet.sheet1
-                    logger.info(f"Using default worksheet: {worksheet.title}")
-                except:
-                    if worksheets:
-                        worksheet = worksheets[0]
-                        logger.info(f"Using first worksheet: {worksheet.title}")
-                    else:
-                        logger.error("No worksheets found in spreadsheet")
-                        return None
-            
-            # Get all values
-            data = worksheet.get_all_values()
-            
-            # Convert to DataFrame
-            if data and len(data) > 1:  # Has header and at least one row
-                # Use first row as headers
-                headers = data[0]
-                # Clean header names
-                headers = [str(h).strip() for h in headers]
-                df = pd.DataFrame(data[1:], columns=headers)
-                
-                # Clean data
-                df = self._clean_dataframe(df)
-                
-                # Update cache
-                self.cache[cache_key] = (df, time.time())
-                self._last_update_times[cache_key] = time.time()
-                
-                logger.info(f"Successfully fetched {len(df)} rows from Google Sheet")
-                return df
-            else:
-                logger.warning("No data found in Google Sheet")
-                return pd.DataFrame()
-                
-        except PermissionDenied as e:
-            logger.error(f"Permission denied accessing Google Sheet: {sheet_url}")
-            logger.error(f"Permission error details: {str(e)}")
-            return None
-        except NotFound as e:
-            logger.error(f"Google Sheet not found: {sheet_url}")
-            return None
-        except gspread.exceptions.APIError as e:
-            logger.error(f"Google Sheets API error: {str(e)}")
-            return None
-        except Exception as e:
-            logger.error(f"Error accessing Google Sheet: {str(e)}", exc_info=True)
-            return None
-    
-    def _clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean and validate the DataFrame"""
-        if df.empty:
-            return df
-        
-        # Remove completely empty rows/columns
-        df = df.dropna(how='all')
-        if df.empty:
-            return df
-        
-        # Remove unnamed columns
-        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-        
-        # Convert numeric columns
-        for col in df.columns:
-            try:
-                # Skip if column is all NaN
-                if df[col].isna().all():
-                    continue
-                    
-                # Try to convert to numeric
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-            except Exception as e:
-                logger.debug(f"Could not convert column '{col}' to numeric: {str(e)}")
-                continue
-        
-        # Reset index
-        df = df.reset_index(drop=True)
-        
-        return df
-    
-    def get_latest_sheet_data(self, sheet_url: str, 
-                             year: Optional[int] = None) -> Optional[pd.DataFrame]:
-        """Get the latest relevant sheet data based on naming patterns"""
-        client = self.get_client()
-        if not client:
-            return None
-        
-        try:
-            spreadsheet = client.open_by_url(sheet_url)
-            worksheets = spreadsheet.worksheets()
-            
-            # Sort worksheets by title to find latest (reverse alphabetical)
-            sorted_worksheets = sorted(worksheets, key=lambda x: x.title, reverse=True)
-            
-            # Try to find by year
-            if year:
-                year_patterns = [str(year), f"_{year}", f"{year}_", f"{year}-", f"{year} "]
-                for pattern in year_patterns:
-                    for ws in sorted_worksheets:
-                        if pattern in ws.title:
-                            logger.info(f"Found worksheet by year pattern '{pattern}': {ws.title}")
-                            return self.get_sheet_data(sheet_url, ws.title)
-            
-            # Try common sheet names
-            common_names = ["Data", "Sheet1", "Contributions", "Members", "2024", "2023"]
-            for name in common_names:
-                for ws in sorted_worksheets:
-                    if name.lower() in ws.title.lower():
-                        logger.info(f"Found worksheet by common name '{name}': {ws.title}")
-                        return self.get_sheet_data(sheet_url, ws.title)
-            
-            # Fallback to most recent worksheet
-            if sorted_worksheets:
-                latest = sorted_worksheets[0]
-                logger.info(f"Using latest worksheet: {latest.title}")
-                return self.get_sheet_data(sheet_url, latest.title)
-            
-            logger.error("No worksheets found in spreadsheet")
-            return None
-            
-        except Exception as e:
-            logger.error(f"Error finding latest sheet: {str(e)}")
-            return None
-    
-    def get_sheet_as_excel(self, sheet_url: str, sheet_name: Optional[str] = None) -> Optional[BytesIO]:
-        """Get Google Sheets data as Excel file bytes"""
-        try:
-            # Get data from Google Sheets
-            df = self.get_sheet_data(sheet_url, sheet_name)
-            
-            if df is None:
-                logger.error("Failed to get data from Google Sheet")
-                return None
-            
-            if df.empty:
-                logger.warning("Google Sheet is empty")
-                # Return empty Excel file
-                df = pd.DataFrame({'Message': ['No data found in Google Sheet']})
-            
-            # Convert DataFrame to Excel bytes
-            output = BytesIO()
-            
-            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                # Write main data
-                sheet_title = sheet_name or 'Sheet1'
-                df.to_excel(writer, index=False, sheet_name=sheet_title[:31])  # Excel sheet name max 31 chars
-                
-                # Get workbook and worksheet objects for formatting
-                workbook = writer.book
-                worksheet = writer.sheets[sheet_title[:31]]
-                
-                # Add header formatting
-                header_format = workbook.add_format({
-                    'bold': True,
-                    'text_wrap': True,
-                    'valign': 'top',
-                    'fg_color': '#D7E4BC',
-                    'border': 1
-                })
-                
-                # Apply header formatting
-                for col_num, value in enumerate(df.columns.values):
-                    worksheet.write(0, col_num, value, header_format)
-                
-                # Auto-adjust column widths
-                for i, col in enumerate(df.columns):
-                    # Calculate max width
-                    max_len = max(
-                        df[col].astype(str).apply(len).max() if not df[col].empty else 0,
-                        len(str(col))
-                    )
-                    # Set column width (max 50 characters)
-                    worksheet.set_column(i, i, min(max_len + 2, 50))
-                
-                # Add metadata sheet
-                metadata_df = pd.DataFrame({
-                    'Property': ['Source URL', 'Export Time', 'Total Rows', 'Total Columns', 'Sheet Name', 'Generated By'],
-                    'Value': [
-                        sheet_url,
-                        datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                        len(df),
-                        len(df.columns),
-                        sheet_name or 'Default',
-                        'Welfare Management System'
-                    ]
-                })
-                metadata_df.to_excel(writer, sheet_name='Metadata', index=False)
-            
-            output.seek(0)
-            
-            logger.info(f"Successfully converted Google Sheet to Excel format: {len(df)} rows")
-            return output
-            
-        except Exception as e:
-            logger.error(f"Error converting Google Sheet to Excel: {str(e)}", exc_info=True)
-            return None
-    
-    def check_sheet_updated(self, sheet_url: str, sheet_name: str) -> bool:
-        """Check if sheet has been updated since last fetch"""
-        cache_key = f"{sheet_url}:{sheet_name}"
-        if cache_key not in self._last_update_times:
-            return True
-        
-        client = self.get_client()
-        if not client:
-            return False
-        
-        try:
-            spreadsheet = client.open_by_url(sheet_url)
-            worksheet = spreadsheet.worksheet(sheet_name)
-            
-            # Get a sample of data (first 10 rows) to check for changes
-            data = worksheet.get_all_records(head=1)
-            if not data:
-                return True
-            
-            # Create hash of the data
-            import json
-            data_str = json.dumps(data, sort_keys=True)
-            current_hash = hash(data_str)
-            
-            # Initialize _sheet_hashes if needed
-            if not hasattr(self, '_sheet_hashes'):
-                self._sheet_hashes = {}
-            
-            # Store and compare hash
-            last_hash = self._sheet_hashes.get(cache_key)
-            self._sheet_hashes[cache_key] = current_hash
-            return last_hash != current_hash
-                
-        except Exception as e:
-            logger.error(f"Error checking sheet update: {str(e)}")
-            return True  # Assume updated on error
-    
-    def clear_cache(self, sheet_url: str = None, sheet_name: str = None):
-        """Clear cache for specific sheet or all sheets"""
-        if sheet_url and sheet_name:
-            cache_key = f"{sheet_url}:{sheet_name}"
-            if cache_key in self.cache:
-                del self.cache[cache_key]
-            if cache_key in self._last_update_times:
-                del self._last_update_times[cache_key]
-            if hasattr(self, '_sheet_hashes') and cache_key in self._sheet_hashes:
-                del self._sheet_hashes[cache_key]
-            logger.info(f"Cleared cache for {cache_key}")
-        elif sheet_url:
-            # Clear all caches for this URL
-            keys_to_delete = [k for k in self.cache.keys() if k.startswith(sheet_url)]
-            for key in keys_to_delete:
-                del self.cache[key]
-                if key in self._last_update_times:
-                    del self._last_update_times[key]
-                if hasattr(self, '_sheet_hashes') and key in self._sheet_hashes:
-                    del self._sheet_hashes[key]
-            logger.info(f"Cleared cache for all sheets in {sheet_url}")
-        else:
-            # Clear all caches
-            self.cache.clear()
-            self._last_update_times.clear()
-            if hasattr(self, '_sheet_hashes'):
-                self._sheet_hashes.clear()
-            logger.info("Cleared all Google Sheets cache")
-    
-    def test_connection(self, sheet_url: str = None) -> Dict[str, Any]:
-        """Test connection to Google Sheets API"""
-        try:
-            client = self.get_client()
-            if not client:
-                return {
-                    'success': False,
-                    'error': 'Failed to authenticate with Google Sheets API'
-                }
-            
-            # If a URL is provided, try to access it
-            if sheet_url:
-                if not self._validate_sheet_url(sheet_url):
-                    return {
-                        'success': False,
-                        'error': 'Invalid Google Sheets URL format'
-                    }
-                
-                try:
-                    spreadsheet = client.open_by_url(sheet_url)
-                    worksheets = spreadsheet.worksheets()
-                    
-                    return {
-                        'success': True,
-                        'sheet_title': spreadsheet.title,
-                        'worksheet_count': len(worksheets),
-                        'worksheet_names': [ws.title for ws in worksheets],
-                        'message': f'Successfully connected to "{spreadsheet.title}"'
-                    }
-                except Exception as e:
-                    return {
-                        'success': False,
-                        'error': f'Failed to access sheet: {str(e)}'
-                    }
-            else:
-                # Just test authentication
-                return {
-                    'success': True,
-                    'message': 'Successfully authenticated with Google Sheets API'
-                }
-                
-        except Exception as e:
-            logger.error(f"Connection test failed: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
 
-# Singleton instance
+            # 1. Try JSON blob from environment variable
+            json_blob = getattr(self, '_creds_json', None) or \
+                        current_app.config.get('GOOGLE_CREDENTIALS_JSON')
+            if json_blob:
+                try:
+                    creds = Credentials.from_service_account_info(
+                        json.loads(json_blob), scopes=_SCOPES
+                    )
+                except (json.JSONDecodeError, ValueError) as e:
+                    logger.error(f"Invalid GOOGLE_CREDENTIALS_JSON: {e}")
+
+            # 2. Fall back to credentials file
+            if not creds:
+                path = self._creds_path or \
+                       current_app.config.get('GOOGLE_CREDENTIALS_PATH')
+                if path and __import__('os').path.exists(path):
+                    creds = Credentials.from_service_account_file(
+                        path, scopes=_SCOPES
+                    )
+
+            if not creds:
+                logger.error("No Google credentials configured.")
+                return None
+
+            return gspread.authorize(creds)
+
+        except GoogleAuthError as e:
+            logger.error(f"Google auth error: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected auth error: {e}", exc_info=True)
+            return None
+
+    # ------------------------------------------------------------------
+    # Private — worksheet resolution
+    # ------------------------------------------------------------------
+
+    def _resolve_worksheet(
+        self,
+        spreadsheet: gspread.Spreadsheet,
+        sheet_name: Optional[str],
+    ) -> Optional[gspread.Worksheet]:
+        """Return the best matching worksheet, or None."""
+        worksheets = spreadsheet.worksheets()
+
+        if sheet_name:
+            # Exact match
+            for ws in worksheets:
+                if ws.title == sheet_name:
+                    return ws
+            # Case-insensitive partial match
+            for ws in worksheets:
+                if sheet_name.lower() in ws.title.lower():
+                    logger.info(
+                        f"Using worksheet '{ws.title}' "
+                        f"(fuzzy match for '{sheet_name}')"
+                    )
+                    return ws
+
+        # Fall back to first sheet
+        if worksheets:
+            logger.info(f"Using first worksheet: '{worksheets[0].title}'")
+            return worksheets[0]
+
+        logger.error("No worksheets found in spreadsheet.")
+        return None
+
+    # ------------------------------------------------------------------
+    # Private — data cleaning
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+        """Strip empty rows/cols and coerce numeric columns."""
+        df = df.dropna(how='all').reset_index(drop=True)
+        if df.empty:
+            return df
+
+        # Drop fully-unnamed columns (artefacts of merged cells)
+        df = df.loc[:, ~df.columns.str.fullmatch(r'Unnamed.*', na=False)]
+
+        for col in df.columns:
+            if df[col].isna().all():
+                continue
+            # Only coerce if the column looks numeric (>50% convertible)
+            converted = pd.to_numeric(df[col], errors='coerce')
+            if converted.notna().mean() > 0.5:
+                df[col] = converted
+
+        return df
+
+    # ------------------------------------------------------------------
+    # Private — cache (thread-safe)
+    # ------------------------------------------------------------------
+
+    def _get_cached(self, key: str) -> Optional[pd.DataFrame]:
+        with self._cache_lock:
+            entry = self._cache.get(key)
+            if entry and (time.monotonic() - entry['ts']) < self._cache_ttl:
+                return entry['df']
+        return None
+
+    def _set_cached(self, key: str, df: pd.DataFrame) -> None:
+        with self._cache_lock:
+            self._cache[key] = {'df': df, 'ts': time.monotonic()}
+
+    # ------------------------------------------------------------------
+    # Private — URL validation
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _validate_url(url: str) -> bool:
+        return bool(_SHEET_URL_RE.match(url or ''))
+
+
+# Module-level singleton
 google_sheets_service = GoogleSheetsService()
