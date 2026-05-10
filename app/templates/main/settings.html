@@ -1,186 +1,133 @@
 <!-- app/templates/main/settings.html -->
 {% extends 'base.html' %}
-
-{% block title %}Settings - Mzugoss Welfare{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
-{% endblock %}
+{% block title %}Settings — Mzugoss Welfare{% endblock %}
 
 {% block content %}
-<div class="settings-container">
-    <!-- Header -->
-    <div class="settings-header">
-        <div class="header-content">
-            <h1 class="header-title">
-                <i class="fas fa-cog"></i>
-                Application Settings
-            </h1>
-            <p class="header-subtitle">
-                Configure your welfare system preferences
-            </p>
-        </div>
-        <div class="header-icon">
-            <i class="fas fa-sliders-h"></i>
-        </div>
-    </div>
-
-    <!-- Settings Form -->
-    <div class="settings-card glass-card">
-        <div class="card-header">
-            <h2 class="card-title">
-                <i class="fab fa-google"></i>
-                Google Sheets Configuration
-            </h2>
-            <p class="card-subtitle">Set up Google Sheets integration for automatic data retrieval</p>
-        </div>
-
-        <form method="post" action="{{ url_for('main.settings') }}" class="settings-form" id="settingsForm">
-            <div class="form-group">
-                <label for="sheet_url" class="form-label">
-                    <i class="fas fa-link"></i>
-                    Google Sheets URL
-                </label>
-                <div class="input-with-icon">
-                    <i class="fab fa-google"></i>
-                    <input type="url" class="form-control" id="sheet_url" name="sheet_url" 
-                           value="{{ sheet_url }}" 
-                           placeholder="https://docs.google.com/spreadsheets/d/..."
-                           required>
-                </div>
-                <div class="form-hint">
-                    Enter the URL of your Google Sheet with contribution data. This will be used as the default when generating reports.
-                </div>
-            </div>
-
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary btn-save" id="saveBtn">
-                    <i class="fas fa-save"></i>
-                    <span class="btn-text">Save Settings</span>
-                    <div class="btn-loading" style="display: none;">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <span>Saving...</span>
-                    </div>
-                </button>
-                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline">
-                    <i class="fas fa-times"></i>
-                    Cancel
-                </a>
-            </div>
-        </form>
-    </div>
-
-    <!-- Instructions -->
-    <div class="instructions-card glass-card">
-        <div class="card-header">
-            <h2 class="card-title">
-                <i class="fas fa-info-circle"></i>
-                Setup Instructions
-            </h2>
-        </div>
-        
-        <div class="instructions-content">
-            <ol class="instructions-list">
-                <li class="instruction-item">
-                    <div class="instruction-icon">
-                        <i class="fas fa-file-excel"></i>
-                    </div>
-                    <div class="instruction-text">
-                        <strong>Create a Google Sheet</strong>
-                        <p>Create a Google Sheet with your contribution data using the same format as your Excel files.</p>
-                    </div>
-                </li>
-                
-                <li class="instruction-item">
-                    <div class="instruction-icon">
-                        <i class="fas fa-share-alt"></i>
-                    </div>
-                    <div class="instruction-text">
-                        <strong>Share the Sheet</strong>
-                        <p>Share the sheet with "Anyone with the link can view" or with your service account email.</p>
-                    </div>
-                </li>
-                
-                <li class="instruction-item">
-                    <div class="instruction-icon">
-                        <i class="fas fa-copy"></i>
-                    </div>
-                    <div class="instruction-text">
-                        <strong>Copy the URL</strong>
-                        <p>Copy the URL from your browser's address bar while viewing the sheet.</p>
-                    </div>
-                </li>
-                
-                <li class="instruction-item">
-                    <div class="instruction-icon">
-                        <i class="fas fa-paste"></i>
-                    </div>
-                    <div class="instruction-text">
-                        <strong>Paste the URL</strong>
-                        <p>Paste the URL in the field above and save your settings.</p>
-                    </div>
-                </li>
-            </ol>
-            
-            <div class="note-box">
-                <i class="fas fa-exclamation-circle"></i>
-                <div class="note-content">
-                    <strong>Note:</strong> You need to set up Google API credentials in your instance/config.py file
-                    using GOOGLE_CREDENTIALS_PATH or GOOGLE_CREDENTIALS_JSON environment variables.
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Current Configuration -->
-    {% if sheet_url %}
-    <div class="current-config-card glass-card">
-        <div class="card-header">
-            <h2 class="card-title">
-                <i class="fas fa-check-circle"></i>
-                Current Configuration
-            </h2>
-        </div>
-        
-        <div class="config-content">
-            <div class="config-item">
-                <div class="config-label">
-                    <i class="fab fa-google"></i>
-                    <span>Active Google Sheet:</span>
-                </div>
-                <div class="config-value">
-                    <a href="{{ sheet_url }}" target="_blank" class="config-link">
-                        {{ sheet_url|truncate(60) }}
-                    </a>
-                </div>
-            </div>
-            
-            <div class="config-item">
-                <div class="config-label">
-                    <i class="fas fa-calendar-check"></i>
-                    <span>Last Updated:</span>
-                </div>
-                <div class="config-value">
-                    {{ "Just now" if request.method == 'POST' else "Previously" }}
-                </div>
-            </div>
-        </div>
-        
-        <div class="config-actions">
-            <a href="{{ sheet_url }}" target="_blank" class="btn btn-outline">
-                <i class="fas fa-external-link-alt"></i>
-                Open Sheet
-            </a>
-            <button class="btn btn-outline" id="testConnectionBtn">
-                <i class="fas fa-plug"></i>
-                Test Connection
-            </button>
-        </div>
-    </div>
-    {% endif %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-cog"></i> Settings</h1>
+    <p class="page-header__sub">Configure system-wide preferences</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Dashboard
+    </a>
+  </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+<div style="max-width:40rem;">
+
+  <!-- Google Sheets -->
+  <div class="card" style="margin-bottom:1.25rem;">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fab fa-google"></i> Google Sheets Integration</h2>
+      {% if sheet_url %}
+        <span class="badge badge--success"><i class="fas fa-plug"></i> Connected</span>
+      {% else %}
+        <span class="badge badge--neutral">Not configured</span>
+      {% endif %}
+    </div>
+    <div class="card__body">
+      <form method="POST" action="{{ url_for('main.settings') }}" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="sheet_url">
+            <i class="fas fa-link"></i> Google Sheets URL
+          </label>
+          <div class="input-wrap">
+            <i class="input-icon fab fa-google"></i>
+            <input type="url" id="sheet_url" name="sheet_url"
+                   class="form-control"
+                   value="{{ sheet_url }}"
+                   placeholder="https://docs.google.com/spreadsheets/d/…">
+          </div>
+          <p class="form-hint">
+            Leave blank to clear the current URL.
+            The sheet must be shared with the service account email.
+          </p>
+        </div>
+        <div style="display:flex;gap:.75rem;align-items:center;">
+          <button type="submit" class="btn btn--primary">
+            <i class="fas fa-save"></i> Save Settings
+          </button>
+          {% if sheet_url %}
+          <a href="{{ sheet_url }}" target="_blank" rel="noopener" class="btn btn--outline btn--sm">
+            <i class="fas fa-external-link-alt"></i> Open Sheet
+          </a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Setup instructions -->
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-info-circle"></i> Setup Instructions</h2>
+    </div>
+    <div class="card__body">
+      <ol class="setup-steps">
+        {% set steps = [
+          ('fas fa-file-excel',  'Create a Google Sheet', 'Set it up with the same column format as your Excel file — Name column plus one column per month.'),
+          ('fas fa-share-alt',   'Share the Sheet',       'Go to Share → Anyone with the link → Viewer. Or share with the service account email from your credentials file.'),
+          ('fas fa-copy',        'Copy the URL',          'Copy the full URL from your browser address bar while viewing the sheet.'),
+          ('fas fa-paste',       'Paste & Save',          'Paste the URL above and click Save Settings. The system will use it as the default source for new reports.'),
+        ] %}
+        {% for icon, title, desc in steps %}
+        <li class="setup-step">
+          <div class="setup-step__num">{{ loop.index }}</div>
+          <div class="setup-step__icon"><i class="{{ icon }}"></i></div>
+          <div>
+            <div class="setup-step__title">{{ title }}</div>
+            <div class="setup-step__desc text-sm text-muted">{{ desc }}</div>
+          </div>
+        </li>
+        {% endfor %}
+      </ol>
+
+      <div class="info-note">
+        <i class="fas fa-exclamation-circle"></i>
+        <div>
+          <strong>Credentials required:</strong> Google Sheets integration also needs
+          <code>GOOGLE_CREDENTIALS_PATH</code> or <code>GOOGLE_CREDENTIALS_JSON</code>
+          set in your <code>instance/config.py</code> or environment variables.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+.setup-steps { display: flex; flex-direction: column; gap: 1.25rem; padding: 0; }
+.setup-step  { display: flex; align-items: flex-start; gap: .875rem; }
+.setup-step__num {
+  width: 1.75rem; height: 1.75rem;
+  background: var(--clr-primary); color: #fff;
+  border-radius: var(--r-full);
+  display: grid; place-items: center;
+  font-size: .8125rem; font-weight: 800; flex-shrink: 0;
+}
+.setup-step__icon {
+  width: 2.25rem; height: 2.25rem;
+  background: var(--clr-primary-pale); color: var(--clr-primary);
+  border-radius: var(--r-md);
+  display: grid; place-items: center;
+  font-size: .9rem; flex-shrink: 0;
+}
+.setup-step__title { font-weight: 700; font-size: .9375rem; margin-bottom: .2rem; }
+.info-note {
+  display: flex; align-items: flex-start; gap: .75rem;
+  padding: 1rem; border-radius: var(--r-lg);
+  background: var(--clr-warning-pale);
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  margin-top: 1.5rem;
+  font-size: .875rem;
+}
+.info-note i { flex-shrink: 0; margin-top: .125rem; }
+code {
+  background: rgba(0,0,0,.08); padding: .1rem .35rem;
+  border-radius: .25rem; font-size: .85em; font-family: monospace;
+}
+</style>
 {% endblock %}
