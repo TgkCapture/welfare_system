@@ -54,6 +54,10 @@ def create_app(env: str = None) -> Flask:
     # ── Blueprints ────────────────────────────────────────────────────
     _register_blueprints(app)
 
+    # ── CLI Commands ──────────────────────────────────────────────────
+    from app.commands import init_commands
+    init_commands(app)
+
     # ── Error handlers ────────────────────────────────────────────────
     from app.routes.errors import register_error_handlers
     register_error_handlers(app)
