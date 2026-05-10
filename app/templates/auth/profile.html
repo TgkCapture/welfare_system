@@ -1,527 +1,328 @@
 <!-- app/templates/main/profile.html -->
 {% extends 'base.html' %}
-
-{% block title %}My Profile - Mzugoss Welfare{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
-{% endblock %}
+{% block title %}My Profile — Mzugoss Welfare{% endblock %}
 
 {% block content %}
-<div class="profile-container">
-    <!-- Profile Header -->
-    <div class="profile-header">
-        <div class="header-content">
-            <h1 class="page-title">
-                <i class="fas fa-user-circle"></i>
-                My Profile
-            </h1>
-            <p class="page-subtitle">
-                Manage your account settings and preferences
-            </p>
-        </div>
-        <div class="header-actions">
-            <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline">
-                <i class="fas fa-arrow-left"></i>
-                Back to Dashboard
-            </a>
-        </div>
-    </div>
-
-    <div class="profile-content">
-        <!-- Left Column: Profile Info -->
-        <div class="profile-column">
-            <!-- Account Information Card -->
-            <div class="profile-card">
-                <div class="card-header">
-                    <h2 class="card-title">
-                        <i class="fas fa-user"></i>
-                        Account Information
-                    </h2>
-                </div>
-                <div class="card-body">
-                    <div class="user-avatar-large">
-                        <div class="avatar-container">
-                            <i class="fas fa-user-circle"></i>
-                            <span class="role-badge {{ current_user.role }}">
-                                {{ current_user.role|title }}
-                            </span>
-                        </div>
-                    </div>
-                    
-                    <div class="user-details">
-                        <div class="detail-row">
-                            <span class="detail-label">
-                                <i class="fas fa-envelope"></i>
-                                Email Address
-                            </span>
-                            <span class="detail-value">{{ current_user.email }}</span>
-                        </div>
-                        
-                        <div class="detail-row">
-                            <span class="detail-label">
-                                <i class="fas fa-user-tag"></i>
-                                User Role
-                            </span>
-                            <span class="detail-value">
-                                <span class="role-badge {{ current_user.role }}">
-                                    <i class="fas fa-{{ 'user-shield' if current_user.role == 'admin' else 'user-edit' if current_user.role == 'clerk' else 'user' }}"></i>
-                                    {{ current_user.role|title }}
-                                </span>
-                            </span>
-                        </div>
-                        
-                        <div class="detail-row">
-                            <span class="detail-label">
-                                <i class="fas fa-toggle-{{ 'on' if current_user.is_active else 'off' }}"></i>
-                                Account Status
-                            </span>
-                            <span class="detail-value">
-                                <span class="status-badge {{ 'active' if current_user.is_active else 'inactive' }}">
-                                    <i class="fas fa-{{ 'check-circle' if current_user.is_active else 'times-circle' }}"></i>
-                                    {{ 'Active' if current_user.is_active else 'Inactive' }}
-                                </span>
-                            </span>
-                        </div>
-                        
-                        <div class="detail-row">
-                            <span class="detail-label">
-                                <i class="fas fa-calendar-plus"></i>
-                                Account Created
-                            </span>
-                            <span class="detail-value">
-                                {{ current_user.created_at.strftime('%B %d, %Y') }}
-                            </span>
-                        </div>
-                        
-                        {% if current_user.last_login %}
-                        <div class="detail-row">
-                            <span class="detail-label">
-                                <i class="fas fa-sign-in-alt"></i>
-                                Last Login
-                            </span>
-                            <span class="detail-value">
-                                {{ current_user.last_login.strftime('%B %d, %Y %I:%M %p') }}
-                            </span>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Account Statistics -->
-            <div class="profile-card">
-                <div class="card-header">
-                    <h2 class="card-title">
-                        <i class="fas fa-chart-bar"></i>
-                        Activity Statistics
-                    </h2>
-                </div>
-                <div class="card-body">
-                    <div class="stats-grid">
-                        {% if current_user.is_admin or current_user.is_clerk %}
-                        <div class="stat-item">
-                            <div class="stat-icon">
-                                <i class="fas fa-file-pdf"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3>{{ reports_generated|default(0) }}</h3>
-                                <p>Reports Generated</p>
-                            </div>
-                        </div>
-                        {% endif %}
-                        
-                        <div class="stat-item">
-                            <div class="stat-icon">
-                                <i class="fas fa-sign-in-alt"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3>{{ login_count|default(1) }}</h3>
-                                <p>Total Logins</p>
-                            </div>
-                        </div>
-                        
-                        {% if current_user.is_admin %}
-                        <div class="stat-item">
-                            <div class="stat-icon">
-                                <i class="fas fa-users-cog"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3>{{ users_managed|default(0) }}</h3>
-                                <p>Users Managed</p>
-                            </div>
-                        </div>
-                        {% endif %}
-                        
-                        <div class="stat-item">
-                            <div class="stat-icon">
-                                <i class="fas fa-clock"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3>{{ days_active|default(1) }}</h3>
-                                <p>Days Active</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Right Column: Forms -->
-        <div class="profile-column">
-            <!-- Change Password Form -->
-            <div class="profile-card">
-                <div class="card-header">
-                    <h2 class="card-title">
-                        <i class="fas fa-key"></i>
-                        Change Password
-                    </h2>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('auth.change_password') }}" class="profile-form" id="changePasswordForm">
-                        {{ password_form.hidden_tag() if password_form }}
-                        
-                        <div class="form-group">
-                            <label for="current_password">
-                                <i class="fas fa-lock"></i>
-                                Current Password
-                            </label>
-                            <div class="password-input-group">
-                                <input type="password" 
-                                       id="current_password" 
-                                       name="current_password" 
-                                       class="form-control" 
-                                       placeholder="Enter current password"
-                                       required>
-                                <button type="button" class="password-toggle">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="new_password">
-                                <i class="fas fa-key"></i>
-                                New Password
-                            </label>
-                            <div class="password-input-group">
-                                <input type="password" 
-                                       id="new_password" 
-                                       name="new_password" 
-                                       class="form-control" 
-                                       placeholder="Enter new password"
-                                       required>
-                                <button type="button" class="password-toggle">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                            <div class="password-strength">
-                                <div class="strength-bar"></div>
-                                <small class="strength-text"></small>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="confirm_password">
-                                <i class="fas fa-key"></i>
-                                Confirm New Password
-                            </label>
-                            <div class="password-input-group">
-                                <input type="password" 
-                                       id="confirm_password" 
-                                       name="confirm_password" 
-                                       class="form-control" 
-                                       placeholder="Confirm new password"
-                                       required>
-                                <button type="button" class="password-toggle">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i>
-                                Update Password
-                            </button>
-                            <button type="button" class="btn btn-outline" id="generatePasswordBtn">
-                                <i class="fas fa-random"></i>
-                                Generate Strong Password
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Update Profile Information -->
-            <div class="profile-card">
-                <div class="card-header">
-                    <h2 class="card-title">
-                        <i class="fas fa-user-edit"></i>
-                        Update Profile
-                    </h2>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('auth.update_profile') }}" class="profile-form" id="updateProfileForm">
-                        {{ profile_form.hidden_tag() if profile_form }}
-                        
-                        <div class="form-group">
-                            <label for="email">
-                                <i class="fas fa-envelope"></i>
-                                Email Address
-                            </label>
-                            <input type="email" 
-                                   id="email" 
-                                   name="email" 
-                                   class="form-control" 
-                                   value="{{ current_user.email }}"
-                                   placeholder="your@email.com"
-                                   required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="notification_preferences" class="checkbox-label">
-                                <input type="checkbox" 
-                                       id="notification_preferences" 
-                                       name="notification_preferences"
-                                       {{ 'checked' if notification_preferences else '' }}>
-                                <span>
-                                    <i class="fas fa-bell"></i>
-                                    Email Notifications
-                                </span>
-                            </label>
-                            <small class="form-hint">
-                                Receive email notifications about important updates
-                            </small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="theme_preference">
-                                <i class="fas fa-palette"></i>
-                                Theme Preference
-                            </label>
-                            <select id="theme_preference" name="theme_preference" class="form-control">
-                                <option value="light" {{ 'selected' if theme_preference == 'light' else '' }}>Light Theme</option>
-                                <option value="dark" {{ 'selected' if theme_preference == 'dark' else '' }}>Dark Theme</option>
-                                <option value="auto" {{ 'selected' if theme_preference == 'auto' else '' }}>Auto (System)</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i>
-                                Save Changes
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Account Actions -->
-            <div class="profile-card">
-                <div class="card-header">
-                    <h2 class="card-title">
-                        <i class="fas fa-cog"></i>
-                        Account Actions
-                    </h2>
-                </div>
-                <div class="card-body">
-                    <div class="action-buttons">
-                        {% if not current_user.is_admin %}
-                        <button type="button" class="btn btn-outline action-btn" id="exportDataBtn">
-                            <i class="fas fa-download"></i>
-                            Export My Data
-                        </button>
-                        {% endif %}
-                        
-                        <button type="button" class="btn btn-outline action-btn" id="clearHistoryBtn">
-                            <i class="fas fa-trash"></i>
-                            Clear Activity History
-                        </button>
-                        
-                        <button type="button" class="btn btn-danger action-btn" id="deleteAccountBtn">
-                            <i class="fas fa-user-slash"></i>
-                            Delete Account
-                        </button>
-                    </div>
-                    
-                    <div class="action-descriptions">
-                        <p class="text-muted small">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>Export Data:</strong> Download all your activity data in CSV format
-                        </p>
-                        <p class="text-muted small">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>Clear History:</strong> Remove your activity history from the system
-                        </p>
-                        <p class="text-muted small text-danger">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            <strong>Delete Account:</strong> Permanently delete your account and all associated data
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Activity -->
-            <div class="profile-card">
-                <div class="card-header">
-                    <h2 class="card-title">
-                        <i class="fas fa-history"></i>
-                        Recent Activity
-                    </h2>
-                </div>
-                <div class="card-body">
-                    {% if recent_activity %}
-                    <div class="activity-timeline">
-                        {% for activity in recent_activity %}
-                        <div class="activity-item">
-                            <div class="activity-icon">
-                                <i class="fas fa-{{ activity.icon }}"></i>
-                            </div>
-                            <div class="activity-content">
-                                <p class="activity-description">{{ activity.description }}</p>
-                                <span class="activity-time">
-                                    <i class="fas fa-clock"></i>
-                                    {{ activity.timestamp }}
-                                </span>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="empty-state">
-                        <i class="fas fa-history"></i>
-                        <p>No recent activity</p>
-                    </div>
-                    {% endif %}
-                    
-                    <div class="view-all">
-                        <a href="{{ url_for('auth.activity_log') }}" class="btn btn-sm btn-outline">
-                            <i class="fas fa-list"></i>
-                            View Full Activity Log
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-user-circle"></i> My Profile</h1>
+    <p class="page-header__sub">Manage your account settings and preferences</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Dashboard
+    </a>
+  </div>
 </div>
 
-<!-- Modals -->
-<!-- Delete Account Confirmation Modal -->
-<div class="modal" id="deleteAccountModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Delete Account</h3>
-            <button class="close-modal">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="warning-icon">
-                <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <p>Are you sure you want to delete your account?</p>
-            <p class="text-danger">
-                <strong>This action cannot be undone.</strong> All your data will be permanently deleted.
-            </p>
-            <div class="form-group">
-                <label for="confirmDelete">
-                    Type "DELETE" to confirm:
-                </label>
-                <input type="text" id="confirmDelete" class="form-control" placeholder="DELETE">
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline cancel-delete">Cancel</button>
-            <button class="btn btn-danger" id="confirmDeleteBtn" disabled>Delete Account Permanently</button>
-        </div>
-    </div>
-</div>
+<div class="profile-layout">
 
-<!-- Export Data Modal -->
-<div class="modal" id="exportDataModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Export My Data</h3>
-            <button class="close-modal">&times;</button>
+  <!-- ── Left column ── -->
+  <div class="profile-col profile-col--left">
+
+    <!-- Account info -->
+    <div class="card">
+      <div class="card__header">
+        <h2 class="card__title"><i class="fas fa-id-card"></i> Account Information</h2>
+      </div>
+      <div class="card__body">
+        <div class="profile-avatar">
+          <div class="profile-avatar__circle">{{ current_user.email[0]|upper }}</div>
+          <span class="role-badge role-badge--{{ current_user.role }}">{{ current_user.role|title }}</span>
         </div>
-        <div class="modal-body">
-            <p>Select the data you want to export:</p>
-            <div class="checkbox-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" name="export_profile" checked>
-                    <span>Profile Information</span>
-                </label>
-                <label class="checkbox-label">
-                    <input type="checkbox" name="export_activity" checked>
-                    <span>Activity History</span>
-                </label>
-                {% if current_user.is_admin or current_user.is_clerk %}
-                <label class="checkbox-label">
-                    <input type="checkbox" name="export_reports" checked>
-                    <span>Generated Reports</span>
-                </label>
-                {% endif %}
-                <label class="checkbox-label">
-                    <input type="checkbox" name="export_settings">
-                    <span>Account Settings</span>
-                </label>
-            </div>
-            <div class="form-group">
-                <label for="exportFormat">Export Format:</label>
-                <select id="exportFormat" class="form-control">
-                    <option value="csv">CSV (Comma Separated Values)</option>
-                    <option value="json">JSON (JavaScript Object Notation)</option>
-                    <option value="pdf">PDF Document</option>
-                </select>
-            </div>
+        <dl class="detail-list">
+          <dt><i class="fas fa-envelope"></i> Email</dt>
+          <dd>{{ current_user.email }}</dd>
+          <dt><i class="fas fa-toggle-on"></i> Status</dt>
+          <dd>
+            <span class="status-dot status-dot--{{ 'active' if current_user.is_active else 'inactive' }}">
+              {{ 'Active' if current_user.is_active else 'Inactive' }}
+            </span>
+          </dd>
+          <dt><i class="fas fa-calendar-plus"></i> Member since</dt>
+          <dd>{{ current_user.created_at.strftime('%B %d, %Y') }}</dd>
+          {% if current_user.last_login %}
+          <dt><i class="fas fa-sign-in-alt"></i> Last login</dt>
+          <dd>{{ current_user.last_login.strftime('%b %d, %Y %I:%M %p') }}</dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="card" style="margin-top:1.25rem;">
+      <div class="card__header">
+        <h2 class="card__title"><i class="fas fa-chart-bar"></i> Activity Stats</h2>
+      </div>
+      <div class="card__body">
+        <div class="profile-stats">
+          {% if current_user.is_admin or current_user.is_clerk %}
+          <div class="profile-stat">
+            <div class="profile-stat__val">{{ reports_generated|default(0) }}</div>
+            <div class="profile-stat__lbl">Reports Generated</div>
+          </div>
+          {% endif %}
+          <div class="profile-stat">
+            <div class="profile-stat__val">{{ days_active|default(1) }}</div>
+            <div class="profile-stat__lbl">Days Active</div>
+          </div>
         </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline cancel-export">Cancel</button>
-            <button class="btn btn-primary" id="startExportBtn">
-                <i class="fas fa-download"></i>
-                Start Export
+      </div>
+    </div>
+
+  </div><!-- /left col -->
+
+  <!-- ── Right column ── -->
+  <div class="profile-col profile-col--right">
+
+    <!-- Change password -->
+    <div class="card">
+      <div class="card__header">
+        <h2 class="card__title"><i class="fas fa-key"></i> Change Password</h2>
+      </div>
+      <div class="card__body">
+        <form method="POST" action="{{ url_for('auth.change_password') }}" novalidate>
+          {{ password_form.hidden_tag() if password_form }}
+          <div class="form-group">
+            <label class="form-label" for="current_password">
+              <i class="fas fa-lock"></i> Current password
+            </label>
+            <div class="input-wrap">
+              <i class="input-icon fas fa-lock"></i>
+              <input type="password" id="current_password" name="current_password"
+                     class="form-control has-suffix" placeholder="Current password" required>
+              <button type="button" class="input-suffix" data-toggle-pwd aria-label="Show">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="new_password">
+              <i class="fas fa-key"></i> New password
+            </label>
+            <div class="input-wrap">
+              <i class="input-icon fas fa-key"></i>
+              <input type="password" id="new_password" name="new_password"
+                     class="form-control has-suffix" placeholder="Min. 8 characters" required>
+              <button type="button" class="input-suffix" data-toggle-pwd aria-label="Show">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="confirm_password">
+              <i class="fas fa-key"></i> Confirm new password
+            </label>
+            <div class="input-wrap">
+              <i class="input-icon fas fa-key"></i>
+              <input type="password" id="confirm_password" name="confirm_password"
+                     class="form-control has-suffix" placeholder="Repeat new password" required>
+              <button type="button" class="input-suffix" data-toggle-pwd aria-label="Show">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          <button type="submit" class="btn btn--primary">
+            <i class="fas fa-save"></i> Update password
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Update profile -->
+    <div class="card" style="margin-top:1.25rem;">
+      <div class="card__header">
+        <h2 class="card__title"><i class="fas fa-user-edit"></i> Update Profile</h2>
+      </div>
+      <div class="card__body">
+        <form method="POST" action="{{ url_for('auth.update_profile') }}" novalidate>
+          {{ profile_form.hidden_tag() if profile_form }}
+          <div class="form-group">
+            <label class="form-label" for="p-email">
+              <i class="fas fa-envelope"></i> Email address
+            </label>
+            <div class="input-wrap">
+              <i class="input-icon fas fa-envelope"></i>
+              <input type="email" id="p-email" name="email"
+                     class="form-control" value="{{ current_user.email }}" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="check-label">
+              <input type="checkbox" name="notification_preferences"
+                     {{ 'checked' if notification_preferences else '' }}>
+              <i class="fas fa-bell" style="color:var(--clr-primary);font-size:.875rem;"></i>
+              Email notifications
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="theme_preference">
+              <i class="fas fa-palette"></i> Theme
+            </label>
+            <select id="theme_preference" name="theme_preference" class="form-control">
+              <option value="light" {{ 'selected' if theme_preference == 'light' }}>Light</option>
+              <option value="dark"  {{ 'selected' if theme_preference == 'dark'  }}>Dark</option>
+              <option value="auto"  {{ 'selected' if theme_preference == 'auto'  }}>Auto (system)</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn--primary">
+            <i class="fas fa-save"></i> Save changes
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Account actions -->
+    <div class="card" style="margin-top:1.25rem;">
+      <div class="card__header">
+        <h2 class="card__title"><i class="fas fa-cog"></i> Account Actions</h2>
+      </div>
+      <div class="card__body">
+        <div class="action-list">
+          <a href="{{ url_for('auth.activity_log') }}" class="action-row">
+            <i class="fas fa-history"></i>
+            <div>
+              <div class="action-row__title">View activity log</div>
+              <div class="action-row__sub">Full history of your account activity</div>
+            </div>
+            <i class="fas fa-chevron-right action-row__arrow"></i>
+          </a>
+          {% if not current_user.is_admin %}
+          <form method="POST" action="{{ url_for('auth.export_data') }}">
+            {{ profile_form.hidden_tag() if profile_form }}
+            <button type="submit" class="action-row action-row--btn">
+              <i class="fas fa-download"></i>
+              <div>
+                <div class="action-row__title">Export my data</div>
+                <div class="action-row__sub">Download account data as CSV</div>
+              </div>
+              <i class="fas fa-chevron-right action-row__arrow"></i>
             </button>
+          </form>
+          <button type="button" class="action-row action-row--btn action-row--danger"
+                  data-modal-open="deleteAccountModal">
+            <i class="fas fa-user-slash"></i>
+            <div>
+              <div class="action-row__title">Delete account</div>
+              <div class="action-row__sub">Permanently remove your account</div>
+            </div>
+            <i class="fas fa-chevron-right action-row__arrow"></i>
+          </button>
+          {% endif %}
         </div>
+      </div>
     </div>
-</div>
 
-<!-- Clear History Modal -->
-<div class="modal" id="clearHistoryModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Clear Activity History</h3>
-            <button class="close-modal">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="warning-icon">
-                <i class="fas fa-trash"></i>
-            </div>
-            <p>Are you sure you want to clear your activity history?</p>
-            <p class="text-warning">
-                This will remove all records of your activity from the system. This action cannot be undone.
-            </p>
-            <div class="checkbox-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="clearAllHistory">
-                    <span>Clear all activity history (recommended)</span>
-                </label>
-                <label class="checkbox-label">
-                    <input type="checkbox" id="clearOldHistory">
-                    <span>Only clear history older than 30 days</span>
-                </label>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline cancel-clear">Cancel</button>
-            <button class="btn btn-warning" id="confirmClearBtn">
-                <i class="fas fa-trash"></i>
-                Clear History
-            </button>
-        </div>
+  </div><!-- /right col -->
+</div><!-- /profile-layout -->
+
+<!-- Delete account modal -->
+{% if not current_user.is_admin %}
+<div class="modal-backdrop" id="deleteAccountModal">
+  <div class="modal">
+    <div class="modal__header">
+      <h3 class="modal__title">Delete Account</h3>
+      <button class="modal__close" data-modal-close="deleteAccountModal" aria-label="Close">
+        <i class="fas fa-times"></i>
+      </button>
     </div>
+    <div class="modal__body">
+      <p style="margin-bottom:.75rem;">
+        This will <strong>permanently delete</strong> your account and all associated data.
+        This action cannot be undone.
+      </p>
+      <div class="form-group">
+        <label class="form-label" for="confirmDeleteInput">Type <strong>DELETE</strong> to confirm</label>
+        <input type="text" id="confirmDeleteInput" class="form-control" placeholder="DELETE">
+      </div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn--outline" data-modal-close="deleteAccountModal">Cancel</button>
+      <form method="POST" action="{{ url_for('auth.delete_account') }}" id="deleteAccountForm">
+        {{ profile_form.hidden_tag() if profile_form }}
+        <input type="hidden" name="confirm_text" id="confirmTextHidden">
+        <button type="submit" class="btn btn--danger" id="deleteAccountBtn" disabled>
+          <i class="fas fa-trash"></i> Delete permanently
+        </button>
+      </form>
+    </div>
+  </div>
 </div>
+{% endif %}
+
+<style>
+.profile-layout {
+  display: grid;
+  grid-template-columns: 18rem 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+.profile-avatar {
+  text-align: center; margin-bottom: 1.25rem;
+}
+.profile-avatar__circle {
+  width: 4rem; height: 4rem;
+  background: var(--clr-primary); color: #fff;
+  border-radius: var(--r-full);
+  display: grid; place-items: center;
+  font-size: 1.75rem; font-weight: 800;
+  margin: 0 auto .625rem;
+}
+.detail-list { display: grid; gap: .5rem; }
+.detail-list dt {
+  font-size: .75rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em;
+  color: var(--txt-muted);
+  display: flex; align-items: center; gap: .375rem;
+  margin-top: .75rem;
+}
+.detail-list dt:first-child { margin-top: 0; }
+.detail-list dd { font-size: .9375rem; color: var(--txt-primary); }
+.profile-stats { display: flex; gap: 1.5rem; }
+.profile-stat__val { font-size: 1.75rem; font-weight: 800; color: var(--clr-primary); }
+.profile-stat__lbl { font-size: .8125rem; color: var(--txt-muted); }
+.action-list { display: flex; flex-direction: column; gap: .25rem; }
+.action-row {
+  display: flex; align-items: center; gap: .875rem;
+  padding: .875rem 1rem;
+  border-radius: var(--r-lg);
+  color: var(--txt-secondary);
+  transition: background var(--t), color var(--t);
+  width: 100%; text-align: left;
+}
+.action-row:hover { background: var(--clr-slate-50); color: var(--txt-primary); }
+.action-row i:first-child {
+  width: 2rem; height: 2rem;
+  background: var(--clr-primary-pale); color: var(--clr-primary);
+  border-radius: var(--r-md);
+  display: grid; place-items: center; flex-shrink: 0;
+}
+.action-row--danger i:first-child { background: var(--clr-danger-pale); color: var(--clr-danger); }
+.action-row--danger:hover { color: var(--clr-danger); }
+.action-row__title { font-weight: 600; font-size: .9rem; }
+.action-row__sub   { font-size: .8125rem; color: var(--txt-muted); }
+.action-row__arrow { margin-left: auto; font-size: .75rem; color: var(--txt-muted); }
+.action-row--btn   { border: none; background: none; cursor: pointer; font: inherit; }
+
+@media (max-width: 900px) {
+  .profile-layout { grid-template-columns: 1fr; }
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/profile.js') }}"></script>
+<script>
+/* Confirm-text gate for account deletion */
+(function() {
+  const input  = document.getElementById('confirmDeleteInput');
+  const hidden = document.getElementById('confirmTextHidden');
+  const btn    = document.getElementById('deleteAccountBtn');
+  if (!input || !btn) return;
+  input.addEventListener('input', () => {
+    const ok = input.value.trim() === 'DELETE';
+    btn.disabled = !ok;
+    if (hidden) hidden.value = input.value.trim();
+  });
+})();
+</script>
 {% endblock %}
