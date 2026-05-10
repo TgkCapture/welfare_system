@@ -163,12 +163,22 @@ class GoogleSheetsService:
                 'bold': True, 'text_wrap': True,
                 'fg_color': '#D7E4BC', 'border': 1,
             })
+            
+            # Set column widths based on content
             for col_idx, col_name in enumerate(df.columns):
+                # Write header with formatting
                 ws.write(0, col_idx, col_name, header_fmt)
-                col_width = max(
-                    df[col_name].astype(str).str.len().max() if not df.empty else 0,
-                    len(str(col_name)),
-                )
+                
+                # Calculate max length of values in this column
+                if not df.empty and col_name in df.columns:
+                    # Convert column to string and get max length
+                    col_values = df[col_name].astype(str)
+                    max_val_len = col_values.str.len().max() if len(col_values) > 0 else 0
+                else:
+                    max_val_len = 0
+                
+                col_width = max(max_val_len, len(str(col_name)))
+                # Set column width with a reasonable max
                 ws.set_column(col_idx, col_idx, min(col_width + 2, 50))
 
             # Metadata sheet
@@ -322,22 +332,59 @@ class GoogleSheetsService:
     @staticmethod
     def _clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         """Strip empty rows/cols and coerce numeric columns."""
-        df = df.dropna(how='all').reset_index(drop=True)
-        if df.empty:
+        if df is None or df.empty:
+            return pd.DataFrame()
+        
+        try:
+            # Drop rows that are completely empty
+            df = df.dropna(how='all')
+            if df.empty:
+                return df
+            
+            df = df.reset_index(drop=True)
+            
+            # Clean column names - replace empty strings/NaN with a default name
+            df.columns = [str(col).strip() if pd.notna(col) and str(col).strip() else f'Column_{i}' 
+                        for i, col in enumerate(df.columns)]
+            
+            # Drop fully-unnamed columns (artefacts of merged cells)
+            unnamed_mask = ~df.columns.str.fullmatch(r'Unnamed.*', na=False)
+            if any(unnamed_mask):
+                df = df.loc[:, unnamed_mask].copy()
+            
+            if df.empty:
+                return df
+            
+            # Process each column
+            for col in df.columns:
+                try:
+                    # Skip if column doesn't exist or is all NaN
+                    if col not in df.columns:
+                        continue
+                    
+                    # Get the column series
+                    series = df[col]
+                    
+                    # Skip if not a Series or all NaN
+                    if not isinstance(series, pd.Series):
+                        continue
+                    
+                    if series.isna().all():
+                        continue
+                    
+                    # Only coerce if the column looks numeric (>50% convertible)
+                    converted = pd.to_numeric(series, errors='coerce')
+                    if not converted.empty and converted.notna().mean() > 0.5:
+                        df[col] = converted
+                except Exception as e:
+                    logger.debug(f"Could not process column {col}: {e}")
+                    continue
+            
             return df
-
-        # Drop fully-unnamed columns (artefacts of merged cells)
-        df = df.loc[:, ~df.columns.str.fullmatch(r'Unnamed.*', na=False)]
-
-        for col in df.columns:
-            if df[col].isna().all():
-                continue
-            # Only coerce if the column looks numeric (>50% convertible)
-            converted = pd.to_numeric(df[col], errors='coerce')
-            if converted.notna().mean() > 0.5:
-                df[col] = converted
-
-        return df
+            
+        except Exception as e:
+            logger.error(f"Error cleaning dataframe: {e}", exc_info=True)
+            return df if not df.empty else pd.DataFrame()
 
     # ------------------------------------------------------------------
     # Private — cache (thread-safe)
