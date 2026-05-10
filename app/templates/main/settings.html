@@ -1,4 +1,3 @@
-<!-- app/templates/main/settings.html -->
 {% extends 'base.html' %}
 {% block title %}Settings — Mzugoss Welfare{% endblock %}
 
@@ -29,6 +28,7 @@
     </div>
     <div class="card__body">
       <form method="POST" action="{{ url_for('main.settings') }}" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
           <label class="form-label" for="sheet_url">
             <i class="fas fa-link"></i> Google Sheets URL

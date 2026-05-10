@@ -10,16 +10,17 @@ Usage::
 """
 import logging
 import os
+from datetime import datetime
 
 from flask import Flask
+from flask_wtf.csrf import generate_csrf
 
 from app.config import config
 from app.extensions import csrf, db, login_manager
 
 
 def create_app(env: str = None) -> Flask:
-    """Create, configure and return the Flask application.
-    """
+    """Create, configure and return the Flask application."""
     env = env or os.environ.get('FLASK_ENV', 'development')
     cfg = config.get(env, config['default'])
 
@@ -31,9 +32,15 @@ def create_app(env: str = None) -> Flask:
 
     # ── Configuration ─────────────────────────────────────────────────
     app.config.from_object(cfg)
-    cfg.init_app(app)           # create folders, validate secrets, etc.
+    cfg.init_app(app)
 
-    # ── App version (read from .bumpversion.cfg or env) ───────────────
+    # Load instance config if it exists (overrides above)
+    app.config.from_pyfile(
+        os.path.join(app.instance_path, 'config.py'),
+        silent=True,
+    )
+
+    # ── App version ───────────────────────────────────────────────────
     app.version = os.environ.get('APP_VERSION', _read_version())
 
     # ── Logging ───────────────────────────────────────────────────────
@@ -50,6 +57,17 @@ def create_app(env: str = None) -> Flask:
     @login_manager.user_loader
     def load_user(user_id: str):
         return User.query.get(int(user_id))
+
+    # ── Template globals ──────────────────────────────────────────────
+    # Make csrf_token() and now available in every template without
+    # explicitly passing them from every controller.
+    @app.context_processor
+    def inject_globals():
+        return {
+            'now':        datetime.now(),
+            'csrf_token': generate_csrf,
+            'version':    app.version,
+        }
 
     # ── Blueprints ────────────────────────────────────────────────────
     _register_blueprints(app)

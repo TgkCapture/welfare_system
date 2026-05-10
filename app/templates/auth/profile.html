@@ -1,4 +1,3 @@
-<!-- app/templates/main/profile.html -->
 {% extends 'base.html' %}
 {% block title %}My Profile — Mzugoss Welfare{% endblock %}
 
@@ -82,6 +81,7 @@
       </div>
       <div class="card__body">
         <form method="POST" action="{{ url_for('auth.change_password') }}" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {{ password_form.hidden_tag() if password_form }}
           <div class="form-group">
             <label class="form-label" for="current_password">
@@ -136,6 +136,7 @@
       </div>
       <div class="card__body">
         <form method="POST" action="{{ url_for('auth.update_profile') }}" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {{ profile_form.hidden_tag() if profile_form }}
           <div class="form-group">
             <label class="form-label" for="p-email">
