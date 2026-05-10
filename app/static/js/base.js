@@ -1,173 +1,150 @@
-// app/static/js/base.js 
-document.addEventListener('DOMContentLoaded', function() {
-    // Mobile Navigation
-    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-    const mobileNavOverlay = document.getElementById('mobileNavOverlay');
-    const closeMobileNav = document.getElementById('closeMobileNav');
+/* base.js — global UI behaviour for every page */
+'use strict';
 
-    function openMobileNav() {
-        mobileNavOverlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
-    }
+/* ── User dropdown ──────────────────────────────────────────────────── */
+(function initUserMenu() {
+  const menu   = document.getElementById('userMenu');
+  const btn    = document.getElementById('userMenuBtn');
+  const drop   = document.getElementById('userDropdown');
+  if (!menu || !btn || !drop) return;
 
-    function closeMobileNavFunc() {
-        mobileNavOverlay.classList.remove('active');
-        document.body.style.overflow = '';
-    }
+  function open()  {
+    menu.classList.add('is-open');
+    btn.setAttribute('aria-expanded', 'true');
+    drop.setAttribute('aria-hidden', 'false');
+  }
+  function close() {
+    menu.classList.remove('is-open');
+    btn.setAttribute('aria-expanded', 'false');
+    drop.setAttribute('aria-hidden', 'true');
+  }
 
-    if (mobileMenuBtn && mobileNavOverlay && closeMobileNav) {
-        mobileMenuBtn.addEventListener('click', openMobileNav);
-        closeMobileNav.addEventListener('click', closeMobileNavFunc);
-        
-        mobileNavOverlay.addEventListener('click', function(e) {
-            if (e.target === mobileNavOverlay) {
-                closeMobileNavFunc();
-            }
-        });
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.classList.contains('is-open') ? close() : open();
+  });
 
-        // Close mobile nav when clicking on links
-        document.querySelectorAll('.mobile-nav-link').forEach(link => {
-            link.addEventListener('click', closeMobileNavFunc);
-        });
-    }
+  document.addEventListener('click', (e) => {
+    if (!menu.contains(e.target)) close();
+  });
 
-    // User Dropdown
-    const userDropdownToggle = document.getElementById('userDropdownToggle');
-    const userDropdownMenu = document.getElementById('userDropdownMenu');
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') close();
+  });
+})();
 
-    if (userDropdownToggle && userDropdownMenu) {
-        userDropdownToggle.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const isActive = userDropdownMenu.classList.contains('show');
-            
-            // Close all other dropdowns
-            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
-                if (menu !== userDropdownMenu) {
-                    menu.classList.remove('show');
-                }
-            });
-            
-            // Toggle current dropdown
-            userDropdownMenu.classList.toggle('show');
-            userDropdownToggle.classList.toggle('active', userDropdownMenu.classList.contains('show'));
-        });
+/* ── Mobile drawer ──────────────────────────────────────────────────── */
+(function initMobileNav() {
+  const hamburger = document.getElementById('hamburgerBtn');
+  const nav       = document.getElementById('mobileNav');
+  const overlay   = document.getElementById('mobileOverlay');
+  const closeBtn  = document.getElementById('mobileNavClose');
+  if (!hamburger || !nav) return;
 
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!userDropdownToggle.contains(e.target) && !userDropdownMenu.contains(e.target)) {
-                userDropdownMenu.classList.remove('show');
-                userDropdownToggle.classList.remove('active');
-            }
-        });
+  function openNav() {
+    nav.classList.add('is-open');
+    overlay && overlay.classList.add('is-open');
+    hamburger.setAttribute('aria-expanded', 'true');
+    nav.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeNav() {
+    nav.classList.remove('is-open');
+    overlay && overlay.classList.remove('is-open');
+    hamburger.setAttribute('aria-expanded', 'false');
+    nav.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
 
-        // Close dropdown when clicking on a dropdown item
-        const dropdownItems = userDropdownMenu.querySelectorAll('.dropdown-item');
-        dropdownItems.forEach(item => {
-            item.addEventListener('click', function() {
-                userDropdownMenu.classList.remove('show');
-                userDropdownToggle.classList.remove('active');
-            });
-        });
+  hamburger.addEventListener('click', openNav);
+  closeBtn  && closeBtn.addEventListener('click', closeNav);
+  overlay   && overlay.addEventListener('click', closeNav);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNav(); });
+})();
 
-        // Close dropdown on escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && userDropdownMenu.classList.contains('show')) {
-                userDropdownMenu.classList.remove('show');
-                userDropdownToggle.classList.remove('active');
-            }
-        });
-    }
-
-    // Auto-dismiss flash messages after 5 seconds
+/* ── Flash auto-dismiss (after 6 s) ────────────────────────────────── */
+(function initFlashDismiss() {
+  document.querySelectorAll('.flash').forEach((el) => {
     setTimeout(() => {
-        document.querySelectorAll('.alert').forEach(alert => {
-            alert.style.transition = 'opacity 0.3s ease';
-            alert.style.opacity = '0';
-            setTimeout(() => {
-                alert.style.display = 'none';
-            }, 300);
-        });
-    }, 5000);
+      el.style.transition = 'opacity .4s ease, transform .4s ease';
+      el.style.opacity    = '0';
+      el.style.transform  = 'translateY(-6px)';
+      setTimeout(() => el.remove(), 420);
+    }, 6000);
+  });
+})();
 
-    // Close alert on button click
-    document.querySelectorAll('.alert-close').forEach(button => {
-        button.addEventListener('click', function() {
-            const alert = this.closest('.alert');
-            alert.style.transition = 'opacity 0.3s ease';
-            alert.style.opacity = '0';
-            setTimeout(() => {
-                alert.style.display = 'none';
-            }, 300);
-        });
+/* ── Password show/hide toggle ──────────────────────────────────────── */
+(function initPasswordToggles() {
+  document.querySelectorAll('.input-suffix[data-toggle-pwd]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const wrap  = btn.closest('.input-wrap');
+      const input = wrap && wrap.querySelector('input');
+      if (!input) return;
+      const isText = input.type === 'text';
+      input.type   = isText ? 'password' : 'text';
+      const icon   = btn.querySelector('i');
+      if (icon) icon.className = isText ? 'fas fa-eye' : 'fas fa-eye-slash';
     });
+  });
+})();
 
-    // Toast notification system
-    window.showToast = function(message, type = 'info') {
-        // Remove existing toasts
-        const existingToasts = document.querySelectorAll('.toast');
-        existingToasts.forEach(toast => {
-            if (toast.parentNode) {
-                document.body.removeChild(toast);
-            }
-        });
-        
-        // Create toast element
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.setAttribute('role', 'alert');
-        toast.setAttribute('aria-live', 'assertive');
-        toast.setAttribute('aria-atomic', 'true');
-        
-        toast.innerHTML = `
-            <div class="toast-content">
-                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-                <span>${message}</span>
-            </div>
-            <button class="toast-close" aria-label="Close">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
-        
-        document.body.appendChild(toast);
-        
-        // Show toast
-        setTimeout(() => {
-            toast.classList.add('show');
-        }, 10);
-        
-        // Auto-remove after 5 seconds
-        const autoRemove = setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    document.body.removeChild(toast);
-                }
-            }, 300);
-        }, 5000);
-        
-        // Close button
-        const closeBtn = toast.querySelector('.toast-close');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                clearTimeout(autoRemove);
-                toast.classList.remove('show');
-                setTimeout(() => {
-                    if (toast.parentNode) {
-                        document.body.removeChild(toast);
-                    }
-                }, 300);
-            });
-        }
-        
-        return toast;
-    };
+/* ── Modal helpers (data-modal-open / data-modal-close) ─────────────── */
+(function initModals() {
+  function openModal(id) {
+    const bd = document.getElementById(id);
+    if (!bd) return;
+    bd.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    // focus first focusable element
+    const first = bd.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    first && first.focus();
+  }
+  function closeModal(id) {
+    const bd = document.getElementById(id);
+    if (!bd) return;
+    bd.classList.remove('is-open');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('click', (e) => {
+    const opener = e.target.closest('[data-modal-open]');
+    if (opener) { openModal(opener.dataset.modalOpen); return; }
+
+    const closer = e.target.closest('[data-modal-close]');
+    if (closer) { closeModal(closer.dataset.modalClose); return; }
+
+    // click on backdrop itself
+    if (e.target.classList.contains('modal-backdrop')) {
+      e.target.classList.remove('is-open');
+      document.body.style.overflow = '';
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('.modal-backdrop.is-open').forEach((bd) => {
+      bd.classList.remove('is-open');
+      document.body.style.overflow = '';
+    });
+  });
+
+  // expose globally for inline onclick usage
+  window.openModal  = openModal;
+  window.closeModal = closeModal;
+})();
+
+/* ── Inline form confirmation (data-confirm) ────────────────────────── */
+document.addEventListener('submit', (e) => {
+  const form = e.target;
+  const msg  = form.dataset.confirm;
+  if (msg && !confirm(msg)) e.preventDefault();
 });
 
-// Add animation delay to elements with data-animate-delay attribute
-document.addEventListener('DOMContentLoaded', function() {
-    const animatedElements = document.querySelectorAll('[data-animate-delay]');
-    animatedElements.forEach(element => {
-        const delay = element.getAttribute('data-animate-delay');
-        element.style.animationDelay = delay;
-    });
-});
+/* ── Active nav link highlight (fallback for pages that set it) ─────── */
+(function highlightActiveLink() {
+  const path = window.location.pathname;
+  document.querySelectorAll('.topnav__link, .mobile-nav__link').forEach((a) => {
+    if (a.getAttribute('href') === path) a.classList.add('is-active');
+  });
+})();
