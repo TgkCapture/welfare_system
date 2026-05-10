@@ -1,217 +1,297 @@
 <!-- app/templates/main/reports_list.html -->
 {% extends 'base.html' %}
-
-{% block title %}Reports - Mzugoss Welfare{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/reports_list.css') }}">
-{% endblock %}
+{% block title %}Reports — Mzugoss Welfare{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="page-header">
-        <h1 class="page-title">
-            <i class="fas fa-file-alt"></i>
-            Contribution Reports
-        </h1>
-        <div class="page-actions">
-            {% if user_role in ['admin', 'clerk'] %}
-            <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i>
-                Generate New Report
-            </a>
-            {% endif %}
-            <a href="{% if current_user.is_admin %}{{ url_for('main.admin_dashboard') }}
-                        {% elif current_user.is_clerk %}{{ url_for('main.clerk_dashboard') }}
-                        {% else %}{{ url_for('main.viewer_dashboard') }}{% endif %}" 
-                class="btn btn-outline">
-                <i class="fas fa-arrow-left"></i>
-                Back to Dashboard
-            </a>
-        </div>
-    </div>
-
-    <!-- Filter Section -->
-    <div class="filter-section">
-        <div class="filter-options">
-            <select id="yearFilter" class="form-select">
-                <option value="">All Years</option>
-                {% set years = [] %}
-                {% for report in reports %}
-                    {% if report.year not in years %}
-                        {% set _ = years.append(report.year) %}
-                        <option value="{{ report.year }}">{{ report.year }}</option>
-                    {% endif %}
-                {% endfor %}
-            </select>
-            
-            <select id="monthFilter" class="form-select">
-                <option value="">All Months</option>
-                {% for i in range(1, 13) %}
-                    <option value="{{ i }}">{{ month_names[i-1] }}</option>
-                {% endfor %}
-            </select>
-            
-            {% if current_user.is_admin %}
-            <select id="statusFilter" class="form-select">
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="archived">Archived</option>
-            </select>
-            {% endif %}
-        </div>
-        
-        <div class="filter-info">
-            <span class="badge badge-info">
-                <i class="fas fa-info-circle"></i>
-                Reports are automatically archived after {{ config.REPORT_RETENTION_DAYS }} days
-            </span>
-        </div>
-    </div>
-
-    <div class="content-card">
-        {% if reports %}
-        <div class="reports-grid">
-            {% for report in reports %}
-            <div class="report-card" data-year="{{ report.year }}" data-month="{{ report.month }}">
-                <div class="report-header">
-                    <div class="report-period">
-                        <i class="fas fa-calendar"></i>
-                        {{ month_names[report.month-1] }} {{ report.year }}
-                    </div>
-                    <div class="report-meta">
-                        <span class="meta-item">
-                            <i class="fas fa-user"></i>
-                            {{ report.generated_by }}
-                        </span>
-                        <span class="meta-item">
-                            <i class="fas fa-clock"></i>
-                            {{ report.generated_date }}
-                        </span>
-                        <span class="meta-item">
-                            <i class="fas fa-hdd"></i>
-                            {{ report.file_size_mb }} MB
-                        </span>
-                    </div>
-                </div>
-                
-                <div class="report-body">
-                    <div class="report-stat">
-                        <div class="stat-icon">
-                            <i class="fas fa-money-bill-wave"></i>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-value">MWK {{ "%.2f"|format(report.total_contributions) }}</div>
-                            <div class="stat-label">Total Contributions</div>
-                        </div>
-                    </div>
-                    
-                    <div class="report-stat">
-                        <div class="stat-icon">
-                            <i class="fas fa-users"></i>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-value">{{ report.contributors }}</div>
-                            <div class="stat-label">Contributors</div>
-                        </div>
-                    </div>
-                    
-                    <div class="report-stat">
-                        <div class="stat-icon">
-                            <i class="fas fa-user-times"></i>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-value">{{ report.defaulters }}</div>
-                            <div class="stat-label">Defaulters</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="report-footer">
-                    <a href="{{ report.preview_url }}" class="btn btn-outline" title="Preview Report">
-                        <i class="fas fa-eye"></i>
-                        Preview
-                    </a>
-                    
-                    <a href="{{ report.download_url }}" class="btn btn-primary" title="Download PDF">
-                        <i class="fas fa-download"></i>
-                        Download
-                    </a>
-                    
-                    {% if user_role in ['admin', 'clerk'] %}
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-outline dropdown-toggle" type="button" 
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-ellipsis-v"></i>
-                        </button>
-                        <ul class="dropdown-menu">
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('report.regenerate_report', report_id=report.id) }}">
-                                    <i class="fas fa-redo"></i> Regenerate
-                                </a>
-                            </li>
-                            {% if current_user.is_admin %}
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('report.archive_report', report_id=report.id) }}">
-                                    <i class="fas fa-archive"></i> Archive
-                                </a>
-                            </li>
-                            {% endif %}
-                        </ul>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="empty-state">
-            <i class="fas fa-file-excel"></i>
-            <h3>No Reports Available</h3>
-            <p>No contribution reports have been generated yet.</p>
-            {% if user_role in ['admin', 'clerk'] %}
-            <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i>
-                Generate First Report
-            </a>
-            {% endif %}
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- Admin Controls -->
-    {% if current_user.is_admin %}
-    <div class="admin-controls">
-        <div class="card">
-            <div class="card-header">
-                <h3><i class="fas fa-cog"></i> Report Management</h3>
-            </div>
-            <div class="card-body">
-                <div class="admin-actions">
-                    <a href="{{ url_for('report.cleanup_reports') }}" class="btn btn-warning"
-                       onclick="return confirm('Are you sure you want to cleanup old reports?')">
-                        <i class="fas fa-broom"></i>
-                        Cleanup Old Reports
-                    </a>
-                    <a href="{{ url_for('report.get_report_statistics') }}" class="btn btn-info">
-                        <i class="fas fa-chart-bar"></i>
-                        View Statistics
-                    </a>
-                </div>
-                <p class="text-muted mt-2">
-                    <small>
-                        <i class="fas fa-info-circle"></i>
-                        Reports are retained for {{ config.REPORT_RETENTION_DAYS }} days. 
-                        Cleanup will archive old reports and remove associated files.
-                    </small>
-                </p>
-            </div>
-        </div>
-    </div>
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-file-alt"></i> Contribution Reports</h1>
+    <p class="page-header__sub">Browse, preview and download reports</p>
+  </div>
+  <div class="page-header__actions">
+    {% if user_role in ['admin','clerk'] %}
+    <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn--primary btn--sm">
+      <i class="fas fa-plus"></i> New Report
+    </a>
     {% endif %}
+  </div>
 </div>
-{% endblock %}
+
+<!-- Filters -->
+<div class="filter-bar">
+  <div class="filter-bar__left">
+    <select id="fYear" class="form-control" style="width:auto;">
+      <option value="">All years</option>
+      {% set seen = [] %}
+      {% for r in reports %}{% if r.year not in seen %}
+        {% set _ = seen.append(r.year) %}
+        <option value="{{ r.year }}">{{ r.year }}</option>
+      {% endif %}{% endfor %}
+    </select>
+    <select id="fMonth" class="form-control" style="width:auto;">
+      <option value="">All months</option>
+      {% for i in range(1,13) %}
+        <option value="{{ i }}">{{ month_names[i-1] }}</option>
+      {% endfor %}
+    </select>
+    {% if current_user.is_admin %}
+    <select id="fStatus" class="form-control" style="width:auto;">
+      <option value="">All status</option>
+      <option value="active">Active</option>
+      <option value="archived">Archived</option>
+    </select>
+    {% endif %}
+  </div>
+  <div class="filter-bar__right text-sm text-muted">
+    <span id="reportCount">{{ reports|length }}</span> report(s)
+  </div>
+</div>
+
+{% if reports %}
+<div class="reports-grid" id="reportsGrid">
+  {% for r in reports %}
+  <div class="report-card"
+       data-year="{{ r.year }}"
+       data-month="{{ r.month }}"
+       data-status="{{ 'archived' if r.is_archived else 'active' }}">
+    <div class="report-card__header">
+      <div class="report-card__period">
+        <i class="fas fa-calendar-alt"></i>
+        {{ month_names[r.month-1] }} {{ r.year }}
+      </div>
+      {% if r.is_archived %}
+        <span class="badge badge--neutral"><i class="fas fa-archive"></i> Archived</span>
+      {% else %}
+        <span class="badge badge--success"><i class="fas fa-circle" style="font-size:.5rem;"></i> Active</span>
+      {% endif %}
+    </div>
+
+    <div class="report-card__stats">
+      <div class="rstat">
+        <div class="rstat__val">MWK {{ "%.0f"|format(r.total_contributions) }}</div>
+        <div class="rstat__lbl">Contributions</div>
+      </div>
+      <div class="rstat">
+        <div class="rstat__val">{{ r.contributors }}</div>
+        <div class="rstat__lbl">Paid</div>
+      </div>
+      <div class="rstat">
+        <div class="rstat__val">{{ r.defaulters }}</div>
+        <div class="rstat__lbl">Defaulters</div>
+      </div>
+    </div>
+
+    <div class="report-card__meta text-xs text-muted">
+      <span><i class="fas fa-user"></i> {{ r.generated_by }}</span>
+      <span><i class="fas fa-clock"></i> {{ r.generated_date }}</span>
+      <span><i class="fas fa-hdd"></i> {{ r.file_size_mb }} MB</span>
+    </div>
+
+    <div class="report-card__actions">
+      <a href="{{ r.preview_url }}" class="btn btn--outline btn--sm">
+        <i class="fas fa-eye"></i> Preview
+      </a>
+      <a href="{{ r.download_url }}" class="btn btn--primary btn--sm">
+        <i class="fas fa-download"></i> Download
+      </a>
+      {% if user_role in ['admin','clerk'] %}
+      <div class="report-card__more">
+        <button class="btn btn--outline btn--sm btn--icon more-btn"
+                aria-haspopup="true" aria-expanded="false">
+          <i class="fas fa-ellipsis-v"></i>
+        </button>
+        <div class="more-menu">
+          <form method="POST" action="{{ url_for('report.regenerate', report_id=r.id) }}">
+            <button type="submit" class="more-menu__item">
+              <i class="fas fa-redo"></i> Regenerate
+            </button>
+          </form>
+          {% if current_user.is_admin %}
+          {% if r.is_archived %}
+          <form method="POST" action="{{ url_for('report.restore', report_id=r.id) }}">
+            <button type="submit" class="more-menu__item">
+              <i class="fas fa-undo"></i> Restore
+            </button>
+          </form>
+          {% else %}
+          <form method="POST" action="{{ url_for('report.archive', report_id=r.id) }}"
+                data-confirm="Archive this report?">
+            <button type="submit" class="more-menu__item">
+              <i class="fas fa-archive"></i> Archive
+            </button>
+          </form>
+          {% endif %}
+          <form method="POST" action="{{ url_for('report.delete', report_id=r.id) }}"
+                data-confirm="Permanently delete this report?">
+            <button type="submit" class="more-menu__item more-menu__item--danger">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if current_user.is_admin %}
+<div class="card" style="margin-top:1.5rem;">
+  <div class="card__header">
+    <h2 class="card__title"><i class="fas fa-cog"></i> Report Management</h2>
+  </div>
+  <div class="card__body" style="display:flex;gap:.75rem;flex-wrap:wrap;">
+    <form method="POST" action="{{ url_for('report.cleanup') }}"
+          data-confirm="Run report cleanup? Old files will be archived.">
+      <button type="submit" class="btn btn--warning btn--sm">
+        <i class="fas fa-broom"></i> Cleanup Old Reports
+      </button>
+    </form>
+    <a href="{{ url_for('report.stats') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-chart-bar"></i> Statistics
+    </a>
+    <a href="{{ url_for('report.export') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-file-excel"></i> Export Data
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <i class="fas fa-file-excel"></i>
+    <h3>No reports yet</h3>
+    <p>No contribution reports have been generated.</p>
+    {% if user_role in ['admin','clerk'] %}
+    <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn--primary btn--sm">
+      <i class="fas fa-plus"></i> Generate first report
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<style>
+.filter-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem;
+}
+.filter-bar__left { display: flex; gap: .625rem; flex-wrap: wrap; }
+.filter-bar .form-control { font-size: .875rem; padding: .425rem .75rem; }
+
+.reports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+  gap: 1rem;
+}
+.report-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  transition: box-shadow var(--t), transform var(--t);
+}
+.report-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+
+.report-card__header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.report-card__period {
+  display: flex; align-items: center; gap: .5rem;
+  font-weight: 800; font-size: 1rem;
+}
+.report-card__period i { color: var(--clr-primary); }
+
+.report-card__stats {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  padding: 1rem 1.25rem; gap: .5rem;
+}
+.rstat { text-align: center; }
+.rstat__val { font-size: 1.125rem; font-weight: 800; color: var(--txt-primary); }
+.rstat__lbl { font-size: .75rem; color: var(--txt-muted); }
+
+.report-card__meta {
+  display: flex; gap: .875rem; flex-wrap: wrap;
+  padding: 0 1.25rem .875rem;
+}
+.report-card__meta span { display: flex; align-items: center; gap: .3rem; }
+
+.report-card__actions {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .875rem 1.25rem;
+  border-top: 1px solid var(--border);
+  background: var(--clr-slate-50);
+}
+.report-card__more { position: relative; margin-left: auto; }
+.more-btn { position: relative; }
+.more-menu {
+  display: none;
+  position: absolute; right: 0; top: calc(100% + .375rem);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xl);
+  z-index: 100; min-width: 10rem; overflow: hidden;
+}
+.report-card__more.is-open .more-menu { display: block; }
+.more-menu__item {
+  display: flex; align-items: center; gap: .625rem;
+  padding: .625rem 1rem;
+  font-size: .875rem; color: var(--txt-secondary);
+  width: 100%; text-align: left;
+  transition: background var(--t), color var(--t);
+}
+.more-menu__item:hover { background: var(--clr-slate-50); color: var(--txt-primary); }
+.more-menu__item--danger { color: var(--clr-danger); }
+.more-menu__item--danger:hover { background: var(--clr-danger-pale); }
+.report-card[style*="display:none"] { display: none !important; }
+</style>
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/reports_list.js') }}"></script>
+<script>
+(function() {
+  /* Filters */
+  const grid  = document.getElementById('reportsGrid');
+  const cards = grid ? Array.from(grid.querySelectorAll('.report-card')) : [];
+  const count = document.getElementById('reportCount');
+  const fYear   = document.getElementById('fYear');
+  const fMonth  = document.getElementById('fMonth');
+  const fStatus = document.getElementById('fStatus');
+
+  function applyFilters() {
+    const year   = fYear   ? fYear.value   : '';
+    const month  = fMonth  ? fMonth.value  : '';
+    const status = fStatus ? fStatus.value : '';
+    let visible  = 0;
+    cards.forEach(card => {
+      const ok =
+        (!year   || card.dataset.year   === year)   &&
+        (!month  || card.dataset.month  === month)  &&
+        (!status || card.dataset.status === status);
+      card.style.display = ok ? '' : 'none';
+      if (ok) visible++;
+    });
+    if (count) count.textContent = visible;
+  }
+  [fYear, fMonth, fStatus].forEach(el => el && el.addEventListener('change', applyFilters));
+
+  /* More menus */
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.more-btn');
+    if (btn) {
+      const wrap = btn.closest('.report-card__more');
+      const isOpen = wrap.classList.contains('is-open');
+      document.querySelectorAll('.report-card__more.is-open').forEach(w => w.classList.remove('is-open'));
+      if (!isOpen) wrap.classList.add('is-open');
+      return;
+    }
+    document.querySelectorAll('.report-card__more.is-open').forEach(w => w.classList.remove('is-open'));
+  });
+})();
+</script>
+{% endblock %}
 {% endblock %}
