@@ -1,195 +1,162 @@
 <!-- app/templates/main/report_preview.html -->
 {% extends 'base.html' %}
-
-{% block title %}Report Preview - Mzugoss Welfare{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/report_preview.css') }}">
-{% endblock %}
+{% block title %}Report Preview — {{ month }} {{ year }} — Mzugoss Welfare{% endblock %}
 
 {% block content %}
-<div class="report-preview-container">
-    <!-- Header -->
-    <div class="report-header">
-        <div class="header-content">
-            <h1 class="header-title">
-                <i class="fas fa-check-circle"></i>
-                Report Generated Successfully
-            </h1>
-            <p class="header-subtitle">
-                {{ month }} {{ year }} Contributions Report
-            </p>
-        </div>
-        <div class="header-icon">
-            <i class="fas fa-file-contract"></i>
-        </div>
-    </div>
-
-    <!-- Success Alert -->
-    <div class="success-alert">
-        <div class="alert-content">
-            <i class="fas fa-check-circle"></i>
-            <div>
-                <strong>Report Ready!</strong> The {{ month }} {{ year }} contributions report has been successfully generated.
-            </div>
-        </div>
-    </div>
-
-    <!-- Summary Statistics -->
-    <div class="summary-section">
-        <h2 class="section-title">
-            <i class="fas fa-chart-pie"></i>
-            Summary Statistics
-        </h2>
-        
-        <div class="summary-grid">
-            <!-- Total Contributions -->
-            <div class="summary-card card-success">
-                <div class="card-header">
-                    <i class="fas fa-money-bill-wave"></i>
-                    <h3>Total Contributions</h3>
-                </div>
-                <div class="card-body">
-                    <div class="card-amount">MWK {{ "%.2f"|format(total_contributions) }}</div>
-                </div>
-            </div>
-            
-            <!-- Contributors -->
-            <div class="summary-card card-primary">
-                <div class="card-header">
-                    <i class="fas fa-users"></i>
-                    <h3>Contributors</h3>
-                </div>
-                <div class="card-body">
-                    <div class="card-amount">{{ contributors }}</div>
-                </div>
-            </div>
-            
-            <!-- Defaulters -->
-            <div class="summary-card card-warning">
-                <div class="card-header">
-                    <i class="fas fa-user-times"></i>
-                    <h3>Defaulters</h3>
-                </div>
-                <div class="card-body">
-                    <div class="card-amount">{{ defaulters }}</div>
-                </div>
-            </div>
-            
-            <!-- Money Dispensed -->
-            <div class="summary-card card-info">
-                <div class="card-header">
-                    <i class="fas fa-hand-holding-usd"></i>
-                    <h3>Money Dispensed</h3>
-                </div>
-                <div class="card-body">
-                    <div class="card-amount">
-                        {% if money_dispensed is not none %}
-                            MWK {{ "%.2f"|format(money_dispensed) }}
-                        {% else %}
-                            N/A
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Total Book Balance -->
-            <div class="summary-card card-dark">
-                <div class="card-header">
-                    <i class="fas fa-book"></i>
-                    <h3>Total Book Balance</h3>
-                </div>
-                <div class="card-body">
-                    <div class="card-amount">
-                        {% if total_book_balance is not none %}
-                            MWK {{ "%.2f"|format(total_book_balance) }}
-                        {% else %}
-                            N/A
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Actions -->
-    <div class="actions-section">
-        <h2 class="section-title">
-            <i class="fas fa-download"></i>
-            Download Options
-        </h2>
-        
-        <div class="actions-grid">
-            <a href="{{ url_for('report.download') }}" class="action-card card-primary">
-                <div class="action-icon">
-                    <i class="fas fa-file-pdf"></i>
-                </div>
-                <div class="action-content">
-                    <h3>Download PDF Report</h3>
-                    <p>Complete report with all details and statistics</p>
-                </div>
-                <div class="action-arrow">
-                    <i class="fas fa-arrow-right"></i>
-                </div>
-            </a>
-            
-            <a href="{{ url_for('report.download_paid_members') }}" class="action-card card-success">
-                <div class="action-icon">
-                    <i class="fas fa-file-image"></i>
-                </div>
-                <div class="action-content">
-                    <h3>Download Paid Members (PNG)</h3>
-                    <p>Image file with paid members list</p>
-                </div>
-                <div class="action-arrow">
-                    <i class="fas fa-arrow-right"></i>
-                </div>
-            </a>
-            
-            <a href="{{ url_for('main.dashboard') }}" class="action-card card-secondary">
-                <div class="action-icon">
-                    <i class="fas fa-arrow-left"></i>
-                </div>
-                <div class="action-content">
-                    <h3>Back to Dashboard</h3>
-                    <p>Return to main dashboard</p>
-                </div>
-                <div class="action-arrow">
-                    <i class="fas fa-arrow-right"></i>
-                </div>
-            </a>
-        </div>
-    </div>
-
-    <!-- Report Details -->
-    <div class="details-section">
-        <h2 class="section-title">
-            <i class="fas fa-info-circle"></i>
-            Report Details
-        </h2>
-        
-        <div class="details-content">
-            <div class="detail-item">
-                <span class="detail-label">Report Period:</span>
-                <span class="detail-value">{{ month }} {{ year }}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Generated On:</span>
-                <span class="detail-value">{{ current_date.strftime('%B %d, %Y at %I:%M %p') }}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">File Name:</span>
-                <span class="detail-value">{{ filename }}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">File Format:</span>
-                <span class="detail-value">PDF Document</span>
-            </div>
-        </div>
-    </div>
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-check-circle" style="color:var(--clr-success);"></i> Report Ready</h1>
+    <p class="page-header__sub">{{ month }} {{ year }} Contributions Report</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Back
+    </a>
+  </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/report_preview.js') }}"></script>
+<!-- Success banner -->
+<div class="success-banner">
+  <i class="fas fa-check-circle"></i>
+  <div>
+    <strong>Report generated successfully!</strong>
+    The {{ month }} {{ year }} contributions report is ready to download.
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--green"><i class="fas fa-money-bill-wave"></i></div>
+    <div>
+      <div class="stat-card__value" style="font-size:1.25rem;">MWK {{ "%.2f"|format(total_contributions) }}</div>
+      <div class="stat-card__label">Total Contributions</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--blue"><i class="fas fa-users"></i></div>
+    <div>
+      <div class="stat-card__value">{{ contributors }}</div>
+      <div class="stat-card__label">Contributors</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--amber"><i class="fas fa-user-times"></i></div>
+    <div>
+      <div class="stat-card__value">{{ defaulters }}</div>
+      <div class="stat-card__label">Defaulters</div>
+    </div>
+  </div>
+  {% if money_dispensed is not none %}
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--cyan"><i class="fas fa-hand-holding-usd"></i></div>
+    <div>
+      <div class="stat-card__value" style="font-size:1.25rem;">MWK {{ "%.2f"|format(money_dispensed) }}</div>
+      <div class="stat-card__label">Money Dispensed</div>
+    </div>
+  </div>
+  {% endif %}
+  {% if total_book_balance is not none %}
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--purple"><i class="fas fa-book"></i></div>
+    <div>
+      <div class="stat-card__value" style="font-size:1.25rem;">MWK {{ "%.2f"|format(total_book_balance) }}</div>
+      <div class="stat-card__label">Book Balance</div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Download actions -->
+<div class="card" style="margin-bottom:1.25rem;">
+  <div class="card__header">
+    <h2 class="card__title"><i class="fas fa-download"></i> Download Options</h2>
+  </div>
+  <div class="card__body">
+    <div class="download-grid">
+      <a href="{{ url_for('report.download') }}" class="download-card download-card--primary">
+        <div class="download-card__icon"><i class="fas fa-file-pdf"></i></div>
+        <div>
+          <div class="download-card__title">PDF Report</div>
+          <div class="download-card__sub">Full report with all details</div>
+        </div>
+        <i class="fas fa-arrow-down download-card__arrow"></i>
+      </a>
+      <a href="{{ url_for('report.download_paid_members') }}" class="download-card download-card--success">
+        <div class="download-card__icon"><i class="fas fa-file-image"></i></div>
+        <div>
+          <div class="download-card__title">Paid Members PNG</div>
+          <div class="download-card__sub">Image for quick sharing</div>
+        </div>
+        <i class="fas fa-arrow-down download-card__arrow"></i>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Report details -->
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title"><i class="fas fa-info-circle"></i> Report Details</h2>
+  </div>
+  <div class="card__body">
+    <dl class="detail-grid">
+      <dt>Report Period</dt><dd>{{ month }} {{ year }}</dd>
+      <dt>Generated On</dt><dd>{{ current_date.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+      <dt>File Name</dt><dd class="text-muted">{{ filename }}</dd>
+      <dt>Format</dt><dd>PDF Document</dd>
+    </dl>
+  </div>
+</div>
+
+<style>
+.success-banner {
+  display: flex; align-items: center; gap: .875rem;
+  padding: 1rem 1.25rem;
+  background: var(--clr-success-pale);
+  border: 1px solid #6ee7b7;
+  border-radius: var(--r-xl);
+  color: #065f46;
+  margin-bottom: 1.5rem;
+  font-size: .9375rem;
+}
+.success-banner i { font-size: 1.5rem; flex-shrink: 0; }
+
+.download-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+}
+.download-card {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1.25rem;
+  border-radius: var(--r-xl);
+  border: 2px solid transparent;
+  transition: transform var(--t), box-shadow var(--t);
+  color: inherit;
+}
+.download-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.download-card--primary { background: var(--clr-primary-pale); border-color: var(--clr-primary); }
+.download-card--success { background: var(--clr-success-pale); border-color: var(--clr-success); }
+.download-card__icon {
+  width: 3rem; height: 3rem;
+  border-radius: var(--r-lg);
+  display: grid; place-items: center;
+  font-size: 1.375rem; flex-shrink: 0;
+}
+.download-card--primary .download-card__icon { background: var(--clr-primary); color: #fff; }
+.download-card--success .download-card__icon { background: var(--clr-success); color: #fff; }
+.download-card__title { font-weight: 700; font-size: .9375rem; }
+.download-card__sub   { font-size: .8125rem; color: var(--txt-muted); }
+.download-card__arrow { margin-left: auto; font-size: .875rem; color: var(--txt-muted); }
+
+.detail-grid {
+  display: grid; grid-template-columns: auto 1fr; gap: .5rem 1.5rem;
+  font-size: .9rem;
+}
+.detail-grid dt { font-weight: 600; color: var(--txt-muted); white-space: nowrap; }
+.detail-grid dd { color: var(--txt-primary); }
+
+@media (max-width: 600px) {
+  .download-grid { grid-template-columns: 1fr; }
+}
+</style>
 {% endblock %}
