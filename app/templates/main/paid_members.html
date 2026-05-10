@@ -1,113 +1,108 @@
 <!-- app/templates/main/paid_members.html -->
 {% extends 'base.html' %}
-
-{% block title %}Paid Members - {{ month }} {{ year }} - Mzugoss Welfare{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/paid_members.css') }}">
-{% endblock %}
+{% block title %}Paid Members — {{ month }} {{ year }} — Mzugoss Welfare{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="page-header">
-        <div class="header-content">
-            <h1 class="page-title">
-                <i class="fas fa-user-check"></i>
-                Paid Members
-                <span class="report-period">{{ month }} {{ year }}</span>
-            </h1>
-            <div class="header-actions">
-                <a href="{{ url_for('main.viewer_dashboard') }}" class="btn btn-outline">
-                    <i class="fas fa-arrow-left"></i>
-                    Back to Dashboard
-                </a>
-                <a href="{{ url_for('report.download_paid_members') }}" class="btn btn-primary">
-                    <i class="fas fa-download"></i>
-                    Download as Image
-                </a>
-            </div>
-        </div>
-        <div class="header-stats">
-            <div class="stat-badge">
-                <i class="fas fa-users"></i>
-                <span>{{ total_paid }} Members Paid</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="content-card">
-        {% if paid_members %}
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Member Name</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for member in paid_members %}
-                    <tr>
-                        <td>{{ loop.index }}</td>
-                        <td>{{ member.name }}</td>
-                        <td>
-                            <span class="amount-badge">
-                                MWK {{ "%.2f"|format(member.amount) }}
-                            </span>
-                        </td>
-                        <td>
-                            <span class="status-badge status-{{ member.status|lower }}">
-                                <i class="fas fa-{{ 'check-circle' if member.status == 'Paid' else 'times-circle' }}"></i>
-                                {{ member.status }}
-                            </span>
-                        </td>
-                        <td>
-                            <button class="btn btn-sm btn-outline">
-                                <i class="fas fa-print"></i>
-                                Print Receipt
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="summary-section">
-            <div class="summary-card">
-                <h3>Summary</h3>
-                <div class="summary-stats">
-                    <div class="summary-stat">
-                        <span class="stat-label">Total Paid Members:</span>
-                        <span class="stat-value">{{ total_paid }}</span>
-                    </div>
-                    <div class="summary-stat">
-                        <span class="stat-label">Total Amount:</span>
-                        <span class="stat-value">
-                            MWK {{ "%.2f"|format(paid_members|sum(attribute='amount')) }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% else %}
-        <div class="empty-state">
-            <i class="fas fa-user-slash"></i>
-            <h3>No Paid Members Found</h3>
-            <p>There are no paid members for {{ month }} {{ year }}.</p>
-            <a href="{{ url_for('main.viewer_dashboard') }}" class="btn btn-primary">
-                <i class="fas fa-arrow-left"></i>
-                Back to Dashboard
-            </a>
-        </div>
-        {% endif %}
-    </div>
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-user-check"></i> Paid Members</h1>
+    <p class="page-header__sub">{{ month }} {{ year }} — {{ total_paid }} member(s) paid</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('report.preview') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Back to Preview
+    </a>
+    <a href="{{ url_for('report.download_paid_members') }}" class="btn btn--primary btn--sm">
+      <i class="fas fa-download"></i> Download PNG
+    </a>
+  </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/paid_members.js') }}"></script>
+<!-- Summary strip -->
+<div class="summary-strip">
+  <div class="summary-strip__item">
+    <span class="summary-strip__val">{{ total_paid }}</span>
+    <span class="summary-strip__lbl">Paid Members</span>
+  </div>
+  <div class="summary-strip__divider"></div>
+  <div class="summary-strip__item">
+    <span class="summary-strip__val">MWK {{ "%.2f"|format(total_contributions) }}</span>
+    <span class="summary-strip__lbl">Total Collected</span>
+  </div>
+  {% if total_paid > 0 %}
+  <div class="summary-strip__divider"></div>
+  <div class="summary-strip__item">
+    <span class="summary-strip__val">MWK {{ "%.2f"|format(total_contributions / total_paid) }}</span>
+    <span class="summary-strip__lbl">Average</span>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  {% if paid_members %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width:3rem;">#</th>
+          <th>Member Name</th>
+          <th>Amount</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in paid_members %}
+        <tr>
+          <td class="text-muted text-sm">{{ loop.index }}</td>
+          <td style="font-weight:600;">{{ m.name }}</td>
+          <td>
+            <span class="amount-pill">MWK {{ "%.2f"|format(m.amount) }}</span>
+          </td>
+          <td>
+            <span class="badge badge--success">
+              <i class="fas fa-check-circle"></i> {{ m.status }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2" style="font-weight:700;padding:.875rem 1rem;">Total</td>
+          <td style="font-weight:700;padding:.875rem 1rem;">
+            MWK {{ "%.2f"|format(total_contributions) }}
+          </td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="fas fa-user-slash"></i>
+    <h3>No paid members</h3>
+    <p>No contributions were recorded for {{ month }} {{ year }}.</p>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+.summary-strip {
+  display: flex; align-items: center;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-xl); padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem; gap: 1.5rem; flex-wrap: wrap;
+}
+.summary-strip__item { display: flex; flex-direction: column; gap: .2rem; }
+.summary-strip__val  { font-size: 1.375rem; font-weight: 800; color: var(--txt-primary); }
+.summary-strip__lbl  { font-size: .8125rem; color: var(--txt-muted); }
+.summary-strip__divider { width: 1px; height: 2.5rem; background: var(--border); }
+.amount-pill {
+  display: inline-block;
+  background: var(--clr-success-pale); color: #065f46;
+  padding: .2rem .625rem; border-radius: var(--r-full);
+  font-size: .875rem; font-weight: 600;
+}
+tfoot tr td { border-top: 2px solid var(--border); background: var(--clr-slate-50); }
+</style>
 {% endblock %}

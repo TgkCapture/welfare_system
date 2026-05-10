@@ -1,119 +1,117 @@
+<!-- app/templates/main/clerk_users.html -->
 {% extends 'base.html' %}
-
-{% block title %}Manage Viewers - Mzugoss Welfare{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/clerk_users.css') }}">
-{% endblock %}
+{% block title %}Manage Viewers — Mzugoss Welfare{% endblock %}
 
 {% block content %}
-<div class="clerk-users">
-    <div class="page-header">
-        <h1 class="page-title">
-            <i class="fas fa-users"></i>
-            Manage Viewers
-        </h1>
-        <div class="page-actions">
-            <a href="{{ url_for('main.create_viewer') }}" class="btn btn-primary">
-                <i class="fas fa-user-plus"></i>
-                Add New Viewer
-            </a>
-            <a href="{{ url_for('main.clerk_dashboard') }}" class="btn btn-outline">
-                <i class="fas fa-arrow-left"></i>
-                Back to Dashboard
-            </a>
-        </div>
-    </div>
-
-    <div class="content-card">
-        {% if users %}
-        <div class="users-table-container">
-            <table class="users-table">
-                <thead>
-                    <tr>
-                        <th>Email</th>
-                        <th>Status</th>
-                        <th>Created</th>
-                        <th>Last Login</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in users %}
-                    <tr class="{{ 'inactive' if not user.is_active }}">
-                        <td>
-                            <div class="user-info">
-                                <i class="fas fa-user-circle"></i>
-                                <div>
-                                    <strong>{{ user.email }}</strong>
-                                </div>
-                            </div>
-                        </td>
-                        <td>
-                            <span class="status-badge {{ 'active' if user.is_active else 'inactive' }}">
-                                <i class="fas fa-{{ 'check-circle' if user.is_active else 'times-circle' }}"></i>
-                                {{ 'Active' if user.is_active else 'Inactive' }}
-                            </span>
-                        </td>
-                        <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
-                        <td>
-                            {% if user.last_login %}
-                                {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
-                            {% else %}
-                                <span class="text-muted">Never</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="action-buttons">
-                                <a href="{{ url_for('main.edit_viewer', user_id=user.id) }}" 
-                                   class="btn btn-sm btn-outline" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <form action="{{ url_for('main.toggle_viewer_active', user_id=user.id) }}" 
-                                      method="POST" class="inline-form">
-                                    <button type="submit" class="btn btn-sm btn-{{ 'warning' if user.is_active else 'success' }}"
-                                            title="{{ 'Deactivate' if user.is_active else 'Activate' }}">
-                                        <i class="fas fa-{{ 'user-times' if user.is_active else 'user-check' }}"></i>
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="empty-state">
-            <i class="fas fa-users"></i>
-            <h3>No Viewers Found</h3>
-            <p>You haven't created any viewer accounts yet.</p>
-            <a href="{{ url_for('main.create_viewer') }}" class="btn btn-primary">
-                <i class="fas fa-user-plus"></i>
-                Add First Viewer
-            </a>
-        </div>
-        {% endif %}
-    </div>
-
-    <div class="info-card">
-        <div class="card-header">
-            <h3><i class="fas fa-info-circle"></i> Clerk Permissions</h3>
-        </div>
-        <div class="card-body">
-            <p>As a clerk, you can:</p>
-            <ul>
-                <li>Create new viewer accounts</li>
-                <li>Edit viewer account details (email, status)</li>
-                <li>Activate or deactivate viewer accounts</li>
-                <li>View all viewer accounts</li>
-            </ul>
-            <p class="text-muted">Note: You cannot create or manage admin or clerk accounts.</p>
-        </div>
-    </div>
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-users"></i> Manage Viewers</h1>
+    <p class="page-header__sub">Create and manage viewer accounts</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.clerk_dashboard') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Dashboard
+    </a>
+    <a href="{{ url_for('main.create_viewer') }}" class="btn btn--primary btn--sm">
+      <i class="fas fa-user-plus"></i> Add Viewer
+    </a>
+  </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/clerk_users.js') }}"></script>
+<div class="card" style="margin-bottom:1.25rem;">
+  <div class="table-wrap">
+    {% if users %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Last Login</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:.625rem;">
+              <span class="topnav__avatar" style="width:2rem;height:2rem;font-size:.75rem;">
+                {{ u.email[0]|upper }}
+              </span>
+              <span style="font-size:.875rem;font-weight:600;">{{ u.email }}</span>
+            </div>
+          </td>
+          <td>
+            <span class="status-dot status-dot--{{ 'active' if u.is_active else 'inactive' }}">
+              {{ 'Active' if u.is_active else 'Inactive' }}
+            </span>
+          </td>
+          <td class="text-sm text-muted">{{ u.created_at.strftime('%Y-%m-%d') }}</td>
+          <td class="text-sm text-muted">
+            {{ u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else '—' }}
+          </td>
+          <td>
+            <div style="display:flex;gap:.375rem;">
+              <a href="{{ url_for('main.edit_viewer', user_id=u.id) }}"
+                 class="btn btn--outline btn--sm" title="Edit">
+                <i class="fas fa-edit"></i>
+              </a>
+              <form method="POST"
+                    action="{{ url_for('main.toggle_viewer_active', user_id=u.id) }}"
+                    data-confirm="{{ 'Deactivate' if u.is_active else 'Activate' }} {{ u.email }}?">
+                <button type="submit"
+                        class="btn btn--sm {{ 'btn--warning' if u.is_active else 'btn--success' }}"
+                        title="{{ 'Deactivate' if u.is_active else 'Activate' }}">
+                  <i class="fas fa-{{ 'ban' if u.is_active else 'check' }}"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="fas fa-users"></i>
+      <h3>No viewers yet</h3>
+      <p>Create your first viewer account so members can access reports.</p>
+      <a href="{{ url_for('main.create_viewer') }}" class="btn btn--primary btn--sm">
+        <i class="fas fa-user-plus"></i> Add first viewer
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Permissions info -->
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title"><i class="fas fa-info-circle"></i> Clerk Permissions</h2>
+  </div>
+  <div class="card__body">
+    <ul class="perm-list">
+      {% for text in [
+        'Create new viewer accounts',
+        'Edit viewer email and active status',
+        'Activate or deactivate viewer accounts',
+        'View all viewer accounts',
+      ] %}
+      <li class="perm-list__item">
+        <i class="fas fa-check-circle" style="color:var(--clr-success);"></i> {{ text }}
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="text-sm text-muted" style="margin-top:.75rem;">
+      <i class="fas fa-lock"></i>
+      You cannot create or manage admin or clerk accounts.
+    </p>
+  </div>
+</div>
+
+<style>
+.perm-list { display:flex; flex-direction:column; gap:.5rem; }
+.perm-list__item { display:flex; align-items:center; gap:.625rem; font-size:.9rem; }
+</style>
 {% endblock %}
