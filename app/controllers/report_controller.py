@@ -138,7 +138,7 @@ class ReportController:
                     'info',
                 )
                 return redirect(
-                    url_for('main.report_preview_specific', report_id=report_id)
+                    url_for('report.preview_specific', report_id=report_id)
                 )
 
             if 'report_data' not in session:
@@ -235,7 +235,7 @@ class ReportController:
             'info',
         )
         return redirect(
-            url_for('main.report_preview_specific', report_id=report_id)
+            url_for('report.preview_specific', report_id=report_id)
         )
 
     # ==================== REPORTS LIST ====================
@@ -360,9 +360,9 @@ class ReportController:
                         round(r.file_size / (1024 * 1024), 2) if r.file_size else 0
                     ),
                     'is_archived': r.is_archived,
-                    'download_url': url_for('main.download_report', report_id=r.id),
-                    'preview_url': url_for('main.report_preview_specific', report_id=r.id),
-                    'paid_members_url': url_for('main.paid_members_for_report', report_id=r.id),
+                    'download_url': url_for('report.download_report', report_id=r.id),  
+                    'preview_url': url_for('report.preview_specific', report_id=r.id),
+                    'paid_members_url': url_for('report.paid_members_for_report', report_id=r.id),
                 }
                 for r in reports
             ]

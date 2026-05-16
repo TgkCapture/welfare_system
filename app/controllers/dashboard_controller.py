@@ -230,7 +230,7 @@ class DashboardController:
             )
             return [
                 {
-                    'month': MONTH_NAMES[r.month - 1] if 1 <= r.month <= 12 else r.month,
+                    'month': MONTH_NAMES[int(r.month) - 1] if r.month and str(r.month).isdigit() and 1 <= int(r.month) <= 12 else r.month,
                     'year': r.year,
                     'total_contributions': r.total_contributions,
                     'contributors': r.contributors_count,

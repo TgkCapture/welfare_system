@@ -158,17 +158,38 @@ class UploadController:
                 .limit(5)
                 .all()
             )
-            return [
-                {
-                    'id':                  r.id,
-                    'month':               MONTH_NAMES[r.month - 1] if 1 <= r.month <= 12 else r.month,
-                    'year':                r.year,
+            
+            processed_reports = []
+            for r in reports:
+                # Handle month safely - could be int, str, or None
+                month_display = r.month
+                if r.month is not None:
+                    try:
+                        # Try to convert to int if it's a string
+                        month_num = int(r.month) if isinstance(r.month, str) else r.month
+                        # Check if it's a valid month number (1-12)
+                        if isinstance(month_num, int) and 1 <= month_num <= 12:
+                            month_display = MONTH_NAMES[month_num - 1]
+                        else:
+                            # If it's a number but out of range, keep as is
+                            month_display = str(r.month)
+                    except (ValueError, TypeError):
+                        # If conversion fails, keep original value
+                        month_display = str(r.month)
+                else:
+                    month_display = 'Unknown'
+                
+                processed_reports.append({
+                    'id': r.id,
+                    'month': month_display,
+                    'year': r.year,
                     'total_contributions': r.total_contributions,
-                    'contributors':        r.contributors_count,
-                    'generated_date':      r.generated_at.strftime('%d %b %Y %H:%M'),
-                }
-                for r in reports
-            ]
+                    'contributors': r.contributors_count,
+                    'generated_date': r.generated_at.strftime('%d %b %Y %H:%M'),
+                })
+            
+            return processed_reports
+            
         except Exception as e:
             current_app.logger.error(f"Error fetching recent reports: {e}")
             return []
