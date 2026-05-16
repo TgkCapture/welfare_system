@@ -127,7 +127,8 @@ class UploadController:
         try:
             from app.controllers.report_controller import ReportController
             report_data = {
-                'month':               data.get('month'),
+                'month': MONTH_NAMES.index(data.get('month')) + 1  # convert to int
+                        if data.get('month') in MONTH_NAMES else data.get('month'),
                 'year':                data.get('year'),
                 'report_filename':     os.path.basename(report_path),  # ← from actual path
                 'total_contributions': data.get('total_contributions', 0),

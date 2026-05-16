@@ -264,8 +264,15 @@ class ReportController:
         try:
             file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
 
+            month_val = report_data.get('month')
+            if isinstance(month_val, str):
+                try:
+                    month_val = MONTH_NAMES.index(month_val) + 1  # 'May' → 5
+                except ValueError:
+                    month_val = None  # fallback
+
             report = GeneratedReport(
-                month=report_data.get('month'),
+                month=month_val,          # ← always an int now
                 year=report_data.get('year'),
                 report_type='contributions',
                 filename=(
