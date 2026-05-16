@@ -18,6 +18,8 @@ from flask_wtf.csrf import generate_csrf
 from app.config import config
 from app.extensions import csrf, db, login_manager
 
+__version__ = "2.0.0"
+
 
 def create_app(env: str = None) -> Flask:
     """Create, configure and return the Flask application."""
@@ -41,7 +43,7 @@ def create_app(env: str = None) -> Flask:
     )
 
     # ── App version ───────────────────────────────────────────────────
-    app.version = os.environ.get('APP_VERSION', _read_version())
+    app.version = os.environ.get('APP_VERSION', __version__)
 
     # ── Logging ───────────────────────────────────────────────────────
     _configure_logging(app)
@@ -143,4 +145,6 @@ def _read_version(default: str = '1.0.0') -> str:
                     return line.split('=', 1)[1].strip()
     except (OSError, IndexError):
         pass
-    return default
+    # Fallback to __version__ constant
+    from app import __version__
+    return __version__
