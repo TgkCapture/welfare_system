@@ -105,11 +105,11 @@ class ExcelParser:
 
     @staticmethod
     def _find_month_row(df: pd.DataFrame, month_name: str):
-        """Scan every cell to find the row index that contains *month_name*."""
-        for i, row in df.iterrows():
+        """Return the POSITIONAL row index containing month_name, for use as header=N."""
+        for positional_idx, (label_idx, row) in enumerate(df.iterrows()):
             for cell in row:
                 if pd.notna(cell) and month_name.lower() in str(cell).lower():
-                    return i
+                    return positional_idx   # ← positional, not label
         return None
 
     # ------------------------------------------------------------------

@@ -268,9 +268,9 @@ class ReportController:
                 month=report_data.get('month'),
                 year=report_data.get('year'),
                 report_type='contributions',
-                filename=report_data.get(
-                    'report_filename',
-                    f"report_{report_data.get('month')}_{report_data.get('year')}.pdf",
+                filename=(
+                    report_data.get('report_filename')
+                    or os.path.basename(file_path)
                 ),
                 file_path=file_path,
                 generated_by=current_user.id,

@@ -6,6 +6,7 @@ Admins and Clerks can upload Excel files and trigger report generation.
 Viewers have no access to any endpoint in this controller.
 """
 from datetime import datetime
+import os
 
 from flask import (
     current_app, flash, redirect, render_template,
@@ -128,7 +129,7 @@ class UploadController:
             report_data = {
                 'month':               data.get('month'),
                 'year':                data.get('year'),
-                'report_filename':     data.get('report_filename'),
+                'report_filename':     os.path.basename(report_path),  # ← from actual path
                 'total_contributions': data.get('total_contributions', 0),
                 'num_contributors':    data.get('num_contributors', 0),
                 'num_missing':         data.get('num_missing', 0),
