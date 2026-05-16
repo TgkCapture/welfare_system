@@ -18,7 +18,7 @@ from flask_wtf.csrf import generate_csrf
 from app.config import config
 from app.extensions import csrf, db, login_manager
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 
 def create_app(env: str = None) -> Flask:
