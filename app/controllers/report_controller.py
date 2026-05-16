@@ -349,7 +349,7 @@ class ReportController:
             return [
                 {
                     'id': r.id,
-                    'month': r.month,
+                    'month': int(r.month) if r.month is not None else None,  # Convert to int
                     'year': r.year,
                     'total_contributions': r.total_contributions,
                     'contributors': r.contributors_count,
@@ -360,7 +360,7 @@ class ReportController:
                         round(r.file_size / (1024 * 1024), 2) if r.file_size else 0
                     ),
                     'is_archived': r.is_archived,
-                    'download_url': url_for('report.download_report', report_id=r.id),  
+                    'download_url': url_for('report.download_specific', report_id=r.id),
                     'preview_url': url_for('report.preview_specific', report_id=r.id),
                     'paid_members_url': url_for('report.paid_members_for_report', report_id=r.id),
                 }
