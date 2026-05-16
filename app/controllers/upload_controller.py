@@ -105,15 +105,13 @@ class UploadController:
             return redirect(url_for('report.preview'))
 
         except ValueError as e:
-            safe_msg = _ascii_safe(str(e))
-            current_app.logger.warning(f"Upload validation error: {safe_msg}")
-            flash(safe_msg, 'error')
+            current_app.logger.warning(f"Upload validation error: {e}")
+            flash(_ascii_safe(str(e)), 'error')
             return redirect(url_for('main.upload_dashboard'))
 
-        except ValueError as e:
-            safe_msg = _ascii_safe(str(e))
-            current_app.logger.warning(f"Upload validation error: {safe_msg}")
-            flash(safe_msg, 'error')
+        except Exception as e:
+            current_app.logger.error(f"Upload error: {e}", exc_info=True)
+            flash(f'Error generating report: {_ascii_safe(str(e))}', 'error')
             return redirect(url_for('main.upload_dashboard'))
 
         finally:
