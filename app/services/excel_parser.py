@@ -15,6 +15,10 @@ class ExcelParser:
     # Public API
     # ------------------------------------------------------------------
 
+    def _safe_col(value) -> str:
+        """Strip non-ASCII characters from column names for error messages."""
+        return str(value).encode('ascii', errors='replace').decode('ascii')
+
     @staticmethod
     def parse_excel(filepath: str, year: int = None, month: int = None) -> dict:
         """Parse *filepath* and return contribution data for *year*/*month*.
@@ -121,7 +125,7 @@ class ExcelParser:
                 return col
         raise ValueError(
             f"No column found for month '{month_name}'. "
-            f"Available columns: {list(df.columns)}"
+            f"Available columns: {[_safe_col(c) for c in df.columns]}"
         )
 
     @staticmethod
