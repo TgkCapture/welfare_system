@@ -1,201 +1,375 @@
-<!-- app/templates/main/upload_dashboard.html -->
 {% extends 'base.html' %}
-
-{% block title %}Upload Dashboard - Mzugoss Welfare{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/upload_dashboard.css') }}">
-{% endblock %}
+{% block title %}Generate Report — Mzugoss Welfare{% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
-    <!-- Welcome Section -->
-    <div class="welcome-section">
-        <div class="welcome-content">
-            <h1 class="welcome-title">
-                Welcome back, {{ current_user.email.split('@')[0]|title }}!
-                <span class="user-role-badge {{ user_role }}">{{ user_role|title }}</span>
-            </h1>
-            <p class="welcome-subtitle">
-                Generate contribution reports for your welfare group
-            </p>
-        </div>
-        <div class="welcome-icon">
-            <i class="fas fa-chart-line"></i>
-        </div>
-    </div>
-
-    <!-- Upload Card -->
-    <div class="upload-card glass-card">
-        <div class="card-header-section">
-            <div class="card-icon">
-                <i class="fas fa-file-excel"></i>
-            </div>
-            <div class="card-title-section">
-                <h2 class="card-title">Generate Contribution Report</h2>
-                <p class="card-subtitle">Upload Excel file or connect Google Sheets</p>
-            </div>
-        </div>
-
-        <!-- Stats Preview -->
-        <div class="stats-preview">
-            <div class="stat-item">
-                <i class="fas fa-calendar"></i>
-                <span id="selectedMonthYear">{{ month_names[month-1] }} {{ year }}</span>
-            </div>
-        </div>
-
-        <form action="{{ url_for('main.upload') }}" method="POST" enctype="multipart/form-data" class="upload-form" id="uploadForm">
-            <!-- Input Method Toggle -->
-            <div class="input-method-toggle">
-                <div class="toggle-header">
-                    <h4>Choose Input Method</h4>
-                </div>
-                <div class="toggle-options">
-                    <label class="toggle-option {% if not sheet_url %}active{% endif %}" for="file_upload_toggle">
-                        <input type="radio" name="input_method" id="file_upload_toggle" value="file" {% if not sheet_url %}checked{% endif %}>
-                        <div class="toggle-content">
-                            <i class="fas fa-file-upload"></i>
-                            <span>File Upload</span>
-                        </div>
-                    </label>
-                    
-                    <label class="toggle-option {% if sheet_url %}active{% endif %}" for="sheets_toggle">
-                        <input type="radio" name="input_method" id="sheets_toggle" value="sheets" {% if sheet_url %}checked{% endif %}>
-                        <div class="toggle-content">
-                            <i class="fab fa-google"></i>
-                            <span>Google Sheets</span>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
-            <!-- File Upload Section -->
-            <div class="form-section {% if not sheet_url %}active{% endif %}" id="file_upload_section">
-                <div class="file-upload-area" id="dropArea">
-                    <div class="upload-placeholder" id="uploadPlaceholder">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <h3>Drop your Excel file here</h3>
-                        <p>or click to browse files</p>
-                        <span class="file-types">Supports .xlsx, .xls</span>
-                    </div>
-                    <div class="file-preview" id="filePreview" style="display: none;">
-                        <i class="fas fa-file-excel"></i>
-                        <div class="file-info">
-                            <h4 id="fileName"></h4>
-                            <span class="file-size" id="fileSize"></span>
-                        </div>
-                        <button type="button" class="remove-file" id="removeFile">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <input type="file" name="file" id="file-upload" accept=".xlsx,.xls" 
-                        {% if sheet_url %}disabled{% else %}required{% endif %}>
-                </div>
-            </div>
-
-            <!-- Google Sheets Section -->
-            <div class="form-section {% if sheet_url %}active{% endif %}" id="sheets_section">
-                <div class="sheets-input-group">
-                    <label for="sheet_url">Google Sheets URL</label>
-                    <div class="input-with-icon">
-                        <i class="fab fa-google"></i>
-                        <input type="url" class="form-control" id="sheet_url" name="sheet_url" 
-                            value="{{ sheet_url }}" placeholder="https://docs.google.com/spreadsheets/d/..." 
-                            {% if not sheet_url %}disabled{% else %}required{% endif %}>
-                    </div>
-                    <small class="form-hint">
-                        Make sure the Google Sheet is shared with "Anyone with the link can view"
-                    </small>
-                </div>
-            </div>
-
-            <!-- Date Selection -->
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="year">Report Year</label>
-                    <select name="year" id="year" class="form-control" required>
-                        {% set current_year = year %}
-                        {% for y in range(2018, current_year + 1) %}
-                            <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="month">Report Month</label>
-                    <select name="month" id="month" class="form-control" required>
-                        {% for m in range(1, 13) %}
-                            <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ month_names[m-1] }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-
-            <!-- Submit Button -->
-            <button type="submit" class="btn btn-primary btn-upload" id="submitBtn">
-                <i class="fas fa-file-import"></i>
-                <span class="btn-text">Generate Report</span>
-                <div class="btn-loading" style="display: none;">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>Processing...</span>
-                </div>
-            </button>
-        </form>
-
-        <!-- Current Settings -->
-        {% if sheet_url %}
-        <div class="current-settings">
-            <div class="settings-header">
-                <i class="fas fa-cog"></i>
-                <span>Current Settings</span>
-            </div>
-            <div class="settings-content">
-                <p>
-                    <i class="fab fa-google"></i>
-                    Using Google Sheet: 
-                    <a href="{{ sheet_url }}" target="_blank" class="sheet-link">
-                        {{ sheet_url|truncate(50) }}
-                    </a>
-                </p>
-                <a href="{{ url_for('main.settings') }}" class="settings-link">
-                    <i class="fas fa-edit"></i>
-                    Change settings
-                </a>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- Quick Stats (if available) -->
-    {% if recent_reports %}
-    <div class="recent-reports">
-        <h3 class="section-title">Recent Reports</h3>
-        <div class="reports-grid">
-            {% for report in recent_reports %}
-            <div class="report-card">
-                <div class="report-header">
-                    <span class="report-date">{{ report.month }} {{ report.year }}</span>
-                    <span class="report-status success">Generated</span>
-                </div>
-                <div class="report-stats">
-                    <div class="report-stat">
-                        <span class="stat-value">MWK {{ "%.2f"|format(report.total) }}</span>
-                        <span class="stat-label">Total</span>
-                    </div>
-                    <div class="report-stat">
-                        <span class="stat-value">{{ report.contributors }}</span>
-                        <span class="stat-label">Contributors</span>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-file-upload"></i> Generate Report</h1>
+    <p class="page-header__sub">Upload an Excel file or pull from Google Sheets</p>
+  </div>
+  <div class="page-header__actions">
+    {% if current_user.is_admin %}
+      <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn--outline btn--sm">
+        <i class="fas fa-arrow-left"></i> Dashboard
+      </a>
+    {% else %}
+      <a href="{{ url_for('main.clerk_dashboard') }}" class="btn btn--outline btn--sm">
+        <i class="fas fa-arrow-left"></i> Dashboard
+      </a>
     {% endif %}
+  </div>
 </div>
-{% endblock %}
+
+<div class="upload-layout">
+
+  <!-- ── Upload card ── -->
+  <div class="card upload-card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-file-excel"></i> Contribution Data</h2>
+    </div>
+    <div class="card__body">
+      <form action="{{ url_for('main.upload') }}" method="POST"
+            enctype="multipart/form-data" id="uploadForm" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Input method toggle -->
+        <div class="method-toggle">
+          <label class="method-option" id="optFile">
+            <input type="radio" name="input_method" value="file"
+                   {{ 'checked' if not sheet_url }} id="radioFile">
+            <i class="fas fa-file-upload"></i>
+            <span>File Upload</span>
+          </label>
+          <label class="method-option" id="optSheets">
+            <input type="radio" name="input_method" value="sheets"
+                   {{ 'checked' if sheet_url }} id="radioSheets">
+            <i class="fab fa-google"></i>
+            <span>Google Sheets</span>
+          </label>
+        </div>
+
+        <!-- File upload section -->
+        <div class="upload-section" id="fileSection"
+             style="{{ 'display:none;' if sheet_url }}">
+          <div class="drop-zone" id="dropZone">
+            <div class="drop-zone__idle" id="dropIdle">
+              <i class="fas fa-cloud-upload-alt drop-zone__icon"></i>
+              <p class="drop-zone__title">Drop your Excel file here</p>
+              <p class="drop-zone__sub">or <span class="drop-zone__browse">click to browse</span></p>
+              <p class="drop-zone__hint">.xlsx and .xls supported</p>
+            </div>
+            <div class="drop-zone__preview" id="dropPreview" style="display:none;">
+              <i class="fas fa-file-excel drop-zone__file-icon"></i>
+              <div class="drop-zone__file-info">
+                <div class="drop-zone__file-name" id="fileName"></div>
+                <div class="drop-zone__file-size text-muted text-sm" id="fileSize"></div>
+              </div>
+              <button type="button" class="btn btn--outline btn--sm btn--icon" id="removeFile"
+                      aria-label="Remove file">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+          <input type="file" name="file" id="fileInput"
+                 accept=".xlsx,.xls" class="sr-only"
+                 {{ 'required' if not sheet_url }}>
+        </div>
+
+        <!-- Google Sheets section -->
+        <div class="upload-section" id="sheetsSection"
+             style="{{ '' if sheet_url else 'display:none;' }}">
+          <div class="form-group">
+            <label class="form-label" for="sheet_url">
+              <i class="fab fa-google"></i> Google Sheets URL
+            </label>
+            <div class="input-wrap">
+              <i class="input-icon fab fa-google"></i>
+              <input type="url" id="sheet_url" name="sheet_url"
+                     class="form-control"
+                     value="{{ sheet_url }}"
+                     placeholder="https://docs.google.com/spreadsheets/d/…"
+                     {{ 'required' if sheet_url }}>
+            </div>
+            <p class="form-hint">
+              The sheet must be shared with view access for the service account.
+            </p>
+          </div>
+          {% if sheet_url %}
+          <div class="sheets-current">
+            <i class="fas fa-link"></i>
+            <a href="{{ sheet_url }}" target="_blank" rel="noopener" class="sheets-current__link">
+              {{ sheet_url|truncate(55) }}
+            </a>
+            <a href="{{ url_for('main.settings') }}" class="btn btn--outline btn--sm">
+              <i class="fas fa-edit"></i> Change
+            </a>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Date selection -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="year">
+              <i class="fas fa-calendar"></i> Year
+            </label>
+            <select name="year" id="year" class="form-control" required>
+              {% for y in range(2018, year + 1) %}
+                <option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="month">
+              <i class="fas fa-calendar-alt"></i> Month
+            </label>
+            <select name="month" id="month" class="form-control" required>
+              {% for m in range(1, 13) %}
+                <option value="{{ m }}" {{ 'selected' if m == month }}>
+                  {{ month_names[m-1] }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Preview label -->
+        <div class="period-preview">
+          <i class="fas fa-calendar-check"></i>
+          Generating report for <strong id="periodLabel">{{ month_names[month-1] }} {{ year }}</strong>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="btn btn--primary btn--full btn--lg" id="submitBtn">
+          <i class="fas fa-file-import"></i>
+          <span id="submitText">Generate Report</span>
+        </button>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Recent reports sidebar ── -->
+  {% if recent_reports %}
+  <div class="card upload-sidebar">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-history"></i> Recent</h2>
+      <a href="{{ url_for('report.list') }}" class="btn btn--outline btn--sm">All</a>
+    </div>
+    <div class="card__body" style="padding:0;">
+      <ul>
+        {% for r in recent_reports %}
+        <li class="report-row">
+          <div>
+            <div style="font-weight:600;font-size:.875rem;">{{ r.month }} {{ r.year }}</div>
+            <div class="text-xs text-muted">{{ r.generated_date }}</div>
+          </div>
+          <div class="report-row__stats">
+            <span class="badge badge--primary">{{ r.contributors }}</span>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+</div><!-- /upload-layout -->
+
+<style>
+.upload-layout {
+  display: grid;
+  grid-template-columns: 1fr 18rem;
+  gap: 1.25rem;
+  align-items: start;
+}
+.upload-sidebar { min-width: 0; }
+
+.method-toggle {
+  display: flex; gap: .5rem; margin-bottom: 1.5rem;
+  background: var(--clr-slate-100);
+  border-radius: var(--r-lg); padding: .25rem;
+}
+.method-option {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: .5rem;
+  padding: .625rem; border-radius: var(--r-md);
+  font-size: .875rem; font-weight: 600;
+  color: var(--txt-muted); cursor: pointer;
+  transition: background var(--t), color var(--t), box-shadow var(--t);
+  user-select: none;
+}
+.method-option input { display: none; }
+.method-option.is-active {
+  background: var(--bg-card); color: var(--clr-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--r-xl);
+  padding: 2rem 1.5rem;
+  text-align: center; cursor: pointer;
+  transition: border-color var(--t), background var(--t);
+  margin-bottom: 1.25rem;
+}
+.drop-zone:hover, .drop-zone.is-over {
+  border-color: var(--clr-primary); background: var(--clr-primary-pale);
+}
+.drop-zone.has-file { border-style: solid; border-color: var(--clr-success); }
+.drop-zone__icon { font-size: 2.5rem; color: var(--clr-primary); margin-bottom: .75rem; }
+.drop-zone__title { font-weight: 700; font-size: 1rem; margin-bottom: .25rem; }
+.drop-zone__sub   { font-size: .875rem; color: var(--txt-muted); }
+.drop-zone__browse{ color: var(--clr-primary); text-decoration: underline; cursor: pointer; }
+.drop-zone__hint  { font-size: .75rem; color: var(--txt-muted); margin-top: .375rem; }
+.drop-zone__preview {
+  display: flex; align-items: center; gap: .875rem; justify-content: center;
+}
+.drop-zone__file-icon { font-size: 2rem; color: var(--clr-success); flex-shrink: 0; }
+.drop-zone__file-name { font-weight: 600; font-size: .9rem; }
+
+.form-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;
+}
+.period-preview {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .75rem 1rem; border-radius: var(--r-lg);
+  background: var(--clr-primary-pale); color: var(--clr-primary);
+  font-size: .875rem; margin-bottom: 1.25rem;
+}
+.sheets-current {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .75rem; border-radius: var(--r-lg);
+  background: var(--clr-slate-50); border: 1px solid var(--border);
+  font-size: .8125rem; color: var(--txt-muted);
+  margin-top: .75rem;
+}
+.sheets-current__link {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--clr-primary);
+}
+.upload-section { margin-bottom: .5rem; }
+
+.report-row {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.report-row:last-child { border-bottom: 0; }
+.report-row__stats { margin-left: auto; }
+
+@media (max-width: 900px) {
+  .upload-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .form-row { grid-template-columns: 1fr; }
+}
+</style>
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/upload_dashboard.js') }}"></script>
+<script>
+(function() {
+  /* Method toggle */
+  const radioFile   = document.getElementById('radioFile');
+  const radioSheets = document.getElementById('radioSheets');
+  const optFile     = document.getElementById('optFile');
+  const optSheets   = document.getElementById('optSheets');
+  const fileSection   = document.getElementById('fileSection');
+  const sheetsSection = document.getElementById('sheetsSection');
+  const fileInput   = document.getElementById('fileInput');
+  const sheetInput  = document.querySelector('#sheetsSection input[name="sheet_url"]');
+
+  function setMethod(method) {
+    const isFile = method === 'file';
+    fileSection.style.display   = isFile ? '' : 'none';
+    sheetsSection.style.display = isFile ? 'none' : '';
+    optFile.classList.toggle('is-active', isFile);
+    optSheets.classList.toggle('is-active', !isFile);
+    if (fileInput)  fileInput.required  = isFile;
+    if (sheetInput) sheetInput.required = !isFile;
+  }
+
+  // Initialise
+  setMethod(radioFile && radioFile.checked ? 'file' : 'sheets');
+  optFile   && optFile.addEventListener('click',   () => setMethod('file'));
+  optSheets && optSheets.addEventListener('click', () => setMethod('sheets'));
+
+  /* Drop zone */
+  const dropZone  = document.getElementById('dropZone');
+  const dropIdle  = document.getElementById('dropIdle');
+  const dropPrev  = document.getElementById('dropPreview');
+  const fileName  = document.getElementById('fileName');
+  const fileSize  = document.getElementById('fileSize');
+  const removBtn  = document.getElementById('removeFile');
+
+  function showFile(file) {
+    if (!file) return;
+    fileName.textContent = file.name;
+    fileSize.textContent = (file.size / 1024).toFixed(0) + ' KB';
+    dropIdle.style.display = 'none';
+    dropPrev.style.display = 'flex';
+    dropZone.classList.add('has-file');
+    dropZone.classList.remove('is-over');
+  }
+  function clearFile() {
+    if (fileInput) fileInput.value = '';
+    dropIdle.style.display = '';
+    dropPrev.style.display = 'none';
+    dropZone.classList.remove('has-file', 'is-over');
+  }
+
+  dropZone && dropZone.addEventListener('click', (e) => {
+    if (e.target === removBtn || removBtn.contains(e.target)) return;
+    fileInput && fileInput.click();
+  });
+  fileInput && fileInput.addEventListener('change', () => {
+    showFile(fileInput.files[0]);
+  });
+  removBtn && removBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); clearFile();
+  });
+
+  ['dragover','dragenter'].forEach(ev => {
+    dropZone && dropZone.addEventListener(ev, (e) => {
+      e.preventDefault(); dropZone.classList.add('is-over');
+    });
+  });
+  ['dragleave','dragend'].forEach(ev => {
+    dropZone && dropZone.addEventListener(ev, () => dropZone.classList.remove('is-over'));
+  });
+  dropZone && dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (fileInput && file) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+    }
+    showFile(file);
+  });
+
+  /* Period label */
+  const yearSel  = document.getElementById('year');
+  const monthSel = document.getElementById('month');
+  const periodLbl= document.getElementById('periodLabel');
+  const months   = {{ month_names|tojson }};
+
+  function updateLabel() {
+    if (!periodLbl || !yearSel || !monthSel) return;
+    const m = parseInt(monthSel.value, 10);
+    periodLbl.textContent = (months[m-1] || '') + ' ' + yearSel.value;
+  }
+  yearSel  && yearSel.addEventListener('change', updateLabel);
+  monthSel && monthSel.addEventListener('change', updateLabel);
+
+  /* Submit loading state */
+  const form       = document.getElementById('uploadForm');
+  const submitBtn  = document.getElementById('submitBtn');
+  const submitText = document.getElementById('submitText');
+  form && form.addEventListener('submit', () => {
+    if (submitBtn) submitBtn.disabled = true;
+    if (submitText) submitText.textContent = 'Processing…';
+  });
+})();
+</script>
+{% endblock %}
 {% endblock %}

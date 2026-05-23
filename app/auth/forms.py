@@ -1,96 +1,169 @@
 # app/auth/forms.py
+"""
+WTForms form definitions for authentication and user management.
+"""
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SelectField, SubmitField
-from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Optional
+from wtforms import (
+    BooleanField,
+    PasswordField,
+    SelectField,
+    StringField,
+    SubmitField,
+)
+from wtforms.validators import (
+    DataRequired,
+    Email,
+    EqualTo,
+    Length,
+    ValidationError,
+)
+
 from app.models.user import User
 
+
+# ---------------------------------------------------------------------------
+# Auth forms
+# ---------------------------------------------------------------------------
+
 class LoginForm(FlaskForm):
-    email = StringField('Email', validators=[
-        DataRequired("Email is required"),
-        Email("Please enter a valid email address")
-    ], render_kw={"placeholder": "your@email.com"})
-    
-    password = PasswordField('Password', validators=[
-        DataRequired("Password is required")
-    ], render_kw={"placeholder": "••••••••"})
-    
-    remember = BooleanField('Remember Me')
-    submit = SubmitField('Login', render_kw={"class": "btn btn-primary"})
+    """Standard email + password login."""
+
+    email    = StringField(
+        'Email',
+        validators=[DataRequired(), Email(), Length(max=150)],
+        render_kw={'placeholder': 'you@example.com', 'autocomplete': 'email'},
+    )
+    password = PasswordField(
+        'Password',
+        validators=[DataRequired()],
+        render_kw={'placeholder': '••••••••', 'autocomplete': 'current-password'},
+    )
+    remember = BooleanField('Remember me')
+    submit   = SubmitField('Log In')
+
 
 class RegisterForm(FlaskForm):
-    email = StringField('Email', validators=[
-        DataRequired("Email is required"),
-        Email("Please enter a valid email address")
-    ], render_kw={"placeholder": "your@email.com"})
-    
-    password = PasswordField('Password', validators=[
-        DataRequired("Password is required"),
-        Length(min=8, message="Password must be at least 8 characters")
-    ], render_kw={"placeholder": "••••••••"})
-    
-    confirm = PasswordField('Confirm Password', validators=[
-        DataRequired("Please confirm your password"),
-        EqualTo('password', message='Passwords must match')
-    ], render_kw={"placeholder": "••••••••"})
-    
-    role = SelectField('Role', 
-                      choices=[('viewer', 'Viewer'), ('clerk', 'Clerk'), ('admin', 'Admin')],
-                      default='viewer')
-    
-    submit = SubmitField('Register', render_kw={"class": "btn btn-primary"})
+    """New user registration — used for both public and admin flows."""
+
+    email    = StringField(
+        'Email',
+        validators=[DataRequired(), Email(), Length(max=150)],
+        render_kw={'placeholder': 'you@example.com'},
+    )
+    password = PasswordField(
+        'Password',
+        validators=[
+            DataRequired(),
+            Length(min=8, message='Password must be at least 8 characters.'),
+        ],
+        render_kw={'placeholder': 'Min. 8 characters'},
+    )
+    confirm_password = PasswordField(
+        'Confirm Password',
+        validators=[
+            DataRequired(),
+            EqualTo('password', message='Passwords must match.'),
+        ],
+        render_kw={'placeholder': 'Repeat password'},
+    )
+    # Choices are overridden in the controller depending on the caller's role
+    role   = SelectField(
+        'Role',
+        choices=[
+            ('admin',  'Administrator'),
+            ('clerk',  'Clerk'),
+            ('viewer', 'Viewer'),
+        ],
+        default='viewer',
+    )
+    submit = SubmitField('Create Account')
+
+    # ── Custom validators ──────────────────────────────────────────────
+
+    def validate_email(self, field):
+        """Reject emails already registered."""
+        if User.query.filter_by(email=field.data).first():
+            raise ValidationError('That email address is already registered.')
+
+    def validate_role(self, field):
+        """Ensure the submitted role is a known value."""
+        User.validate_role(field.data)
+
+
+# ---------------------------------------------------------------------------
+# Admin / clerk user-edit form
+# ---------------------------------------------------------------------------
 
 class UserEditForm(FlaskForm):
-    email = StringField('Email', validators=[
-        DataRequired("Email is required"),
-        Email("Please enter a valid email address")
-    ])
-    
-    role = SelectField('Role', 
-                      choices=[('viewer', 'Viewer'), ('clerk', 'Clerk'), ('admin', 'Admin')])
-    
-    is_active = BooleanField('Active')
-    
-    new_password = PasswordField('New Password (optional)', validators=[
-        Optional(),
-        Length(min=8, message='Password must be at least 8 characters')
-    ])
-    
-    confirm_password = PasswordField('Confirm Password', validators=[
-        Optional(),
-        EqualTo('new_password', message='Passwords must match')
-    ])
-    
-    submit = SubmitField('Update User', render_kw={"class": "btn btn-primary"})
+    """Edit an existing user's email, role and active status."""
 
-class ChangePasswordForm(FlaskForm):
-    current_password = PasswordField('Current Password', validators=[
-        DataRequired("Current password is required")
-    ], render_kw={"placeholder": "Enter current password"})
-    
-    new_password = PasswordField('New Password', validators=[
-        DataRequired("New password is required"),
-        Length(min=8, message='Password must be at least 8 characters')
-    ], render_kw={"placeholder": "Enter new password"})
-    
-    confirm_password = PasswordField('Confirm New Password', validators=[
-        DataRequired("Please confirm new password"),
-        EqualTo('new_password', message='Passwords must match')
-    ], render_kw={"placeholder": "Confirm new password"})
-    
-    submit = SubmitField('Change Password', render_kw={"class": "btn btn-primary"})
+    email     = StringField(
+        'Email',
+        validators=[DataRequired(), Email(), Length(max=150)],
+    )
+    role      = SelectField(
+        'Role',
+        choices=[
+            ('admin',  'Administrator'),
+            ('clerk',  'Clerk'),
+            ('viewer', 'Viewer'),
+        ],
+    )
+    is_active = BooleanField('Active')
+    submit    = SubmitField('Save Changes')
+
+    def __init__(self, *args, original_email: str = None, **kwargs):
+        """Store the original email so the unique-check can exclude self."""
+        super().__init__(*args, **kwargs)
+        self._original_email = original_email
+
+    def validate_email(self, field):
+        """Reject emails taken by a *different* account."""
+        if field.data == self._original_email:
+            return   # unchanged — no conflict possible
+        if User.query.filter_by(email=field.data).first():
+            raise ValidationError('That email address is already in use.')
+
+    def validate_role(self, field):
+        User.validate_role(field.data)
+
+
+# ---------------------------------------------------------------------------
+# Profile forms
+# ---------------------------------------------------------------------------
 
 class ProfileForm(FlaskForm):
-    email = StringField('Email', validators=[
-        DataRequired("Email is required"),
-        Email("Please enter a valid email address")
-    ], render_kw={"placeholder": "your@email.com"})
-    
-    submit = SubmitField('Save Changes', render_kw={"class": "btn btn-primary"})
-    
-    def validate_email(self, email):
-        # This validation only runs when the form is submitted
-        # Check if email already exists for another user
-        if hasattr(self, '_obj'):
-            user = User.query.filter(User.email == email.data, User.id != self._obj.id).first()
-            if user:
-                raise ValidationError('Email already registered')
+    """Update the current user's own email address."""
+
+    email  = StringField(
+        'Email',
+        validators=[DataRequired(), Email(), Length(max=150)],
+    )
+    submit = SubmitField('Update Profile')
+
+
+class ChangePasswordForm(FlaskForm):
+    """Authenticated password change — requires the current password."""
+
+    current_password = PasswordField(
+        'Current Password',
+        validators=[DataRequired()],
+        render_kw={'placeholder': 'Current password'},
+    )
+    new_password = PasswordField(
+        'New Password',
+        validators=[
+            DataRequired(),
+            Length(min=8, message='Password must be at least 8 characters.'),
+        ],
+        render_kw={'placeholder': 'New password'},
+    )
+    confirm_password = PasswordField(
+        'Confirm New Password',
+        validators=[
+            DataRequired(),
+            EqualTo('new_password', message='Passwords must match.'),
+        ],
+        render_kw={'placeholder': 'Repeat new password'},
+    )
+    submit = SubmitField('Change Password')

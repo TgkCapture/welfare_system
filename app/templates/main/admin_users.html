@@ -1,208 +1,148 @@
 <!-- app/templates/main/admin_users.html -->
 {% extends 'base.html' %}
-
-{% block title %}User Management - Mzugoss Welfare{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_users.css') }}">
-{% endblock %}
+{% block title %}User Management — Mzugoss Welfare{% endblock %}
 
 {% block content %}
-<div class="admin-users">
-    <!-- Header -->
-    <div class="page-header">
-        <div class="header-content">
-            <h1 class="page-title">
-                <i class="fas fa-users-cog"></i>
-                User Management
-            </h1>
-            <p class="page-subtitle">
-                Manage system users and permissions
-            </p>
-        </div>
-        <div class="header-actions">
-            <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn-outline">
-                <i class="fas fa-arrow-left"></i>
-                Back to Dashboard
-            </a>
-            <a href="{{ url_for('main.create_user') }}" class="btn btn-primary">
-                <i class="fas fa-user-plus"></i>
-                Add User
-            </a>
-        </div>
-    </div>
-
-    <!-- Users Table -->
-    <div class="content-card">
-        <div class="table-responsive">
-            <table class="users-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>User</th>
-                        <th>Role</th>
-                        <th>Status</th>
-                        <th>Created</th>
-                        <th>Last Login</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in users %}
-                    <tr class="{{ 'current-user' if user.id == current_user.id }}">
-                        <td class="user-id">{{ user.id }}</td>
-                        <td class="user-info">
-                            <div class="user-avatar">
-                                <i class="fas fa-user-circle"></i>
-                            </div>
-                            <div class="user-details">
-                                <strong>{{ user.email }}</strong>
-                                <small>{{ user.role|title }}</small>
-                            </div>
-                        </td>
-                        <td class="user-role">
-                            <span class="role-badge {{ user.role }}">
-                                <i class="fas fa-{{ 'user-shield' if user.role == 'admin' else 'user-edit' if user.role == 'clerk' else 'user' }}"></i>
-                                {{ user.role|title }}
-                            </span>
-                        </td>
-                        <td class="user-status">
-                            <span class="status-badge {{ 'active' if user.is_active else 'inactive' }}">
-                                <i class="fas fa-{{ 'check-circle' if user.is_active else 'times-circle' }}"></i>
-                                {{ 'Active' if user.is_active else 'Inactive' }}
-                            </span>
-                        </td>
-                        <td class="user-created">
-                            {{ user.created_at.strftime('%Y-%m-%d') }}
-                        </td>
-                        <td class="user-login">
-                            {% if user.last_login %}
-                                {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
-                            {% else %}
-                                <span class="text-muted">Never</span>
-                            {% endif %}
-                        </td>
-                        <td class="user-actions">
-                            <div class="action-buttons">
-                                {% if user.id != current_user.id %}
-                                <a href="{{ url_for('main.edit_user', user_id=user.id) }}" 
-                                   class="btn btn-sm btn-outline" 
-                                   title="Edit User">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                
-                                <form action="{{ url_for('main.toggle_user_active', user_id=user.id) }}" 
-                                      method="POST" 
-                                      class="inline-form">
-                                    <button type="submit" 
-                                            class="btn btn-sm {{ 'btn-warning' if user.is_active else 'btn-success' }}"
-                                            title="{{ 'Deactivate' if user.is_active else 'Activate' }}">
-                                        <i class="fas fa-{{ 'ban' if user.is_active else 'check' }}"></i>
-                                    </button>
-                                </form>
-                                
-                                <button type="button" 
-                                        class="btn btn-sm btn-danger delete-user-btn"
-                                        data-user-id="{{ user.id }}"
-                                        data-user-email="{{ user.email }}"
-                                        title="Delete User">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                                {% else %}
-                                <a href="{{ url_for('auth.profile') }}" 
-                                   class="btn btn-sm btn-outline"
-                                   title="Edit Profile">
-                                    <i class="fas fa-user-edit"></i>
-                                </a>
-                                <span class="text-muted small">(Current User)</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Empty State -->
-        {% if not users %}
-        <div class="empty-state">
-            <i class="fas fa-users-slash"></i>
-            <h3>No Users Found</h3>
-            <p>No users have been created yet.</p>
-            <a href="{{ url_for('main.create_user') }}" class="btn btn-primary">
-                <i class="fas fa-user-plus"></i>
-                Create First User
-            </a>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- Statistics -->
-    <div class="stats-summary">
-        <div class="stat-card">
-            <div class="stat-icon">
-                <i class="fas fa-users"></i>
-            </div>
-            <div class="stat-content">
-                <h3>{{ users|length }}</h3>
-                <p>Total Users</p>
-            </div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-icon">
-                <i class="fas fa-user-shield"></i>
-            </div>
-            <div class="stat-content">
-                <h3>{{ users|selectattr('role', 'equalto', 'admin')|list|length }}</h3>
-                <p>Admins</p>
-            </div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-icon">
-                <i class="fas fa-user-edit"></i>
-            </div>
-            <div class="stat-content">
-                <h3>{{ users|selectattr('role', 'equalto', 'clerk')|list|length }}</h3>
-                <p>Clerks</p>
-            </div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-icon">
-                <i class="fas fa-user"></i>
-            </div>
-            <div class="stat-content">
-                <h3>{{ users|selectattr('role', 'equalto', 'viewer')|list|length }}</h3>
-                <p>Viewers</p>
-            </div>
-        </div>
-    </div>
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-users-cog"></i> User Management</h1>
+    <p class="page-header__sub">Manage system users and permissions</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Dashboard
+    </a>
+    <a href="{{ url_for('main.create_user') }}" class="btn btn--primary btn--sm">
+      <i class="fas fa-user-plus"></i> Add User
+    </a>
+  </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal" id="deleteUserModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Delete User</h3>
-            <button class="close-modal">&times;</button>
-        </div>
-        <div class="modal-body">
-            <p>Are you sure you want to delete user <strong id="deleteUserName"></strong>?</p>
-            <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> This action cannot be undone.</p>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline cancel-delete">Cancel</button>
-            <form id="deleteUserForm" method="POST" action="">
-                <button type="submit" class="btn btn-danger">Delete User</button>
-            </form>
-        </div>
+<!-- Mini stats -->
+<div class="stats-grid" style="margin-bottom:1.25rem;">
+  {% for role, icon in [('admin','user-shield'),('clerk','user-edit'),('viewer','user')] %}
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--{{ 'purple' if role=='admin' else 'amber' if role=='clerk' else 'cyan' }}">
+      <i class="fas fa-{{ icon }}"></i>
     </div>
+    <div>
+      <div class="stat-card__value">{{ users|selectattr('role','equalto',role)|list|length }}</div>
+      <div class="stat-card__label">{{ role|title }}s</div>
+    </div>
+  </div>
+  {% endfor %}
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--green"><i class="fas fa-check-circle"></i></div>
+    <div>
+      <div class="stat-card__value">{{ users|selectattr('is_active')|list|length }}</div>
+      <div class="stat-card__label">Active</div>
+    </div>
+  </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/admin_users.js') }}"></script>
+<div class="card">
+  <div class="table-wrap">
+    {% if users %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Last Login</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr class="{{ 'row--highlight' if u.id == current_user.id }}">
+          <td>
+            <div style="display:flex;align-items:center;gap:.625rem;">
+              <span class="topnav__avatar" style="width:2rem;height:2rem;font-size:.75rem;">
+                {{ u.email[0]|upper }}
+              </span>
+              <span style="font-size:.875rem;font-weight:600;">{{ u.email }}</span>
+            </div>
+          </td>
+          <td><span class="role-badge role-badge--{{ u.role }}">{{ u.role|title }}</span></td>
+          <td>
+            <span class="status-dot status-dot--{{ 'active' if u.is_active else 'inactive' }}">
+              {{ 'Active' if u.is_active else 'Inactive' }}
+            </span>
+          </td>
+          <td class="text-sm text-muted">{{ u.created_at.strftime('%Y-%m-%d') }}</td>
+          <td class="text-sm text-muted">
+            {{ u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else '—' }}
+          </td>
+          <td>
+            {% if u.id != current_user.id %}
+            <div style="display:flex;gap:.375rem;flex-wrap:wrap;">
+              <a href="{{ url_for('main.edit_user', user_id=u.id) }}"
+                 class="btn btn--outline btn--sm" title="Edit">
+                <i class="fas fa-edit"></i>
+              </a>
+              <form method="POST" action="{{ url_for('main.toggle_user_active', user_id=u.id) }}"
+                    data-confirm="{{ 'Deactivate' if u.is_active else 'Activate' }} {{ u.email }}?">
+                <button type="submit"
+                        class="btn btn--sm {{ 'btn--warning' if u.is_active else 'btn--success' }}"
+                        title="{{ 'Deactivate' if u.is_active else 'Activate' }}">
+                  <i class="fas fa-{{ 'ban' if u.is_active else 'check' }}"></i>
+                </button>
+              </form>
+              <button type="button" class="btn btn--danger btn--sm"
+                      title="Delete"
+                      data-modal-open="delModal{{ u.id }}">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+            {% else %}
+            <a href="{{ url_for('auth.profile') }}" class="btn btn--outline btn--sm">
+              <i class="fas fa-user-edit"></i> Profile
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="fas fa-users-slash"></i>
+      <h3>No users yet</h3>
+      <p>Create the first user account to get started.</p>
+      <a href="{{ url_for('main.create_user') }}" class="btn btn--primary btn--sm">
+        <i class="fas fa-user-plus"></i> Add user
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Delete modals -->
+{% for u in users %}
+{% if u.id != current_user.id %}
+<div class="modal-backdrop" id="delModal{{ u.id }}">
+  <div class="modal">
+    <div class="modal__header">
+      <h3 class="modal__title">Delete User</h3>
+      <button class="modal__close" data-modal-close="delModal{{ u.id }}" aria-label="Close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal__body">
+      <p>Delete <strong>{{ u.email }}</strong>? This cannot be undone.</p>
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn--outline" data-modal-close="delModal{{ u.id }}">Cancel</button>
+      <form method="POST" action="{{ url_for('main.delete_user', user_id=u.id) }}">
+        <button type="submit" class="btn btn--danger">
+          <i class="fas fa-trash"></i> Delete
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
 {% endblock %}

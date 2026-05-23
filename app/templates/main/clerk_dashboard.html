@@ -1,369 +1,257 @@
 <!-- app/templates/main/clerk_dashboard.html -->
 {% extends 'base.html' %}
-
-{% block title %}Clerk Dashboard - Mzugoss Welfare{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/clerk_dashboard.css') }}">
-{% endblock %}
+{% block title %}Clerk Dashboard — Mzugoss Welfare{% endblock %}
 
 {% block content %}
-<div class="clerk-dashboard">
-    <!-- Welcome Section -->
-    <div class="welcome-section">
-        <div class="welcome-content">
-            <h1 class="welcome-title">
-                <i class="fas fa-user-edit"></i>
-                Clerk Dashboard
-            </h1>
-            <p class="welcome-subtitle">
-                Report generation and data management tools
-            </p>
-        </div>
-        <div class="welcome-icon">
-            <i class="fas fa-file-alt"></i>
-        </div>
-    </div>
-
-    <!-- Quick Stats -->
-    <div class="stats-grid">
-        <!-- Reports Card -->
-        <div class="stat-card card-primary">
-            <div class="stat-icon">
-                <i class="fas fa-file-pdf"></i>
-            </div>
-            <div class="stat-content">
-                <h3 class="stat-value">{{ reports_generated }}</h3>
-                <p class="stat-label">Reports Generated</p>
-                <div class="stat-details">
-                    <span class="detail-item">
-                        <i class="fas fa-history"></i>
-                        This session
-                    </span>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Google Sheets Card -->
-        <div class="stat-card {{ 'card-success' if sheets_status.configured else 'card-warning' }}">
-            <div class="stat-icon">
-                <i class="fab fa-google"></i>
-            </div>
-            <div class="stat-content">
-                <h3 class="stat-value">
-                    {% if sheets_status.configured %}
-                        <i class="fas fa-check"></i>
-                    {% else %}
-                        <i class="fas fa-times"></i>
-                    {% endif %}
-                </h3>
-                <p class="stat-label">Google Sheets</p>
-                <div class="stat-details">
-                    <span class="detail-item">
-                        {% if sheets_status.configured %}
-                            Connected
-                        {% else %}
-                            Not Configured
-                        {% endif %}
-                    </span>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Activity Card -->
-        <div class="stat-card card-info">
-            <div class="stat-icon">
-                <i class="fas fa-user-clock"></i>
-            </div>
-            <div class="stat-content">
-                <h3 class="stat-value">
-                    <i class="fas fa-sign-in-alt"></i>
-                </h3>
-                <p class="stat-label">Last Login</p>
-                <div class="stat-details">
-                    <span class="detail-item">
-                        <i class="fas fa-calendar"></i>
-                        {{ last_login }}
-                    </span>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Current Month Card -->
-        <div class="stat-card card-secondary">
-            <div class="stat-icon">
-                <i class="fas fa-calendar-alt"></i>
-            </div>
-            <div class="stat-content">
-                <h3 class="stat-value">{{ current_date.strftime('%B') }}</h3>
-                <p class="stat-label">Current Month</p>
-                <div class="stat-details">
-                    <span class="detail-item">
-                        <i class="fas fa-calendar-day"></i>
-                        {{ current_date.strftime('%Y') }}
-                    </span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Content Grid -->
-    <div class="content-grid">
-        <!-- Quick Actions -->
-        <div class="content-card">
-            <div class="card-header">
-                <h2 class="card-title">
-                    <i class="fas fa-bolt"></i>
-                    Quick Actions
-                </h2>
-            </div>
-            <div class="card-body">
-                <div class="actions-grid">
-                    <a href="{{ url_for('main.upload_dashboard') }}" class="action-item action-primary">
-                        <div class="action-icon">
-                            <i class="fas fa-file-upload"></i>
-                        </div>
-                        <div class="action-content">
-                            <h4>Generate Report</h4>
-                            <p>Create new contribution reports from Excel or Google Sheets</p>
-                        </div>
-                    </a>
-
-                    <a href="{{ url_for('main.clerk_users') }}" class="action-item">
-                        <div class="action-icon">
-                            <i class="fas fa-user-plus"></i>
-                        </div>
-                        <div class="action-content">
-                            <h4>Manage Viewers</h4>
-                            <p>Add, edit, or disable viewer accounts</p>
-                        </div>
-                    </a>
-                    
-                    <a href="{{ url_for('report.list') }}" class="action-item action-secondary">
-                        <div class="action-icon">
-                            <i class="fas fa-file-alt"></i>
-                        </div>
-                        <div class="action-content">
-                            <h4>View Reports</h4>
-                            <p>Browse and download previously generated reports</p>
-                        </div>
-                    </a>
-                    
-                    <a href="{{ url_for('main.welfare_rules') }}" class="action-item action-info">
-                        <div class="action-icon">
-                            <i class="fas fa-book"></i>
-                        </div>
-                        <div class="action-content">
-                            <h4>Welfare Rules</h4>
-                            <p>View and download welfare system rules and guidelines</p>
-                        </div>
-                    </a>
-                    
-                    <a href="{{ url_for('main.settings') }}" class="action-item action-warning">
-                        <div class="action-icon">
-                            <i class="fas fa-cog"></i>
-                        </div>
-                        <div class="action-content">
-                            <h4>Settings</h4>
-                            <p>Configure Google Sheets and other system settings</p>
-                        </div>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Reports -->
-        <div class="content-card">
-            <div class="card-header">
-                <h2 class="card-title">
-                    <i class="fas fa-history"></i>
-                    Recent Reports
-                </h2>
-                <span class="badge">This Session</span>
-            </div>
-            <div class="card-body">
-                {% if recent_reports %}
-                <div class="reports-list">
-                    {% for report in recent_reports %}
-                    <div class="report-item">
-                        <div class="report-header">
-                            <div class="report-period">
-                                <i class="fas fa-calendar"></i>
-                                {{ report.month }} {{ report.year }}
-                            </div>
-                            <div class="report-actions">
-                                <a href="{{ report.download_url }}" class="btn btn-sm btn-outline" title="Download Report">
-                                    <i class="fas fa-download"></i>
-                                </a>
-                            </div>
-                        </div>
-                        <div class="report-stats">
-                            <span class="stat">
-                                <i class="fas fa-money-bill-wave"></i>
-                                MWK {{ "%.2f"|format(report.total_contributions) }}
-                            </span>
-                            <span class="stat">
-                                <i class="fas fa-users"></i>
-                                {{ report.contributors }} contributors
-                            </span>
-                            {% if report.defaulters %}
-                            <span class="stat stat-warning">
-                                <i class="fas fa-user-times"></i>
-                                {{ report.defaulters }} defaulters
-                            </span>
-                            {% endif %}
-                        </div>
-                        <div class="report-footer">
-                            <span class="report-date">
-                                <i class="fas fa-clock"></i>
-                                {{ report.generated_date }}
-                            </span>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="empty-state">
-                    <i class="fas fa-file-pdf"></i>
-                    <h3>No Reports Generated</h3>
-                    <p>You haven't generated any reports yet. Start by clicking "Generate Report" above.</p>
-                    <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn-primary">
-                        <i class="fas fa-file-upload"></i>
-                        Generate First Report
-                    </a>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Google Sheets Status -->
-        <div class="content-card">
-            <div class="card-header">
-                <h2 class="card-title">
-                    <i class="fab fa-google"></i>
-                    Google Sheets Integration
-                </h2>
-            </div>
-            <div class="card-body">
-                {% if sheets_status.configured %}
-                <div class="sheets-status connected">
-                    <div class="status-header">
-                        <i class="fas fa-check-circle status-icon"></i>
-                        <h4>Connected to Google Sheets</h4>
-                    </div>
-                    <p class="status-description">
-                        You can generate reports directly from Google Sheets. Make sure your Google Sheets URL is correct and accessible.
-                    </p>
-                    <div class="status-actions">
-                        <a href="{{ url_for('main.settings') }}" class="btn btn-sm btn-outline">
-                            <i class="fas fa-cog"></i>
-                            Update Settings
-                        </a>
-                        <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn-sm btn-primary">
-                            <i class="fas fa-file-upload"></i>
-                            Generate from Sheets
-                        </a>
-                    </div>
-                </div>
-                {% else %}
-                <div class="sheets-status disconnected">
-                    <div class="status-header">
-                        <i class="fas fa-exclamation-triangle status-icon"></i>
-                        <h4>Google Sheets Not Configured</h4>
-                    </div>
-                    <p class="status-description">
-                        To generate reports from Google Sheets, you need to configure the Google Sheets URL in the settings.
-                    </p>
-                    <div class="status-actions">
-                        <a href="{{ url_for('main.settings') }}" class="btn btn-sm btn-primary">
-                            <i class="fas fa-cog"></i>
-                            Configure Google Sheets
-                        </a>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Help & Tips -->
-        <div class="content-card">
-            <div class="card-header">
-                <h2 class="card-title">
-                    <i class="fas fa-question-circle"></i>
-                    Help & Tips
-                </h2>
-            </div>
-            <div class="card-body">
-                <div class="tips-list">
-                    <div class="tip-item">
-                        <div class="tip-icon">
-                            <i class="fas fa-file-excel"></i>
-                        </div>
-                        <div class="tip-content">
-                            <h4>Excel File Format</h4>
-                            <p>Ensure your Excel file has columns for names and monthly contributions. The system will detect the current month's column.</p>
-                        </div>
-                    </div>
-                    <div class="tip-item">
-                        <div class="tip-icon">
-                            <i class="fab fa-google"></i>
-                        </div>
-                        <div class="tip-content">
-                            <h4>Google Sheets</h4>
-                            <p>Make sure your Google Sheet is shared with view access for the service account email.</p>
-                        </div>
-                    </div>
-                    <div class="tip-item">
-                        <div class="tip-icon">
-                            <i class="fas fa-file-pdf"></i>
-                        </div>
-                        <div class="tip-content">
-                            <h4>Report Generation</h4>
-                            <p>After generating a report, you can preview it before downloading. All reports are automatically saved.</p>
-                        </div>
-                    </div>
-                    <div class="tip-item">
-                        <div class="tip-icon">
-                            <i class="fas fa-users"></i>
-                        </div>
-                        <div class="tip-content">
-                            <h4>Paid Members</h4>
-                            <p>You can generate a paid members list as an image from the report preview page.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Links -->
-    <div class="quick-links">
-        <h3 class="section-title">
-            <i class="fas fa-link"></i>
-            Quick Links
-        </h3>
-        <div class="links-grid">
-            <a href="{{ url_for('main.upload_dashboard') }}" class="link-card">
-                <i class="fas fa-file-upload"></i>
-                <span>Generate Report</span>
-            </a>
-            <a href="{{ url_for('report.list') }}" class="link-card">
-                <i class="fas fa-list"></i>
-                <span>View All Reports</span>
-            </a>
-            <a href="{{ url_for('main.welfare_rules') }}" class="link-card">
-                <i class="fas fa-download"></i>
-                <span>Download Rules PDF</span>
-            </a>
-            <a href="{{ url_for('main.settings') }}" class="link-card">
-                <i class="fas fa-sliders-h"></i>
-                <span>System Settings</span>
-            </a>
-        </div>
-    </div>
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-user-edit"></i> Clerk Dashboard</h1>
+    <p class="page-header__sub">
+      Welcome back, {{ current_user.email.split('@')[0]|title }} —
+      {{ current_date.strftime('%B %d, %Y') }}
+    </p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn--primary btn--sm">
+      <i class="fas fa-file-upload"></i> Generate Report
+    </a>
+  </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/clerk_dashboard.js') }}"></script>
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--blue"><i class="fas fa-file-pdf"></i></div>
+    <div>
+      <div class="stat-card__value">{{ reports_generated }}</div>
+      <div class="stat-card__label">Reports Generated</div>
+      <div class="stat-card__meta">All time</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__icon {{ 'stat-card__icon--green' if sheets_status.configured else 'stat-card__icon--amber' }}">
+      <i class="fab fa-google"></i>
+    </div>
+    <div>
+      <div class="stat-card__value">
+        {% if sheets_status.configured %}
+          <i class="fas fa-check-circle" style="color:var(--clr-success);font-size:1.25rem;"></i>
+        {% else %}
+          <i class="fas fa-times-circle" style="color:var(--clr-danger);font-size:1.25rem;"></i>
+        {% endif %}
+      </div>
+      <div class="stat-card__label">Google Sheets</div>
+      <div class="stat-card__meta">{{ 'Connected' if sheets_status.configured else 'Not configured' }}</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--purple"><i class="fas fa-sign-in-alt"></i></div>
+    <div>
+      <div class="stat-card__value" style="font-size:1rem;font-weight:700;">{{ last_login }}</div>
+      <div class="stat-card__label">Last Login</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--cyan"><i class="fas fa-calendar-alt"></i></div>
+    <div>
+      <div class="stat-card__value">{{ current_date.strftime('%b') }}</div>
+      <div class="stat-card__label">Current Month</div>
+      <div class="stat-card__meta">{{ current_date.strftime('%Y') }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-grid">
+
+  <!-- Quick actions -->
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-bolt"></i> Quick Actions</h2>
+    </div>
+    <div class="card__body">
+      <div class="action-tiles">
+        {% set tiles = [
+          (url_for('main.upload_dashboard'), 'fas fa-file-upload',  'blue',   'Generate Report',  'Create reports from Excel or Sheets'),
+          (url_for('main.clerk_users'),      'fas fa-user-plus',    'green',  'Manage Viewers',   'Add, edit or disable viewer accounts'),
+          (url_for('report.list'),           'fas fa-file-alt',     'purple', 'View Reports',     'Browse and download reports'),
+          (url_for('main.welfare_rules'),    'fas fa-book',         'cyan',   'Welfare Rules',    'View and download rules PDF'),
+          (url_for('main.settings'),         'fas fa-cog',          'amber',  'Settings',         'Configure Google Sheets URL'),
+        ] %}
+        {% for href, icon, color, title, desc in tiles %}
+        <a href="{{ href }}" class="action-tile">
+          <div class="action-tile__icon action-tile__icon--{{ color }}">
+            <i class="{{ icon }}"></i>
+          </div>
+          <div>
+            <div class="action-tile__title">{{ title }}</div>
+            <div class="action-tile__desc">{{ desc }}</div>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent reports -->
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-history"></i> Recent Reports</h2>
+      <a href="{{ url_for('report.list') }}" class="btn btn--outline btn--sm">
+        <i class="fas fa-list"></i> All
+      </a>
+    </div>
+    <div class="card__body" style="padding:0;">
+      {% if recent_reports %}
+      <ul>
+        {% for r in recent_reports %}
+        <li class="report-row">
+          <div class="report-row__period">
+            <i class="fas fa-calendar-alt"></i>
+            {{ r.month }} {{ r.year }}
+          </div>
+          <div class="report-row__stats">
+            <span class="text-sm">MWK {{ "%.0f"|format(r.total_contributions) }}</span>
+            <span class="badge badge--primary">{{ r.contributors }} paid</span>
+            {% if r.defaulters %}<span class="badge badge--warning">{{ r.defaulters }} missed</span>{% endif %}
+          </div>
+          <a href="{{ r.download_url }}" class="btn btn--outline btn--sm" title="Download">
+            <i class="fas fa-download"></i>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="empty-state">
+        <i class="fas fa-file-pdf"></i>
+        <h3>No reports yet</h3>
+        <p>Generate your first report to see it here.</p>
+        <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn--primary btn--sm">
+          <i class="fas fa-file-upload"></i> Generate
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Google Sheets status -->
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fab fa-google"></i> Google Sheets</h2>
+    </div>
+    <div class="card__body">
+      {% if sheets_status.configured %}
+      <div class="sheets-status sheets-status--ok">
+        <i class="fas fa-check-circle"></i>
+        <div>
+          <div style="font-weight:700;">Connected</div>
+          <div class="text-sm text-muted">Ready to generate reports from Google Sheets</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:.75rem;margin-top:1rem;">
+        <a href="{{ url_for('main.settings') }}" class="btn btn--outline btn--sm">
+          <i class="fas fa-cog"></i> Update URL
+        </a>
+        <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn--primary btn--sm">
+          <i class="fas fa-file-upload"></i> Generate from Sheets
+        </a>
+      </div>
+      {% else %}
+      <div class="sheets-status sheets-status--warn">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div>
+          <div style="font-weight:700;">Not configured</div>
+          <div class="text-sm text-muted">Add a Google Sheets URL in settings to enable this feature</div>
+        </div>
+      </div>
+      <a href="{{ url_for('main.settings') }}" class="btn btn--primary btn--sm" style="margin-top:1rem;">
+        <i class="fas fa-cog"></i> Configure now
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Tips -->
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-lightbulb"></i> Tips</h2>
+    </div>
+    <div class="card__body">
+      <ul class="tips-list">
+        {% set tips = [
+          ('fas fa-file-excel',  'Excel format',    'Name column + monthly amount columns. System detects the current month automatically.'),
+          ('fab fa-google',      'Google Sheets',   'Share the sheet with your service account email so the system can read it.'),
+          ('fas fa-file-pdf',    'Report preview',  'Always preview before downloading — you can still regenerate if something looks off.'),
+          ('fas fa-users',       'Paid members PNG','Download the paid-members image from the report preview page for quick sharing.'),
+        ] %}
+        {% for icon, title, body in tips %}
+        <li class="tip-item">
+          <div class="tip-item__icon"><i class="{{ icon }}"></i></div>
+          <div>
+            <div class="tip-item__title">{{ title }}</div>
+            <div class="tip-item__body text-sm text-muted">{{ body }}</div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+</div><!-- /content-grid -->
+
+<style>
+.action-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.action-tile {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .875rem; border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  color: var(--txt-secondary);
+  transition: border-color var(--t), background var(--t), transform var(--t);
+}
+.action-tile:hover { border-color: var(--clr-primary); background: var(--clr-primary-pale); color: var(--clr-primary); transform: translateY(-1px); }
+.action-tile__icon {
+  width: 2.25rem; height: 2.25rem;
+  border-radius: var(--r-md);
+  display: grid; place-items: center;
+  font-size: 1rem; flex-shrink: 0;
+}
+.action-tile__icon--blue   { background: var(--clr-primary-pale); color: var(--clr-primary); }
+.action-tile__icon--green  { background: var(--clr-success-pale); color: var(--clr-success); }
+.action-tile__icon--purple { background: #ede9fe; color: #7c3aed; }
+.action-tile__icon--cyan   { background: var(--clr-info-pale); color: var(--clr-info); }
+.action-tile__icon--amber  { background: var(--clr-warning-pale); color: var(--clr-warning); }
+.action-tile__title { font-size: .875rem; font-weight: 600; }
+.action-tile__desc  { font-size: .75rem; color: var(--txt-muted); }
+
+.report-row {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.report-row:last-child { border-bottom: 0; }
+.report-row__period { display: flex; align-items: center; gap: .375rem; font-weight: 600; font-size: .875rem; min-width: 8rem; }
+.report-row__stats  { display: flex; align-items: center; gap: .5rem; flex: 1; flex-wrap: wrap; }
+
+.sheets-status {
+  display: flex; align-items: flex-start; gap: .875rem;
+  padding: 1rem; border-radius: var(--r-lg);
+}
+.sheets-status i { font-size: 1.5rem; flex-shrink: 0; }
+.sheets-status--ok   { background: var(--clr-success-pale); color: #065f46; }
+.sheets-status--warn { background: var(--clr-warning-pale); color: #92400e; }
+
+.tips-list { display: flex; flex-direction: column; gap: 1rem; }
+.tip-item  { display: flex; align-items: flex-start; gap: .875rem; }
+.tip-item__icon {
+  width: 2rem; height: 2rem;
+  background: var(--clr-primary-pale); color: var(--clr-primary);
+  border-radius: var(--r-md);
+  display: grid; place-items: center;
+  font-size: .875rem; flex-shrink: 0;
+}
+.tip-item__title { font-weight: 600; font-size: .875rem; margin-bottom: .2rem; }
+
+@media (max-width: 640px) {
+  .action-tiles { grid-template-columns: 1fr; }
+}
+</style>
 {% endblock %}
