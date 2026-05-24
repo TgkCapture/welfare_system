@@ -96,36 +96,27 @@ class RegisterForm(FlaskForm):
 
 class UserEditForm(FlaskForm):
     """Edit an existing user's email, role and active status."""
-
-    email     = StringField(
-        'Email',
-        validators=[DataRequired(), Email(), Length(max=150)],
-    )
-    role      = SelectField(
-        'Role',
-        choices=[
-            ('admin',  'Administrator'),
-            ('clerk',  'Clerk'),
-            ('viewer', 'Viewer'),
-        ],
-    )
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    role = SelectField('Role')
     is_active = BooleanField('Active')
-    submit    = SubmitField('Save Changes')
+    submit = SubmitField('Update User')
 
-    def __init__(self, *args, original_email: str = None, **kwargs):
-        """Store the original email so the unique-check can exclude self."""
-        super().__init__(*args, **kwargs)
-        self._original_email = original_email
+    def __init__(self, *args, **kwargs):
+        # Extract the original user object if passed via obj=user
+        self.user = kwargs.get('obj', None)
+        super(UserEditForm, self).__init__(*args, **kwargs)
 
     def validate_email(self, field):
-        """Reject emails taken by a *different* account."""
-        if field.data == self._original_email:
-            return   # unchanged — no conflict possible
-        if User.query.filter_by(email=field.data).first():
+        # Query for a user with the submitted email address
+        existing_user = User.query.filter_by(email=field.data).first()
+        
+        if existing_user:
+            # If we are editing an existing user, allow them to keep their own email
+            if self.user and existing_user.id == self.user.id:
+                return
+            
+            # Otherwise, it's a genuine duplicate conflict
             raise ValidationError('That email address is already in use.')
-
-    def validate_role(self, field):
-        User.validate_role(field.data)
 
 
 # ---------------------------------------------------------------------------
