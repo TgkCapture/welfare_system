@@ -36,13 +36,13 @@
         <div class="method-toggle">
           <label class="method-option" id="optFile">
             <input type="radio" name="input_method" value="file"
-                   {{ 'checked' if not sheet_url }} id="radioFile">
+                   {{ 'checked' if not sheet_url else '' }} id="radioFile">
             <i class="fas fa-file-upload"></i>
             <span>File Upload</span>
           </label>
           <label class="method-option" id="optSheets">
             <input type="radio" name="input_method" value="sheets"
-                   {{ 'checked' if sheet_url }} id="radioSheets">
+                   {{ 'checked' if sheet_url else '' }} id="radioSheets">
             <i class="fab fa-google"></i>
             <span>Google Sheets</span>
           </label>
@@ -50,13 +50,13 @@
 
         <!-- File upload section -->
         <div class="upload-section" id="fileSection"
-             style="{{ 'display:none;' if sheet_url }}">
+             {% if sheet_url %}style="display:none;"{% endif %}>
           <div class="drop-zone" id="dropZone">
             <div class="drop-zone__idle" id="dropIdle">
               <i class="fas fa-cloud-upload-alt drop-zone__icon"></i>
               <p class="drop-zone__title">Drop your Excel file here</p>
               <p class="drop-zone__sub">or <span class="drop-zone__browse">click to browse</span></p>
-              <p class="drop-zone__hint">.xlsx and .xls supported</p>
+              <p class="drop-zone__hint">.xlsx and .xls supported (Max 10MB)</p>
             </div>
             <div class="drop-zone__preview" id="dropPreview" style="display:none;">
               <i class="fas fa-file-excel drop-zone__file-icon"></i>
@@ -72,7 +72,8 @@
           </div>
           <input type="file" name="file" id="fileInput"
                  accept=".xlsx,.xls" class="sr-only"
-                 {{ 'required' if not sheet_url }}>
+                 {{ 'required' if not sheet_url else '' }}>
+          <div id="fileError" class="error-message" style="display:none;"></div>
         </div>
 
         <!-- Google Sheets section -->
@@ -88,7 +89,7 @@
                      class="form-control"
                      value="{{ sheet_url }}"
                      placeholder="https://docs.google.com/spreadsheets/d/…"
-                     {{ 'required' if sheet_url }}>
+                     {{ 'required' if sheet_url else '' }}>
             </div>
             <p class="form-hint">
               The sheet must be shared with view access for the service account.
@@ -105,6 +106,7 @@
             </a>
           </div>
           {% endif %}
+          <div id="sheetsError" class="error-message" style="display:none;"></div>
         </div>
 
         <!-- Date selection -->
@@ -157,9 +159,9 @@
       <a href="{{ url_for('report.list') }}" class="btn btn--outline btn--sm">All</a>
     </div>
     <div class="card__body" style="padding:0;">
-      <ul>
+      <div class="recent-list">
         {% for r in recent_reports %}
-        <li class="report-row">
+        <div class="report-row">
           <div>
             <div style="font-weight:600;font-size:.875rem;">{{ r.month }} {{ r.year }}</div>
             <div class="text-xs text-muted">{{ r.generated_date }}</div>
@@ -167,9 +169,9 @@
           <div class="report-row__stats">
             <span class="badge badge--primary">{{ r.contributors }}</span>
           </div>
-        </li>
+        </div>
         {% endfor %}
-      </ul>
+      </div>
     </div>
   </div>
   {% endif %}
@@ -257,6 +259,56 @@
 .report-row:last-child { border-bottom: 0; }
 .report-row__stats { margin-left: auto; }
 
+.error-message {
+  color: var(--clr-danger);
+  font-size: .8125rem;
+  margin-top: .5rem;
+  padding: .5rem;
+  background: var(--clr-danger-pale);
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.error-message::before {
+  content: '\f071';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+}
+
+.btn--loading {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.8;
+}
+.btn--loading i, 
+.btn--loading span {
+  visibility: hidden;
+}
+.btn--loading::after {
+  content: '';
+  position: absolute;
+  width: 1.25rem;
+  height: 1.25rem;
+  top: 50%;
+  left: 50%;
+  margin-left: -0.625rem;
+  margin-top: -0.625rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.recent-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
 @media (max-width: 900px) {
   .upload-layout { grid-template-columns: 1fr; }
 }
@@ -268,108 +320,337 @@
 {% block extra_js %}
 <script>
 (function() {
-  /* Method toggle */
-  const radioFile   = document.getElementById('radioFile');
+  // DOM Elements
+  const radioFile = document.getElementById('radioFile');
   const radioSheets = document.getElementById('radioSheets');
-  const optFile     = document.getElementById('optFile');
-  const optSheets   = document.getElementById('optSheets');
-  const fileSection   = document.getElementById('fileSection');
+  const optFile = document.getElementById('optFile');
+  const optSheets = document.getElementById('optSheets');
+  const fileSection = document.getElementById('fileSection');
   const sheetsSection = document.getElementById('sheetsSection');
-  const fileInput   = document.getElementById('fileInput');
-  const sheetInput  = document.querySelector('#sheetsSection input[name="sheet_url"]');
-
-  function setMethod(method) {
-    const isFile = method === 'file';
-    fileSection.style.display   = isFile ? '' : 'none';
-    sheetsSection.style.display = isFile ? 'none' : '';
-    optFile.classList.toggle('is-active', isFile);
-    optSheets.classList.toggle('is-active', !isFile);
-    if (fileInput)  fileInput.required  = isFile;
-    if (sheetInput) sheetInput.required = !isFile;
+  const fileInput = document.getElementById('fileInput');
+  const sheetInput = document.querySelector('#sheetsSection input[name="sheet_url"]');
+  const dropZone = document.getElementById('dropZone');
+  const dropIdle = document.getElementById('dropIdle');
+  const dropPreview = document.getElementById('dropPreview');
+  const fileName = document.getElementById('fileName');
+  const fileSize = document.getElementById('fileSize');
+  const removeBtn = document.getElementById('removeFile');
+  const form = document.getElementById('uploadForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const submitText = document.getElementById('submitText');
+  const yearSelect = document.getElementById('year');
+  const monthSelect = document.getElementById('month');
+  const periodLabel = document.getElementById('periodLabel');
+  const fileError = document.getElementById('fileError');
+  const sheetsError = document.getElementById('sheetsError');
+  
+  // Months array from backend
+  const months = {{ month_names|tojson }};
+  
+  // Maximum file size (10MB)
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  
+  // Allowed file extensions
+  const ALLOWED_EXTENSIONS = ['.xlsx', '.xls'];
+  
+  // Helper: Show error message
+  function showError(element, message) {
+    if (element) {
+      element.textContent = message;
+      element.style.display = 'flex';
+      setTimeout(() => {
+        element.style.display = 'none';
+      }, 5000);
+    }
   }
-
-  // Initialise
-  setMethod(radioFile && radioFile.checked ? 'file' : 'sheets');
-  optFile   && optFile.addEventListener('click',   () => setMethod('file'));
-  optSheets && optSheets.addEventListener('click', () => setMethod('sheets'));
-
-  /* Drop zone */
-  const dropZone  = document.getElementById('dropZone');
-  const dropIdle  = document.getElementById('dropIdle');
-  const dropPrev  = document.getElementById('dropPreview');
-  const fileName  = document.getElementById('fileName');
-  const fileSize  = document.getElementById('fileSize');
-  const removBtn  = document.getElementById('removeFile');
-
+  
+  // Helper: Clear error message
+  function clearError(element) {
+    if (element) {
+      element.style.display = 'none';
+      element.textContent = '';
+    }
+  }
+  
+  // Validate file
+  function validateFile(file) {
+    if (!file) return false;
+    
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      showError(fileError, `File too large! Maximum size is 10MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      return false;
+    }
+    
+    // Check file extension
+    const fileName = file.name;
+    const extension = '.' + fileName.split('.').pop().toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(extension)) {
+      showError(fileError, `Invalid file type! Please upload ${ALLOWED_EXTENSIONS.join(', ')} files.`);
+      return false;
+    }
+    
+    clearError(fileError);
+    return true;
+  }
+  
+  // Show file in dropzone
   function showFile(file) {
     if (!file) return;
+    
+    if (!validateFile(file)) {
+      clearFile();
+      return;
+    }
+    
     fileName.textContent = file.name;
-    fileSize.textContent = (file.size / 1024).toFixed(0) + ' KB';
+    const sizeInKB = (file.size / 1024).toFixed(0);
+    const sizeDisplay = sizeInKB >= 1024 ? (sizeInKB / 1024).toFixed(1) + ' MB' : sizeInKB + ' KB';
+    fileSize.textContent = sizeDisplay;
+    
     dropIdle.style.display = 'none';
-    dropPrev.style.display = 'flex';
+    dropPreview.style.display = 'flex';
     dropZone.classList.add('has-file');
     dropZone.classList.remove('is-over');
   }
+  
+  // Clear file
   function clearFile() {
-    if (fileInput) fileInput.value = '';
-    dropIdle.style.display = '';
-    dropPrev.style.display = 'none';
-    dropZone.classList.remove('has-file', 'is-over');
-  }
-
-  dropZone && dropZone.addEventListener('click', (e) => {
-    if (e.target === removBtn || removBtn.contains(e.target)) return;
-    fileInput && fileInput.click();
-  });
-  fileInput && fileInput.addEventListener('change', () => {
-    showFile(fileInput.files[0]);
-  });
-  removBtn && removBtn.addEventListener('click', (e) => {
-    e.stopPropagation(); clearFile();
-  });
-
-  ['dragover','dragenter'].forEach(ev => {
-    dropZone && dropZone.addEventListener(ev, (e) => {
-      e.preventDefault(); dropZone.classList.add('is-over');
-    });
-  });
-  ['dragleave','dragend'].forEach(ev => {
-    dropZone && dropZone.addEventListener(ev, () => dropZone.classList.remove('is-over'));
-  });
-  dropZone && dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (fileInput && file) {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      fileInput.files = dt.files;
+    if (fileInput) {
+      fileInput.value = '';
+      // Create a new file input to ensure clean state
+      const newFileInput = fileInput.cloneNode(true);
+      if (fileInput.parentNode) {
+        fileInput.parentNode.replaceChild(newFileInput, fileInput);
+        window.fileInput = newFileInput;
+        
+        // Re-attach event listeners to new file input
+        newFileInput.addEventListener('change', function(e) {
+          e.stopPropagation();
+          if (this.files && this.files[0]) {
+            showFile(this.files[0]);
+          } else {
+            clearFile();
+          }
+        });
+      }
     }
-    showFile(file);
-  });
-
-  /* Period label */
-  const yearSel  = document.getElementById('year');
-  const monthSel = document.getElementById('month');
-  const periodLbl= document.getElementById('periodLabel');
-  const months   = {{ month_names|tojson }};
-
-  function updateLabel() {
-    if (!periodLbl || !yearSel || !monthSel) return;
-    const m = parseInt(monthSel.value, 10);
-    periodLbl.textContent = (months[m-1] || '') + ' ' + yearSel.value;
+    
+    dropIdle.style.display = '';
+    dropPreview.style.display = 'none';
+    dropZone.classList.remove('has-file', 'is-over');
+    clearError(fileError);
   }
-  yearSel  && yearSel.addEventListener('change', updateLabel);
-  monthSel && monthSel.addEventListener('change', updateLabel);
-
-  /* Submit loading state */
-  const form       = document.getElementById('uploadForm');
-  const submitBtn  = document.getElementById('submitBtn');
-  const submitText = document.getElementById('submitText');
-  form && form.addEventListener('submit', () => {
-    if (submitBtn) submitBtn.disabled = true;
-    if (submitText) submitText.textContent = 'Processing…';
+  
+  // Set input method (file or sheets)
+  function setMethod(method) {
+    const isFile = method === 'file';
+    
+    // Toggle sections
+    if (fileSection) fileSection.style.display = isFile ? 'block' : 'none';
+    if (sheetsSection) sheetsSection.style.display = isFile ? 'none' : 'block';
+    
+    // Toggle active classes
+    if (optFile) optFile.classList.toggle('is-active', isFile);
+    if (optSheets) optSheets.classList.toggle('is-active', !isFile);
+    
+    // Set required attributes
+    if (fileInput) fileInput.required = isFile;
+    if (sheetInput) sheetInput.required = !isFile;
+    
+    // Clear errors when switching
+    clearError(fileError);
+    clearError(sheetsError);
+  }
+  
+  // Update period label
+  function updatePeriodLabel() {
+    if (periodLabel && yearSelect && monthSelect) {
+      const month = parseInt(monthSelect.value, 10);
+      const monthName = months[month - 1] || '';
+      periodLabel.textContent = `${monthName} ${yearSelect.value}`;
+    }
+  }
+  
+  // Initialize method toggle
+  if (radioFile && radioSheets) {
+    const initialMethod = radioFile.checked ? 'file' : 'sheets';
+    setMethod(initialMethod);
+    
+    if (optFile) {
+      optFile.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (radioFile) radioFile.checked = true;
+        if (radioSheets) radioSheets.checked = false;
+        setMethod('file');
+      });
+    }
+    
+    if (optSheets) {
+      optSheets.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (radioSheets) radioSheets.checked = true;
+        if (radioFile) radioFile.checked = false;
+        setMethod('sheets');
+      });
+    }
+  }
+  
+  // Drop zone click handler (browse)
+  if (dropZone) {
+    dropZone.addEventListener('click', (e) => {
+      // Don't trigger if clicking remove button
+      if (removeBtn && (e.target === removeBtn || removeBtn.contains(e.target))) {
+        return;
+      }
+      if (fileInput) {
+        fileInput.click();
+      }
+    });
+  }
+  
+  // File input change handler
+  if (fileInput) {
+    window.fileInput = fileInput;
+    fileInput.addEventListener('change', function(e) {
+      e.stopPropagation();
+      if (this.files && this.files[0]) {
+        showFile(this.files[0]);
+      } else {
+        clearFile();
+      }
+    });
+  }
+  
+  // Remove file button
+  if (removeBtn) {
+    removeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      clearFile();
+    });
+  }
+  
+  // Drag and drop handlers
+  if (dropZone) {
+    ['dragover', 'dragenter'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('is-over');
+      });
+    });
+    
+    ['dragleave', 'dragend'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('is-over');
+      });
+    });
+    
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.remove('is-over');
+      
+      const file = e.dataTransfer.files[0];
+      if (file && fileInput) {
+        if (validateFile(file)) {
+          // Create a new FileList containing the dropped file
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(file);
+          fileInput.files = dataTransfer.files;
+          showFile(file);
+          
+          // Trigger change event
+          const changeEvent = new Event('change', { bubbles: true });
+          fileInput.dispatchEvent(changeEvent);
+        }
+      }
+    });
+  }
+  
+  // Period label update
+  if (yearSelect) yearSelect.addEventListener('change', updatePeriodLabel);
+  if (monthSelect) monthSelect.addEventListener('change', updatePeriodLabel);
+  updatePeriodLabel();
+  
+  // Form submission handler
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      const isFileMethod = radioFile && radioFile.checked;
+      
+      // Validate based on method
+      if (isFileMethod) {
+        if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+          e.preventDefault();
+          showError(fileError, 'Please select a file to upload');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('btn--loading');
+          }
+          return false;
+        }
+        
+        // Final validation before submit
+        if (!validateFile(fileInput.files[0])) {
+          e.preventDefault();
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('btn--loading');
+          }
+          return false;
+        }
+      } else {
+        if (!sheetInput || !sheetInput.value.trim()) {
+          e.preventDefault();
+          showError(sheetsError, 'Please enter a valid Google Sheets URL');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('btn--loading');
+          }
+          return false;
+        }
+        
+        // Basic URL validation for Google Sheets
+        const url = sheetInput.value.trim();
+        const googleSheetsPattern = /^https:\/\/(docs\.google\.com\/spreadsheets\/d\/|script\.google\.com\/macros\/)/;
+        if (!googleSheetsPattern.test(url)) {
+          e.preventDefault();
+          showError(sheetsError, 'Please enter a valid Google Sheets URL');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('btn--loading');
+          }
+          return false;
+        }
+        
+        clearError(sheetsError);
+      }
+      
+      // Show loading state
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.classList.add('btn--loading');
+      }
+      if (submitText) submitText.textContent = 'Processing...';
+      
+      return true;
+    });
+  }
+  
+  // Reset button state on page navigation (in case of back button)
+  window.addEventListener('pageshow', function() {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('btn--loading');
+    }
+    if (submitText) submitText.textContent = 'Generate Report';
   });
+  
 })();
 </script>
 {% endblock %}
+
 {% endblock %}
