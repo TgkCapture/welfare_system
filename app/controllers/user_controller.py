@@ -84,14 +84,19 @@ class UserController:
         ]
 
         if form.validate_on_submit():
-            # Guard: prevent email collision with another account
-            conflict = User.query.filter(
-                User.email == form.email.data,
-                User.id != user.id,
-            ).first()
-            if conflict:
-                flash('That email address is already in use.', 'danger')
-                return redirect(url_for('main.edit_user', user_id=user_id))
+            # Check if email has changed
+            email_changed = form.email.data != user.email
+            
+            # Only validate email uniqueness if it has changed
+            if email_changed:
+                # FIX: Used clean filter operations to avoid matching the current user
+                conflict = User.query.filter(
+                    (User.email == form.email.data) & (User.id != user.id)
+                ).first()
+                
+                if conflict:
+                    flash('That email address is already in use.', 'danger')
+                    return redirect(url_for('main.edit_user', user_id=user_id))
 
             try:
                 user.email = form.email.data
@@ -252,13 +257,18 @@ class UserController:
         form.role.choices = [('viewer', 'Viewer')]
 
         if form.validate_on_submit():
-            conflict = User.query.filter(
-                User.email == form.email.data,
-                User.id != user.id,
-            ).first()
-            if conflict:
-                flash('That email address is already in use.', 'danger')
-                return redirect(url_for('main.edit_viewer', user_id=user_id))
+            # Check if email has changed
+            email_changed = form.email.data != user.email
+            
+            # Only validate email uniqueness if it has changed
+            if email_changed:
+                conflict = User.query.filter(
+                    (User.email == form.email.data) & (User.id != user.id)
+                ).first()
+                
+                if conflict:
+                    flash('That email address is already in use.', 'danger')
+                    return redirect(url_for('main.edit_viewer', user_id=user_id))
 
             try:
                 user.email = form.email.data
