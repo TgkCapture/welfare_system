@@ -13,8 +13,8 @@ auth = Blueprint('auth', __name__, url_prefix='/auth')
 auth.route('/login',  methods=['GET', 'POST'])(AuthController.login)
 auth.route('/logout')(AuthController.logout)
 
-# Public self-registration (creates viewer accounts only)
-auth.route('/register', methods=['GET', 'POST'])(AuthController.public_register)
+# No public registration: officer accounts are created by other officers
+# or the platform superadmin. Members do not have accounts.
 
 # ==================== PROFILE ====================
 auth.route('/profile', methods=['GET'])(ProfileController.profile)
