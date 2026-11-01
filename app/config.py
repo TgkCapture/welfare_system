@@ -59,10 +59,10 @@ class BaseConfig:
     DEFAULT_SHEET_URL       = os.environ.get('DEFAULT_SHEET_URL', '')
     SHEETS_CACHE_TTL        = int(os.environ.get('SHEETS_CACHE_TTL', 300))
 
-    # ── Reports ───────────────────────────────────────────────────────
-    CLERKS_SEE_ALL_REPORTS = (
-        os.environ.get('CLERKS_SEE_ALL_REPORTS', 'false').lower() == 'true'
-    )
+    # ── Rate limiting ─────────────────────────────────────────────────
+    # Use a shared store (e.g. redis://) when running several workers.
+    RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
+    LOGIN_RATE_LIMIT      = os.environ.get('LOGIN_RATE_LIMIT', '10 per minute;50 per hour')
 
     # ── Month names (convenience) ─────────────────────────────────────
     MONTH_NAMES = [
@@ -119,6 +119,7 @@ class TestingConfig(BaseConfig):
     LOGS_FOLDER   = '/tmp/welfare_test_logs'
 
     ENABLE_AUTO_CLEANUP = False   # never start the scheduler in tests
+    RATELIMIT_ENABLED   = False   # tests that check limits turn it back on
 
 
 class ProductionConfig(BaseConfig):

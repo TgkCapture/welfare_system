@@ -164,8 +164,8 @@ def init_commands(app) -> None:
 
         _create_account(
             email, password, label=f'{group.name} admin',
-            role='admin', group_id=group.id,
-            group_role=Role.query.filter_by(group_id=group.id, name='Chairperson').first(),
+            group_id=group.id,
+            role=Role.query.filter_by(group_id=group.id, name='Chairperson').first(),
         )
 
     # ------------------------------------------------------------------
@@ -178,10 +178,8 @@ def init_commands(app) -> None:
                   confirmation_prompt=True)
     def create_superadmin(email, password):
         """Create a platform superadmin (belongs to no group)."""
-        # `role` is the legacy column, unused for superadmins; removed in 1b
         _create_account(
-            email, password, label='Superadmin',
-            role='viewer', group_id=None, is_superadmin=True,
+            email, password, label='Superadmin', group_id=None, is_superadmin=True,
         )
 
 
@@ -195,9 +193,8 @@ def _create_account(email, password, label, **fields) -> None:
         click.secho('✗ Password must be at least 8 characters.', fg='red')
         return
 
-    # Login still looks users up by email alone until per-group login
-    # (step 1b), so an email may not be reused across groups yet.
-    if User.query.filter_by(email=email).first():
+    # Emails are unique per group (superadmins form their own "group")
+    if User.email_taken(email, fields.get('group_id')):
         click.secho(f'✗ Email {email!r} is already registered.', fg='red')
         return
 

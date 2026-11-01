@@ -17,7 +17,7 @@ from flask import Flask
 from flask_wtf.csrf import generate_csrf
 
 from app.config import config
-from app.extensions import csrf, db, login_manager, migrate
+from app.extensions import csrf, db, limiter, login_manager, migrate
 
 __version__ = "2.0.2"
 
@@ -64,13 +64,18 @@ def create_app(env: str = None, test_config: dict = None) -> Flask:
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
+    limiter.init_app(app)
 
     # ── User loader ───────────────────────────────────────────────────
     from app.models.user import User
 
     @login_manager.user_loader
     def load_user(user_id: str):
-        return User.query.get(int(user_id))
+        user = db.session.get(User, int(user_id))
+        # A suspended group signs out all of its officers
+        if user and user.group and not user.group.is_active:
+            return None
+        return user
 
     # ── Template globals ──────────────────────────────────────────────
     # Make csrf_token() and now available in every template without
@@ -123,12 +128,16 @@ def create_app(env: str = None, test_config: dict = None) -> Flask:
 
 def _register_blueprints(app: Flask) -> None:
     """Import and register all blueprints."""
-    from app.routes.auth   import auth
-    from app.routes.main   import main
-    from app.routes.report import report
+    from app.routes.auth     import auth
+    from app.routes.group    import group
+    from app.routes.main     import main
+    from app.routes.platform import platform
+    from app.routes.report   import report
 
     app.register_blueprint(main)
     app.register_blueprint(auth)
+    app.register_blueprint(group)
+    app.register_blueprint(platform)
     app.register_blueprint(report)
 
 
