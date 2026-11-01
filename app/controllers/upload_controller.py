@@ -2,8 +2,7 @@
 """
 File upload and report generation.
 
-Admins and Clerks can upload Excel files and trigger report generation.
-Viewers have no access to any endpoint in this controller.
+Officers with upload_data can upload Excel files and trigger report generation.
 """
 from datetime import datetime
 import os
@@ -35,9 +34,9 @@ class UploadController:
     # ==================== UPLOAD DASHBOARD ====================
 
     @staticmethod
-    @permission_required('upload_files')
+    @permission_required('upload_data')
     def upload_dashboard():
-        """Landing page for upload-capable users (Admin & Clerk)."""
+        """Landing page for officers with upload_data."""
         current_date = datetime.now()
         sheet_url = Setting.get_value(
             'google_sheets_url',
@@ -52,14 +51,13 @@ class UploadController:
             year=current_date.year,
             month=current_date.month,
             month_names=MONTH_NAMES,
-            user_role=current_user.role,
             recent_reports=recent_reports,
         )
 
     # ==================== UPLOAD & GENERATE ====================
 
     @staticmethod
-    @permission_required('upload_files')
+    @permission_required('upload_data')
     def upload():
         """Handle Excel file upload and trigger report generation."""
         filepath = None

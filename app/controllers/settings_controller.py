@@ -1,13 +1,14 @@
 # app/controllers/settings_controller.py
 """
-System-wide settings management.
+Settings management.
 
-Only admins may write settings. Clerks and viewers get read-only
+Only officers with edit_settings may write settings. The values are still
+global; step 1e moves them into each group's settings.
 """
 from flask import render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
 
-from app.decorators.permissions import role_required
+from app.decorators.permissions import permission_required
 from app.models.setting import Setting
 
 
@@ -17,9 +18,9 @@ class SettingsController:
     # ==================== SETTINGS PAGE ====================
 
     @staticmethod
-    @role_required('admin')        
+    @permission_required('edit_settings')
     def settings():
-        """Admin-only settings page.
+        """Settings page.
 
         GET  → render form pre-populated with current values.
         POST → validate and persist changes.
@@ -71,18 +72,18 @@ class SettingsController:
 
         return {
             'configured': bool(sheet_url),
-            'url': sheet_url if current_user.is_admin else None,  
-            # Only expose the raw URL to admins; other roles just need configured: bool
+            'url': sheet_url if current_user.has_permission('edit_settings') else None,
+            # Only expose the raw URL to settings editors; others just need configured: bool
         }
 
     @staticmethod
     @login_required
     def get_all_settings():
-        """Return all settings as a dict — admin only.
+        """Return all settings as a dict — edit_settings only.
 
         Useful for a future settings API or debug page.
         """
-        if not current_user.is_admin:
+        if not current_user.has_permission('edit_settings'):
             return {}
 
         return {

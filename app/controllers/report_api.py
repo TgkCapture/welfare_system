@@ -11,9 +11,10 @@ from io import BytesIO
 
 import pandas as pd
 from flask import current_app, flash, jsonify, redirect, request, send_file, url_for
-from flask_login import current_user, login_required
+from flask_login import current_user
 from sqlalchemy import func
 
+from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.report import GeneratedReport, ReportAccessLog
 from app.controllers.report_controller import ReportController
@@ -25,20 +26,20 @@ class ReportAPI:
     # ==================== LIST & SEARCH ====================
 
     @staticmethod
-    @login_required
+    @permission_required('view_reports')
     def api_reports_list():
         """GET /api/reports — paginated list for the current user."""
         reports = ReportController._get_available_reports_for_user(current_user)
         return jsonify({'reports': reports, 'count': len(reports)})
 
     @staticmethod
-    @login_required
+    @permission_required('view_reports')
     def api_search_reports():
         """GET /api/reports/search?month=&year= — filtered report list."""
         month = request.args.get('month', type=int)
         year = request.args.get('year', type=int)
 
-        query = GeneratedReport.query
+        query = GeneratedReport.query.filter_by(group_id=current_user.group_id)
 
         if month:
             query = query.filter_by(month=month)
@@ -46,14 +47,8 @@ class ReportAPI:
             query = query.filter_by(year=year)
 
         # Enforce the same visibility rules as the list view
-        if not current_user.is_admin:
-            if (
-                current_user.is_clerk
-                and not current_app.config.get('CLERKS_SEE_ALL_REPORTS', False)
-            ):
-                query = query.filter(GeneratedReport.generated_by == current_user.id)
-            else:
-                query = query.filter(GeneratedReport.is_archived == False)
+        if not current_user.has_permission('manage_reports'):
+            query = query.filter(GeneratedReport.is_archived.is_(False))
 
         reports = query.order_by(GeneratedReport.generated_at.desc()).limit(50).all()
 
@@ -78,7 +73,7 @@ class ReportAPI:
     # ==================== SINGLE REPORT DETAIL ====================
 
     @staticmethod
-    @login_required
+    @permission_required('view_reports')
     def api_report_details(report_id):
         """GET /api/reports/<id> — full detail for one report."""
         report = GeneratedReport.query.get_or_404(report_id)
@@ -91,40 +86,43 @@ class ReportAPI:
     # ==================== STATISTICS ====================
 
     @staticmethod
-    @login_required
+    @permission_required('manage_reports')
     def api_report_statistics():
-        """GET /api/reports/stats — aggregate statistics (admin only)."""
-        if not current_user.is_admin:
-            return jsonify({'error': 'Admin access required.'}), 403
-
+        """GET /api/reports/stats — aggregate statistics for the current group."""
         try:
-            stats = ReportAPI._build_statistics()
+            stats = ReportAPI._build_statistics(current_user.group_id)
             return jsonify(stats)
         except Exception as e:
             current_app.logger.error(f"Error building report statistics: {e}")
             return jsonify({'error': 'Could not load statistics.'}), 500
 
     @staticmethod
-    def _build_statistics():
-        """Compile aggregate report statistics from the database."""
-        total_reports = GeneratedReport.query.count()
-        active_reports = GeneratedReport.query.filter_by(is_archived=False).count()
-        archived_reports = GeneratedReport.query.filter_by(is_archived=True).count()
+    def _build_statistics(group_id):
+        """Compile aggregate report statistics for one group."""
+        reports = GeneratedReport.query.filter_by(group_id=group_id)
+        in_group = GeneratedReport.group_id == group_id
+
+        total_reports = reports.count()
+        active_reports = reports.filter_by(is_archived=False).count()
+        archived_reports = reports.filter_by(is_archived=True).count()
 
         total_contributions = (
-            db.session.query(func.sum(GeneratedReport.total_contributions)).scalar() or 0
+            db.session.query(func.sum(GeneratedReport.total_contributions))
+            .filter(in_group).scalar() or 0
         )
         avg_contributors = (
-            db.session.query(func.avg(GeneratedReport.contributors_count)).scalar() or 0
+            db.session.query(func.avg(GeneratedReport.contributors_count))
+            .filter(in_group).scalar() or 0
         )
 
         reports_by_year = db.session.query(
             GeneratedReport.year,
             func.count(GeneratedReport.id),
-        ).group_by(GeneratedReport.year).all()
+        ).filter(in_group).group_by(GeneratedReport.year).all()
 
         recent_accesses = (
             ReportAccessLog.query
+            .filter_by(group_id=group_id)
             .order_by(ReportAccessLog.accessed_at.desc())
             .limit(10)
             .all()
@@ -151,18 +149,11 @@ class ReportAPI:
     # ==================== EXPORT ====================
 
     @staticmethod
-    @login_required
+    @permission_required('manage_reports')
     def export_reports_data():
-        """GET /api/reports/export — download all reports as an Excel file.
-
-        Admin only — exposes financial totals across all groups.
-        """
-        if not current_user.is_admin:
-            flash('Only admins can export report data.', 'error')
-            return redirect(url_for('report.list'))
-
+        """GET /api/reports/export — download the group's reports as an Excel file."""
         try:
-            reports = GeneratedReport.query.all()
+            reports = GeneratedReport.query.filter_by(group_id=current_user.group_id).all()
 
             rows = [
                 {

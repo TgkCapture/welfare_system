@@ -12,8 +12,9 @@ from flask import (
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
-from app.decorators.permissions import role_required
+from app.decorators.permissions import permission_required, superadmin_required
 from app.extensions import db
+from app.models.role import Role
 from app.models.user import User
 from app.models.report import GeneratedReport
 from app.services.file_cleanup import FileCleanupService
@@ -32,30 +33,39 @@ class DashboardController:
     @staticmethod
     @login_required
     def dashboard():
-        """Entry point — redirect to the correct role dashboard."""
-        if current_user.is_admin:
+        """Entry point — redirect to the dashboard matching the user's permissions."""
+        if current_user.is_superadmin:
+            return redirect(url_for('platform.dashboard'))
+        if current_user.has_permission('manage_users'):
             return redirect(url_for('main.admin_dashboard'))
-        if current_user.is_clerk:
+        if current_user.has_permission('upload_data'):
             return redirect(url_for('main.clerk_dashboard'))
         return redirect(url_for('main.viewer_dashboard'))
 
     # ==================== ADMIN DASHBOARD ====================
 
     @staticmethod
-    @role_required('admin')
+    @permission_required('manage_users')
     def admin_dashboard():
-        """Full system overview for admins."""
-        total_users = User.query.count()
-        active_users = User.query.filter_by(is_active=True).count()
+        """Group overview for officers who manage officers."""
+        group_users = User.query.filter_by(group_id=current_user.group_id)
+        total_users = group_users.count()
+        active_users = group_users.filter_by(is_active=True).count()
 
-        users_by_role = db.session.query(
-            User.role,
-            func.count(User.id).label('count')
-        ).group_by(User.role).all()
+        users_by_role = [
+            {'role': name, 'count': count}
+            for name, count in (
+                db.session.query(Role.name, func.count(User.id))
+                .join(User, User.role_id == Role.id)
+                .filter(Role.group_id == current_user.group_id)
+                .group_by(Role.name)
+                .all()
+            )
+        ]
 
         seven_days_ago = datetime.now() - timedelta(days=7)
         recent_logins = (
-            User.query
+            group_users
             .filter(
                 User.last_login.isnot(None),
                 User.last_login >= seven_days_ago,
@@ -84,7 +94,7 @@ class DashboardController:
     # ==================== CLERK DASHBOARD ====================
 
     @staticmethod
-    @role_required('clerk')
+    @permission_required('upload_data')
     def clerk_dashboard():
         """Operational dashboard for clerks."""
         from app.controllers.settings_controller import SettingsController
@@ -116,7 +126,7 @@ class DashboardController:
     # ==================== VIEWER DASHBOARD ====================
 
     @staticmethod
-    @login_required
+    @permission_required('view_reports')
     def viewer_dashboard():
         """Read-only dashboard for viewers."""
         from app.controllers.report_controller import ReportController
@@ -127,7 +137,6 @@ class DashboardController:
         return render_template(
             'main/viewer_dashboard.html',
             version=current_app.version,
-            user_role=current_user.role,
             available_reports=available_reports,
             paid_members_count=paid_members_count,
             month_names=MONTH_NAMES,
@@ -137,7 +146,7 @@ class DashboardController:
     # ==================== FILE CLEANUP (ADMIN) ====================
 
     @staticmethod
-    @role_required('admin')
+    @superadmin_required
     def cleanup_files():
         """Admin page to manually trigger file cleanup."""
         cleanup_result = None
@@ -164,7 +173,7 @@ class DashboardController:
     # ==================== API / UTILITY ENDPOINTS ====================
 
     @staticmethod
-    @login_required
+    @superadmin_required
     def storage_status():
         """JSON endpoint — current storage usage."""
         return jsonify(FileCleanupService.get_folder_sizes())

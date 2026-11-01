@@ -154,7 +154,7 @@ class ProfileController:
         writer.writerow(['Data Type', 'Field', 'Value'])
 
         writer.writerow(['Profile', 'Email', user.email])
-        writer.writerow(['Profile', 'Role', user.role])
+        writer.writerow(['Profile', 'Role', user.role_name])
         writer.writerow(['Profile', 'Account Created', user.created_at])
         writer.writerow(['Profile', 'Last Login', user.last_login or 'Never'])
         writer.writerow([
@@ -184,9 +184,19 @@ class ProfileController:
     @staticmethod
     @login_required
     def delete_account():
-        """Allow a non-admin user to permanently delete their own account."""
-        if current_user.is_admin:
-            flash('Admin accounts cannot be deleted through this interface.', 'danger')
+        """Allow an officer to permanently delete their own account."""
+        from app.controllers.user_controller import UserController
+
+        if current_user.is_superadmin:
+            flash('Superadmin accounts cannot be deleted through this interface.', 'danger')
+            return redirect(url_for('auth.profile'))
+
+        if UserController._would_remove_last_manager(current_user, keeps_access=False):
+            flash(
+                'You are the last officer who can manage officers. '
+                'Give another officer that permission before deleting your account.',
+                'danger',
+            )
             return redirect(url_for('auth.profile'))
 
         if request.form.get('confirm_text', '') != 'DELETE':
@@ -217,11 +227,9 @@ class ProfileController:
         days_active = max((datetime.now() - user.created_at).days, 0) + 1
 
         # Real count from the database instead of guessing from session
-        reports_generated = 0
-        if user.role in ('admin', 'clerk'):
-            reports_generated = GeneratedReport.query.filter_by(
-                generated_by=user.id
-            ).count()
+        reports_generated = GeneratedReport.query.filter_by(
+            generated_by=user.id
+        ).count()
 
         return {
             'reports_generated': reports_generated,

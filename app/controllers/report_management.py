@@ -6,9 +6,10 @@ import os
 import shutil
 from datetime import datetime, timedelta
 
-from flask import current_app, flash, redirect, url_for
-from flask_login import current_user, login_required
+from flask import abort, current_app, flash, redirect, url_for
+from flask_login import current_user
 
+from app.decorators.permissions import permission_required, superadmin_required
 from app.extensions import db
 from app.models.report import GeneratedReport, ReportAccessLog
 from app.services.file_cleanup import FileCleanupService
@@ -16,19 +17,23 @@ from app.controllers.report_controller import ReportController
 
 
 class ReportManagement:
-    """Admin / clerk operations on existing reports."""
+    """Officer operations on existing reports."""
+
+    @staticmethod
+    def _group_report(report_id):
+        """Return a report of the current group; other groups' reports are 404."""
+        report = db.session.get(GeneratedReport, report_id)
+        if report is None or report.group_id != current_user.group_id:
+            abort(404)
+        return report
 
     # ==================== ARCHIVE / RESTORE ====================
 
     @staticmethod
-    @login_required
+    @permission_required('manage_reports')
     def archive_report(report_id):
-        """Soft-delete a report (admins only)."""
-        if not current_user.is_admin:
-            flash('Only admins can archive reports.', 'error')
-            return redirect(url_for('report.list'))
-
-        report = GeneratedReport.query.get_or_404(report_id)
+        """Soft-delete a report (manage_reports)."""
+        report = ReportManagement._group_report(report_id)
 
         try:
             report.is_archived = True
@@ -47,14 +52,10 @@ class ReportManagement:
         return redirect(url_for('report.list'))
 
     @staticmethod
-    @login_required
+    @permission_required('manage_reports')
     def restore_report(report_id):
-        """Restore an archived report (admins only)."""
-        if not current_user.is_admin:
-            flash('Only admins can restore reports.', 'error')
-            return redirect(url_for('report.list'))
-
-        report = GeneratedReport.query.get_or_404(report_id)
+        """Restore an archived report (manage_reports)."""
+        report = ReportManagement._group_report(report_id)
 
         try:
             report.is_archived = False
@@ -75,14 +76,10 @@ class ReportManagement:
     # ==================== DELETE ====================
 
     @staticmethod
-    @login_required
+    @permission_required('manage_reports')
     def delete_report(report_id):
-        """Permanently delete a report and its file (admins only)."""
-        if not current_user.is_admin:
-            flash('Only admins can delete reports.', 'error')
-            return redirect(url_for('report.list'))
-
-        report = GeneratedReport.query.get_or_404(report_id)
+        """Permanently delete a report and its file (manage_reports)."""
+        report = ReportManagement._group_report(report_id)
 
         try:
             # Remove file from disk first — if this fails, abort before
@@ -108,20 +105,16 @@ class ReportManagement:
     # ==================== REGENERATE ====================
 
     @staticmethod
-    @login_required
+    @permission_required('generate_reports')
     def regenerate_report(report_id):
-        """Copy an existing report file as a new record (admin & clerk).
+        """Copy an existing report file as a new record (generate_reports).
 
         NOTE: This duplicates the PDF on disk — it does NOT re-parse
         the source Excel file.  True regeneration requires storing the
         raw contribution data per report, which is on the roadmap.
         Until then the method is honestly named 'duplicate' in the UI.
         """
-        if not (current_user.is_admin or current_user.is_clerk):
-            flash('Only admins and clerks can regenerate reports.', 'error')
-            return redirect(url_for('report.list'))
-
-        report = GeneratedReport.query.get_or_404(report_id)
+        report = ReportManagement._group_report(report_id)
 
         if not os.path.exists(report.file_path):
             flash('Source report file not found on disk.', 'error')
@@ -177,13 +170,9 @@ class ReportManagement:
     # ==================== BULK CLEANUP ====================
 
     @staticmethod
-    @login_required
+    @superadmin_required
     def cleanup_reports():
-        """Archive old DB records and delete stale files (admins only)."""
-        if not current_user.is_admin:
-            flash('Only admins can run report cleanup.', 'error')
-            return redirect(url_for('main.dashboard'))
-
+        """Archive old DB records and delete stale files (manage_reports)."""
         try:
             days_to_keep = current_app.config.get('REPORT_RETENTION_DAYS', 7)
 

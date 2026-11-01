@@ -12,6 +12,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
+from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.report import GeneratedReport, ReportAccessLog
 from app.services.image_generator import ImageGenerator
@@ -29,7 +30,7 @@ class ReportController:
     # ==================== PREVIEW ====================
 
     @staticmethod
-    @login_required
+    @permission_required('view_reports')
     def report_preview():
         """Preview a freshly generated report stored in the session."""
         if 'report_data' not in session:
@@ -53,7 +54,7 @@ class ReportController:
         )
 
     @staticmethod
-    @login_required
+    @permission_required('view_reports')
     def report_preview_specific(report_id):
         """Preview a specific archived report from the database."""
         report = GeneratedReport.query.get_or_404(report_id)
@@ -75,7 +76,7 @@ class ReportController:
     # ==================== DOWNLOAD ====================
 
     @staticmethod
-    @login_required
+    @permission_required('view_reports')
     def download_report(report_id=None):
         """Download a PDF report.
         """
@@ -119,7 +120,7 @@ class ReportController:
             return redirect(url_for('main.dashboard'))
 
     @staticmethod
-    @login_required
+    @permission_required('view_reports')
     def download_paid_members(report_id=None):
         """Download the paid-members list as a PNG image.
         """
@@ -199,7 +200,7 @@ class ReportController:
     # ==================== PAID MEMBERS VIEW ====================
 
     @staticmethod
-    @login_required
+    @permission_required('view_reports')
     def paid_members_view():
         """Render the paid-members list for the current session report."""
         if 'report_data' not in session:
@@ -220,7 +221,7 @@ class ReportController:
         )
 
     @staticmethod
-    @login_required
+    @permission_required('view_reports')
     def paid_members_for_report(report_id):
         """View paid members for a specific archived report."""
         report = GeneratedReport.query.get_or_404(report_id)
@@ -241,7 +242,7 @@ class ReportController:
     # ==================== REPORTS LIST ====================
 
     @staticmethod
-    @login_required
+    @permission_required('view_reports')
     def reports_list():
         """Render the full report listing for the current user."""
         available_reports = ReportController._get_available_reports_for_user(current_user)
@@ -250,7 +251,6 @@ class ReportController:
             'main/reports_list.html',
             version=current_app.version,
             reports=available_reports,
-            user_role=current_user.role,
             month_names=MONTH_NAMES,
         )
 
@@ -307,16 +307,13 @@ class ReportController:
 
     @staticmethod
     def can_access_report(user, report):
-        """Return True if ``user`` is allowed to access ``report``."""
-        if user.is_admin:
-            return True
-        if user.is_clerk:
-            return (
-                report.generated_by == user.id
-                or current_app.config.get('CLERKS_SEE_ALL_REPORTS', False)
-            )
-        # Viewers: non-archived reports only
-        return not report.is_archived
+        """Return True if ``user`` is allowed to access ``report``.
+
+        Officers see their own group's reports; archived ones need manage_reports.
+        """
+        if report.group_id != user.group_id or not user.has_permission('view_reports'):
+            return False
+        return not report.is_archived or user.has_permission('manage_reports')
 
     @staticmethod
     def _log_access(report_id, action):
@@ -338,13 +335,10 @@ class ReportController:
     def _get_available_reports_for_user(user):
         """Return a list of report dicts the given user may see."""
         try:
-            query = GeneratedReport.query
+            query = GeneratedReport.query.filter_by(group_id=user.group_id)
 
-            if not user.is_admin:
-                if user.is_clerk and not current_app.config.get('CLERKS_SEE_ALL_REPORTS', False):
-                    query = query.filter(GeneratedReport.generated_by == user.id)
-                else:
-                    query = query.filter(GeneratedReport.is_archived == False)
+            if not user.has_permission('manage_reports'):
+                query = query.filter(GeneratedReport.is_archived.is_(False))
 
             reports = query.order_by(GeneratedReport.generated_at.desc()).all()
 
