@@ -18,7 +18,7 @@ from app.decorators.permissions import permission_required
 from app.models.setting import Setting
 from app.models.report import GeneratedReport
 from app.services.excel_parser import ExcelParser
-from app.services.report_generator import ReportGenerator
+from app.services.pdf_service import PDFGenerator
 from app.services.file_cleanup import FileCleanupService
 from app.services.file_processor import FileProcessor
 from app.services.report_serializer import ReportDataSerializer
@@ -88,7 +88,7 @@ class UploadController:
             data = ExcelParser.parse_excel(filepath, year=year, month=month)
 
             # --- 4. Generate PDF report ---
-            report_path = ReportGenerator.generate_contribution_report(
+            report_path = PDFGenerator.save_contribution_report(
                 data,
                 current_app.config['REPORT_FOLDER'],
             )
