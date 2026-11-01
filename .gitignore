@@ -14,3 +14,8 @@ instance/config.py
 credentials/mzugoss-welfare-5dab294def1f.json
 run_migration.py
 instance/welfare_dev.db
+
+# Real member workbooks (personal data) - never commit
+/*.xlsx
+/*.xls
+/*.csv
