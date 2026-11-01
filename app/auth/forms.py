@@ -44,7 +44,7 @@ class LoginForm(FlaskForm):
 
 
 class RegisterForm(FlaskForm):
-    """New user registration — used for both public and admin flows."""
+    """New officer account, created by an officer with manage_users."""
 
     email    = StringField(
         'Email',
@@ -67,16 +67,8 @@ class RegisterForm(FlaskForm):
         ],
         render_kw={'placeholder': 'Repeat password'},
     )
-    # Choices are overridden in the controller depending on the caller's role
-    role   = SelectField(
-        'Role',
-        choices=[
-            ('admin',  'Administrator'),
-            ('clerk',  'Clerk'),
-            ('viewer', 'Viewer'),
-        ],
-        default='viewer',
-    )
+    # Choices (the group's roles the officer may grant) are set in the controller
+    role   = SelectField('Role', coerce=int)
     submit = SubmitField('Create Account')
 
     # ── Custom validators ──────────────────────────────────────────────
@@ -86,10 +78,6 @@ class RegisterForm(FlaskForm):
         if User.email_taken(field.data, current_user.group_id):
             raise ValidationError('That email address is already registered.')
 
-    def validate_role(self, field):
-        """Ensure the submitted role is a known value."""
-        User.validate_role(field.data)
-
 
 # ---------------------------------------------------------------------------
 # Admin / clerk user-edit form
@@ -98,7 +86,7 @@ class RegisterForm(FlaskForm):
 class UserEditForm(FlaskForm):
     """Edit an existing user's email, role and active status."""
     email = StringField('Email', validators=[DataRequired(), Email()])
-    role = SelectField('Role')
+    role = SelectField('Role', coerce=int)
     is_active = BooleanField('Active')
     submit = SubmitField('Update User')
 
