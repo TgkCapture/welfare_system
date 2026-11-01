@@ -15,6 +15,10 @@ def test_login_page_renders(client):
     assert client.get('/auth/login').status_code == 200
 
 
+def test_public_registration_is_removed(client):
+    assert client.get('/auth/register').status_code == 404
+
+
 def test_upload_requires_login(client):
     response = client.get('/upload-dashboard')
     assert response.status_code == 302
@@ -22,7 +26,7 @@ def test_upload_requires_login(client):
 
 
 def test_upload_generates_and_records_report(app, client, make_user, login, mzugoss_workbook):
-    make_user()
+    user = make_user()
     login()
 
     with open(mzugoss_workbook, 'rb') as fh:
@@ -36,6 +40,8 @@ def test_upload_generates_and_records_report(app, client, make_user, login, mzug
     assert response.headers['Location'].endswith('/reports/preview')
 
     report = GeneratedReport.query.one()
+    assert report.group_id == user.group_id
+    assert report.access_logs.one().group_id == user.group_id
     assert (report.month, report.year) == (3, 2026)
     assert report.total_contributions == 2500.0
     assert report.contributors_count == 3
