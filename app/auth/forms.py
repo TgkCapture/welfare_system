@@ -2,6 +2,7 @@
 """
 WTForms form definitions for authentication and user management.
 """
+from flask_login import current_user
 from flask_wtf import FlaskForm
 from wtforms import (
     BooleanField,
@@ -81,8 +82,8 @@ class RegisterForm(FlaskForm):
     # ── Custom validators ──────────────────────────────────────────────
 
     def validate_email(self, field):
-        """Reject emails already registered."""
-        if User.query.filter_by(email=field.data).first():
+        """Reject emails already registered in the creating officer's group."""
+        if User.email_taken(field.data, current_user.group_id):
             raise ValidationError('That email address is already registered.')
 
     def validate_role(self, field):
@@ -107,15 +108,10 @@ class UserEditForm(FlaskForm):
         super(UserEditForm, self).__init__(*args, **kwargs)
 
     def validate_email(self, field):
-        # Query for a user with the submitted email address
-        existing_user = User.query.filter_by(email=field.data).first()
-        
-        if existing_user:
-            # If we are editing an existing user, allow them to keep their own email
-            if self.user and existing_user.id == self.user.id:
-                return
-            
-            # Otherwise, it's a genuine duplicate conflict
+        # Unique within the edited user's group; a user may keep their own email
+        group_id = self.user.group_id if self.user else current_user.group_id
+        exclude_id = self.user.id if self.user else None
+        if User.email_taken(field.data, group_id, exclude_id=exclude_id):
             raise ValidationError('That email address is already in use.')
 
 

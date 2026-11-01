@@ -19,3 +19,5 @@ instance/welfare_dev.db
 /*.xlsx
 /*.xls
 /*.csv
+instance/*.db
+backups/
