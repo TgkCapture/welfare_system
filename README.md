@@ -75,9 +75,16 @@ The schema is managed with Flask-Migrate.
 
 ```bash
 export FLASK_APP=run.py          # Windows PowerShell: $env:FLASK_APP = "run.py"
-flask db upgrade                 # new database
-flask create-admin               # create the first admin user
+flask db upgrade                 # create or update the database
+flask create-superadmin          # platform operator account (no group)
+flask create-group               # a welfare group, with preset roles
+flask create-admin --group <slug>   # the group's first officer (Chairperson)
 ```
+
+Upgrading an existing single-group install automatically creates a
+"Mzugoss" group (slug `mzugoss`) and moves existing users and reports into
+it: admins become Chairperson, clerks become Treasurer, and viewer
+accounts are deactivated.
 
 If you already have a database created by an older version (before
 migrations were added), mark it as up to date once instead of upgrading:

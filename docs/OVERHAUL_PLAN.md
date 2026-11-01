@@ -72,6 +72,27 @@ Everything later depends on this phase.
 
 ## Phase 1: Multi-tenancy, officers and permissions
 
+Delivered in steps: **1a** models and data migration (done), **1b** login
+and permissions, **1c** tenant scoping, **1d** management screens,
+**1e** per-group files and settings.
+
+Step 1a delivered:
+- `Group`, `GroupSettings`, `Role` (fixed permission list, preset roles),
+  and `group_id` / `role_id` / `is_superadmin` on users. Reports and access
+  logs require a `group_id`. Email is unique per group.
+- Migration `808c6b6f7843` moves an existing install into a "Mzugoss"
+  group (admin → Chairperson, clerk → Treasurer, viewer → deactivated) and
+  copies the sheet URL and retention days into its settings.
+- CLI: `create-group`, `create-admin --group`, `create-superadmin`.
+- Public registration removed (pulled forward from 1b so no account can
+  be created without a group).
+- Transitional: the legacy `User.role` string still drives permission
+  checks; 1b switches to `group_role` and drops the column. Until 1b adds
+  per-group login, the CLI rejects an email already used by any account.
+- Fixed while testing: the admin cleanup page (wrong template path,
+  missing `intcomma` filter, missing `storage_stats`), and broken redirects
+  to `main.report_preview*` endpoints that don't exist.
+
 - [ ] New `Group` model: `id`, `name`, `slug`, `is_active`, `created_at`.
 - [ ] New `GroupSettings` model, one per group, holding:
   - Branding: display name, short name, logo path, primary colour, report title.
