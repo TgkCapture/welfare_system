@@ -17,7 +17,9 @@ parsing logic, the UI and the overall flow.
 | Accounts         | Only **officers** have accounts (treasurer, secretary, chair, and so on). Contributing members have **no accounts**. |
 | Roles            | Permission-based. Each group defines its own named roles and chooses their permissions. The superadmin manages groups. |
 | Identity         | An account belongs to exactly one group. Email is unique **within a group**. The same person may hold separate, unrelated accounts in different groups. Login is per group. |
-| Data source      | Spreadsheets (Excel or Google Sheets) stay the source of truth, with a column mapping per group. Each sync's results are **stored** in the DB to support history and public pages. |
+| Data source      | Spreadsheets (Excel or Google Sheets) stay the source of truth. A new **standard workbook template** is the recommended layout. A column mapping per group still supports older layouts. Each sync's results are **stored** in the DB to support history and public pages. |
+| Payouts          | Recorded in the workbook's **Payouts** sheet, one row per payout, with date, beneficiary, purpose, amount and approver. Payout purposes are configured per group in the app. |
+| Balances         | Carry-overs and balances are **calculated**, never typed. The app recalculates them on every sync and warns when the sheet's own figures disagree. |
 | Public pages     | A public paid-members page per group. **Defaulters are never shown publicly.** |
 | Member history   | Two routes to a member's history, both without accounts: a **personal private link**, and a **name + PIN lookup**. |
 | Group config     | Branding, welfare rules, contribution terms, own Google Sheet, and public page settings. |
@@ -49,16 +51,24 @@ parsing logic, the UI and the overall flow.
 
 Everything later depends on this phase.
 
-- [ ] Re-encode `requirements.txt` as UTF-8. Add Flask-Migrate (Alembic),
-      pytest and Flask-Limiter.
-- [ ] Set up Flask-Migrate. Create a baseline migration that matches the current schema.
-- [ ] Add a pytest suite: an app fixture, a test DB, and sample Mzugoss
-      workbooks as fixtures. Write characterisation tests for the current
-      parser output, so the refactor can be checked against them.
-- [ ] Pick one PDF engine (reportlab, which is already used for rules) and
-      remove the other.
-- [ ] Clean up small issues: the `_safe_col` staticmethod, the unused
-      `_read_version`, and the README.
+- [x] Re-encode `requirements.txt` as UTF-8. Add Flask-Migrate (Alembic).
+      pytest goes in `requirements-dev.txt`. Flask-Limiter is moved to
+      Phase 1, where it is first used.
+- [x] Set up Flask-Migrate. Create a baseline migration (`365dc0d4aa41`)
+      that matches the current schema. Existing databases run
+      `flask db stamp 365dc0d4aa41` once. `db.create_all()` is removed from
+      startup.
+- [x] Add a pytest suite: an app fixture with an isolated in-memory DB (the
+      instance config is ignored under test), synthetic Mzugoss workbooks,
+      characterisation tests for the parser, and an end-to-end upload test.
+- [x] Rebuild the synthetic fixture to mirror the real MGSS.xlsx layout, using
+      invented names. Add an optional test against the real workbook
+      (`MZUGOSS_WORKBOOK=MGSS.xlsx pytest`), which is skipped unless the file
+      is present. Real workbooks are git-ignored and never committed.
+- [x] Keep a single PDF engine (reportlab) and remove fpdf. This also fixes
+      the uploaded PDF listing zero-amount members as paid.
+- [x] Clean up small issues: `_safe_col` (fixes a `NameError` on the
+      missing-month error path), the unused `_read_version`, and the README.
 
 ## Phase 1: Multi-tenancy, officers and permissions
 
@@ -90,6 +100,8 @@ Everything later depends on this phase.
 - [ ] Remove public self-registration and the viewer role.
 - [ ] Per-group login at `/g/<slug>/login`, with the group's branding on the page.
       The superadmin logs in at `/admin/login`.
+- [ ] Fix the open redirect in login: only follow a `next` URL that points
+      to this site. Add Flask-Limiter rate limits on login.
 - [ ] Tenant scoping:
   - Resolve the current group from `current_user.group_id`, and store it in `g.group`.
   - Add a query helper (`Model.for_group(g.group)`) and use it in every controller.
@@ -106,7 +118,55 @@ Everything later depends on this phase.
   - Attach all existing reports to the group.
   - Copy the existing settings and branding into its `GroupSettings`.
 
-## Phase 2: Configurable parsing and stored contribution data
+## Phase 2: Standard workbook, configurable parsing and stored data
+
+### Findings from the real Mzugoss workbook (MGSS.xlsx)
+
+- The current parser matches the sheet's own Total row in all 48 months of 2023–2026.
+- Payouts have no date, purpose or approver. Each is just an amount in a
+  "DISPENSED TO" column, and a repeat payout needs a new column (P).
+- **Confirmed mistakes** caused by hand-maintained totals:
+  - Three 2025 payouts (36,760) were repeated in 2026.
+  - The carry-overs disagree with the previous year's closing balance:
+    +2,000 into 2024, and −16,000 into 2026.
+  - The 2023 carry-over row is mislabelled "2024 Carry Over".
+  - The 2025 dispensed formula only sums rows 7–49, but members run to row 59.
+- The rate changed from 500 to 1,000 in 2025. Any amount above 0 counts as
+  paid today, so partial payments are reported as paid.
+- Members are counted as defaulters for months before they joined.
+- Name spellings drift between years (for example, double spaces and short forms).
+
+### Standard workbook template
+
+| Sheet | One row per | Columns |
+| ----- | ----------- | ------- |
+| `Members` | member | Member ID, Name, Phone (optional), Joined (month), Left (month), Notes |
+| `Contributions YYYY` | member | Member ID, Name (lookup), January … December. Payments only, with no totals or financial rows. |
+| `Payouts` | payout | Date, Member ID / beneficiary, Purpose (dropdown), Amount, Approved by, Notes |
+| `Rates` | rate change | Effective from, Monthly amount |
+| `Summary` | year | Opening balance (= previous closing), contributions, payouts by purpose, closing balance. Formulas only. |
+
+- [ ] Per-group payout purposes, managed in the app (for example funeral
+      condolence, wedding gift, sick patient grant).
+- [ ] The app generates a blank template for a group, with data-validation
+      dropdowns (purposes, member IDs) and the Summary formulas filled in.
+- [ ] A parser for the standard template.
+- [ ] Sync-time checks with clear warnings:
+  - The opening balance must equal the previous closing balance.
+  - The sheet's Summary must equal the app's calculation.
+  - Payouts must have a known purpose, a known member and a date inside the year.
+  - Duplicate payouts (same beneficiary, amount and date).
+  - Contributions recorded before a member joined or after they left.
+- [ ] Payment status uses the rate for the period: paid / partial / unpaid,
+      and "not a member yet" before the joined month.
+- [ ] **Convert MGSS.xlsx** to the standard template with a one-off script:
+  - Correct the confirmed mistakes.
+  - Older payouts with no date or purpose import as
+    "Unspecified (year)", for the treasurer to fill in.
+  - Produce a name-merge list for the user to confirm.
+  - The user reviews the converted workbook before Mzugoss switches over.
+
+### Parsing and storage
 
 - [ ] Split `ExcelParser` into two parts:
   - A layout reader driven by a per-group `SheetMapping`.
