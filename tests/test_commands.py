@@ -36,7 +36,7 @@ def test_create_admin_creates_chairperson_in_group(cli, group):
     assert '✓' in result.output
     user = User.query.filter_by(email='chair@example.com').one()
     assert user.group_id == group.id
-    assert user.group_role.name == 'Chairperson'
+    assert user.role.name == 'Chairperson'
     assert not user.is_superadmin
     assert check_password_hash(user.password, 'longenough')
 
@@ -58,7 +58,7 @@ def test_create_superadmin_has_no_group(cli):
     user = User.query.filter_by(email='root@example.com').one()
     assert user.is_superadmin
     assert user.group_id is None
-    assert user.group_role is None
+    assert user.role is None
 
 
 def test_create_superadmin_rejects_short_password(cli):
@@ -69,10 +69,19 @@ def test_create_superadmin_rejects_short_password(cli):
     assert User.query.count() == 0
 
 
-def test_create_superadmin_rejects_email_already_in_use(cli, make_user):
+def test_create_superadmin_rejects_duplicate_superadmin_email(cli, make_superadmin):
+    make_superadmin(email='root@example.com')
+    result = cli.invoke(args=[
+        'create-superadmin', '--email', 'root@example.com', '--password', 'longenough',
+    ])
+    assert 'already registered' in result.output
+    assert User.query.filter_by(is_superadmin=True).count() == 1
+
+
+def test_superadmin_may_share_email_with_an_officer(cli, make_user):
+    # Separate logins (/platform vs /g/<slug>) keep the two accounts apart
     make_user(email='sam@example.com')
     result = cli.invoke(args=[
         'create-superadmin', '--email', 'sam@example.com', '--password', 'longenough',
     ])
-    assert 'already registered' in result.output
-    assert User.query.filter_by(is_superadmin=True).count() == 0
+    assert '✓' in result.output

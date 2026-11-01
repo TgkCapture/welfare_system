@@ -7,7 +7,7 @@ import os
 
 import pytest
 import sqlalchemy as sa
-from flask_migrate import upgrade
+from flask_migrate import downgrade, upgrade
 
 from app import create_app
 
@@ -85,6 +85,26 @@ def test_maps_users_to_group_roles_and_deactivates_viewers(migrated_legacy_db):
         ('clerk@mzugoss.com',  'Treasurer',   1, 1, 0),
         ('viewer@mzugoss.com', None,          1, 0, 0),
     ]
+
+
+def test_legacy_role_column_is_dropped(migrated_legacy_db):
+    columns = {row[1] for row in _rows(migrated_legacy_db, 'PRAGMA table_info(users)')}
+    assert 'role' not in columns
+    assert {'group_id', 'role_id', 'is_superadmin'} <= columns
+
+
+def test_downgrade_restores_legacy_roles(migrated_legacy_db):
+    from app.extensions import db
+    migrated_legacy_db.close()
+
+    downgrade(directory=MIGRATIONS, revision='808c6b6f7843')
+
+    with db.engine.connect() as conn:
+        assert _rows(conn, 'SELECT email, role FROM users ORDER BY id') == [
+            ('admin@mzugoss.com', 'admin'),
+            ('clerk@mzugoss.com', 'clerk'),
+            ('viewer@mzugoss.com', 'viewer'),
+        ]
 
 
 def test_attaches_reports_and_logs_to_group(migrated_legacy_db):

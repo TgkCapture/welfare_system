@@ -15,11 +15,25 @@ def test_new_group_gets_preset_roles(group):
     assert not roles['Secretary'].has('manage_users')
 
 
-def test_legacy_roles_map_to_presets(group):
-    assert Role.for_legacy_role(group.id, 'admin').name == 'Chairperson'
-    assert Role.for_legacy_role(group.id, 'clerk').name == 'Treasurer'
-    assert Role.for_legacy_role(group.id, 'viewer') is None
-    assert Role.for_legacy_role(None, 'admin') is None
+def test_permissions_come_from_group_role(make_user, make_superadmin):
+    chair = make_user(email='chair@example.com', role='Chairperson')
+    secretary = make_user(email='sec@example.com', role='Secretary')
+    root = make_superadmin()
+
+    assert chair.has_permission('manage_users')
+    assert secretary.has_permission('edit_rules')
+    assert not secretary.has_permission('upload_data')
+    assert root.permissions == frozenset()
+    assert (chair.role_name, root.role_name) == ('Chairperson', 'Superadmin')
+
+
+def test_can_grant_only_roles_within_own_permissions(group, make_user):
+    roles = {r.name: r for r in group.roles}
+    treasurer = make_user(email='t@example.com', role='Treasurer')
+
+    assert treasurer.can_grant(roles['Treasurer'])
+    assert not treasurer.can_grant(roles['Chairperson'])
+    assert not treasurer.can_grant(roles['Secretary'])   # edit_rules not held
 
 
 def test_same_email_allowed_in_different_groups(make_group, make_user):

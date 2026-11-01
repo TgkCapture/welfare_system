@@ -7,10 +7,6 @@ import pathlib
 import re
 
 import pytest
-from werkzeug.security import generate_password_hash
-
-from app.extensions import db
-from app.models.user import User
 
 
 _URL_FOR = re.compile(r"url_for\(\s*['\"]([\w.]+)['\"]")
@@ -30,19 +26,21 @@ def test_every_url_for_target_exists(app):
 
 
 @pytest.fixture
-def accounts(make_user):
-    make_user(email='admin@example.com', role='admin')
-    make_user(email='clerk@example.com', role='clerk')
-    db.session.add(User(
-        email='root@example.com', password=generate_password_hash('secret123'),
-        role='viewer', is_superadmin=True,
-    ))
-    db.session.commit()
+def accounts(make_user, make_superadmin):
+    make_user(email='chair@example.com', role='Chairperson')
+    make_user(email='treasurer@example.com', role='Treasurer')
+    make_user(email='secretary@example.com', role='Secretary')
+    make_superadmin(email='root@example.com')
 
 
-@pytest.mark.parametrize('email', ['admin@example.com', 'clerk@example.com', 'root@example.com'])
-def test_pages_render_without_server_errors(app, client, login, accounts, email):
-    login(email)
+@pytest.mark.parametrize('email,slug', [
+    ('chair@example.com', 'mzugoss'),
+    ('treasurer@example.com', 'mzugoss'),
+    ('secretary@example.com', 'mzugoss'),
+    ('root@example.com', None),
+])
+def test_pages_render_without_server_errors(app, client, login, accounts, email, slug):
+    assert login(email, slug=slug).status_code == 302
     rules = [
         r.rule for r in app.url_map.iter_rules()
         if 'GET' in r.methods and not r.arguments and not r.rule.startswith('/static')
