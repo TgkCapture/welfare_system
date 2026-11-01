@@ -33,18 +33,12 @@ main.route('/welfare-rules/download')(WelfareController.download_welfare_rules_p
 main.route('/admin/cleanup', methods=['GET', 'POST'])(DashboardController.cleanup_files)
 main.route('/admin/storage-status')(DashboardController.storage_status)
 
-# ==================== ADMIN — USER MANAGEMENT ====================
+# ==================== OFFICER MANAGEMENT (manage_users) ====================
 main.route('/admin/users')(UserController.admin_users)
 main.route('/admin/users/create',                   methods=['GET', 'POST'])(UserController.create_user)
 main.route('/admin/users/<int:user_id>/edit',        methods=['GET', 'POST'])(UserController.edit_user)
 main.route('/admin/users/<int:user_id>/delete',      methods=['POST'])(UserController.delete_user)
 main.route('/admin/users/<int:user_id>/toggle',      methods=['POST'])(UserController.toggle_user_active)
-
-# ==================== CLERK — USER MANAGEMENT ====================
-main.route('/clerk/users')(UserController.clerk_users)
-main.route('/clerk/users/create',                   methods=['GET', 'POST'])(UserController.create_viewer)
-main.route('/clerk/users/<int:user_id>/edit',        methods=['GET', 'POST'])(UserController.edit_viewer)
-main.route('/clerk/users/<int:user_id>/toggle',      methods=['POST'])(UserController.toggle_viewer_active)
 
 # ==================== UTILITY ====================
 main.route('/version')(DashboardController.version)
