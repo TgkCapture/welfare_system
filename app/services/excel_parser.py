@@ -15,6 +15,7 @@ class ExcelParser:
     # Public API
     # ------------------------------------------------------------------
 
+    @staticmethod
     def _safe_col(value) -> str:
         """Strip non-ASCII characters from column names for error messages."""
         return str(value).encode('ascii', errors='replace').decode('ascii')
@@ -125,7 +126,7 @@ class ExcelParser:
                 return col
         raise ValueError(
             f"No column found for month '{month_name}'. "
-            f"Available columns: {[_safe_col(c) for c in df.columns]}"
+            f"Available columns: {[ExcelParser._safe_col(c) for c in df.columns]}"
         )
 
     @staticmethod

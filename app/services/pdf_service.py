@@ -8,7 +8,8 @@ Two documents are produced here:
   generate_contribution_report_pdf()  — per-month financial report
 
 Both return raw ``bytes`` so the caller can stream them directly via
-``make_response`` or write them to disk.
+``make_response`` or write them to disk.  ``save_contribution_report()``
+writes the contribution report to the report folder and returns its path.
 
 Design notes:
   - All styles are defined once in ``_Styles`` and shared across both
@@ -20,6 +21,8 @@ Design notes:
 """
 import io
 import logging
+import os
+import re
 from datetime import datetime
 
 import pandas as pd
@@ -429,6 +432,30 @@ class PDFGenerator:
             raise Exception(
                 f'Failed to generate contribution report PDF: {e}'
             ) from e
+
+    @staticmethod
+    def save_contribution_report(data: dict, report_folder: str) -> str:
+        """Generate the contribution report and write it to *report_folder*.
+
+        Returns:
+            Absolute path to the saved PDF file.
+        """
+        pdf = PDFGenerator.generate_contribution_report_pdf(data)
+
+        timestamp  = datetime.now().strftime('%Y%m%d%H%M%S')
+        month_safe = re.sub(r'[^A-Za-z0-9]+', '', str(data.get('month', ''))) or 'unknown'
+        filename   = (
+            f"contributions_report"
+            f"_{data.get('year', '')}_{month_safe}_{timestamp}.pdf"
+        )
+        report_path = os.path.join(report_folder, filename)
+
+        os.makedirs(report_folder, exist_ok=True)
+        with open(report_path, 'wb') as fh:
+            fh.write(pdf)
+
+        logger.info(f'Saved contribution report PDF to {report_path}')
+        return report_path
 
     # ------------------------------------------------------------------
     # Private section builders
