@@ -14,6 +14,9 @@ class GeneratedReport(db.Model):
     __tablename__ = 'generated_reports'
 
     id           = db.Column(db.Integer, primary_key=True)
+    group_id     = db.Column(
+        db.Integer, db.ForeignKey('groups.id'), nullable=False, index=True
+    )
     month        = db.Column(db.Integer, nullable=False)
     year         = db.Column(db.Integer, nullable=False)
     report_type  = db.Column(
@@ -67,6 +70,7 @@ class GeneratedReport(db.Model):
         """Serialise to a JSON-safe dict for API responses."""
         return {
             'id':                  self.id,
+            'group_id':            self.group_id,
             'month':               self.month,
             'month_name':          self.month_name,
             'year':                self.year,
@@ -100,6 +104,9 @@ class ReportAccessLog(db.Model):
     ACTIONS = ('generate', 'preview', 'download', 'regenerate', 'export')
 
     id          = db.Column(db.Integer, primary_key=True)
+    group_id    = db.Column(
+        db.Integer, db.ForeignKey('groups.id'), nullable=False, index=True
+    )
     report_id   = db.Column(
         db.Integer, db.ForeignKey('generated_reports.id'),
         nullable=False, index=True
