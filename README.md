@@ -53,7 +53,7 @@ A Flask-based system to automate the tracking of monthly contributions, simplify
 
 ```bash
 git clone https://github.com/tgkcapture/welfare_system.git
-cd mzugoss-welfare
+cd welfare_system
 ```
 
 ### 2. Create a Virtual Environment
@@ -69,10 +69,27 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4. Run the App
+### 4. Set Up the Database
+
+The schema is managed with Flask-Migrate.
 
 ```bash
-python app.py
+export FLASK_APP=run.py          # Windows PowerShell: $env:FLASK_APP = "run.py"
+flask db upgrade                 # new database
+flask create-admin               # create the first admin user
+```
+
+If you already have a database created by an older version (before
+migrations were added), mark it as up to date once instead of upgrading:
+
+```bash
+flask db stamp 365dc0d4aa41
+```
+
+### 5. Run the App
+
+```bash
+python run.py
 ```
 
 Then open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
@@ -104,6 +121,16 @@ Then open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
    - Distribute to group members
 
 ### For Developers:
+
+```bash
+# Tests
+pip install -r requirements-dev.txt
+pytest
+
+# Schema changes: edit the models, then generate and review a migration
+flask db migrate -m "describe the change"
+flask db upgrade
+```
 
 ```bash
 # Version management (using bump2version)
