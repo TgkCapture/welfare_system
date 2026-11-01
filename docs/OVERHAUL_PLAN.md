@@ -73,7 +73,7 @@ Everything later depends on this phase.
 ## Phase 1: Multi-tenancy, officers and permissions
 
 Delivered in steps: **1a** models and data migration (done), **1b** login
-and permissions, **1c** tenant scoping, **1d** management screens,
+and permissions (done), **1c** tenant scoping, **1d** management screens,
 **1e** per-group files and settings.
 
 Step 1a delivered:
@@ -92,6 +92,28 @@ Step 1a delivered:
 - Fixed while testing: the admin cleanup page (wrong template path,
   missing `intcomma` filter, missing `storage_stats`), and broken redirects
   to `main.report_preview*` endpoints that don't exist.
+
+Step 1b delivered:
+- Permissions come from the officer's group role. `role_required` and the
+  legacy `User.role` column are gone (migration `eecde90015d7`; its
+  downgrade rebuilds the column from the roles).
+- Logins: officers at `/g/<slug>/login` (email looked up within that group
+  only), superadmins at `/platform/login`, and `/auth/login` is a group
+  finder that remembers the last group. Logout returns to the right page.
+  A suspended group's officers are signed out.
+- `next` redirects only accept paths on this site. Login POSTs share one
+  rate limit per IP (`LOGIN_RATE_LIMIT`, default 10/min and 50/hour);
+  unknown emails take as long as wrong passwords.
+- Officer management is one screen gated by `manage_users`, with the grant
+  guardrail and the last-manager rule. The clerk "viewer" screens are removed.
+- Officers with `view_reports` see all of their group's reports; archived
+  reports need `manage_reports`. Report statistics and export cover only the
+  officer's group. `CLERKS_SEE_ALL_REPORTS` is removed.
+- File cleanup, storage status and bulk report cleanup are superadmin-only
+  until 1e makes them per-group (they currently act on every group's files).
+- Platform area at `/platform/` (read-only list of groups for now). This
+  replaces the `/admin/login` idea, since `/admin/...` holds group pages.
+- Tests: each test request now gets its own app context, as in production.
 
 - [ ] New `Group` model: `id`, `name`, `slug`, `is_active`, `created_at`.
 - [ ] New `GroupSettings` model, one per group, holding:
@@ -114,14 +136,14 @@ Step 1a delivered:
   - Add `group_id`, which is nullable only for superadmins, and `role_id`.
   - Replace the global email uniqueness with `UNIQUE(group_id, email)`.
   - Add an `is_superadmin` flag for platform operators.
-- [ ] Guardrail: a user can only grant permissions they hold themselves, and
+- [x] Guardrail: a user can only grant permissions they hold themselves, and
       the last user holding `manage_users` in a group cannot be removed or demoted.
-- [ ] Replace `role_required` with a `permission_required` decorator
+- [x] Replace `role_required` with a `permission_required` decorator
       everywhere, and add a `superadmin_required` decorator.
-- [ ] Remove public self-registration and the viewer role.
-- [ ] Per-group login at `/g/<slug>/login`, with the group's branding on the page.
-      The superadmin logs in at `/admin/login`.
-- [ ] Fix the open redirect in login: only follow a `next` URL that points
+- [x] Remove public self-registration and the viewer role.
+- [x] Per-group login at `/g/<slug>/login`, with the group's branding on the page.
+      The superadmin logs in at `/platform/login`.
+- [x] Fix the open redirect in login: only follow a `next` URL that points
       to this site. Add Flask-Limiter rate limits on login.
 - [ ] Tenant scoping:
   - Resolve the current group from `current_user.group_id`, and store it in `g.group`.

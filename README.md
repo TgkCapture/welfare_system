@@ -86,6 +86,16 @@ Upgrading an existing single-group install automatically creates a
 it: admins become Chairperson, clerks become Treasurer, and viewer
 accounts are deactivated.
 
+Signing in:
+
+* Officers: `/g/<slug>/login` (for example `/g/mzugoss/login`)
+* Platform superadmins: `/platform/login`
+* `/auth/login` asks for the group code and remembers it for next time
+
+Login attempts are rate limited per IP (`LOGIN_RATE_LIMIT`, default
+`10 per minute;50 per hour`). With several workers, point
+`RATELIMIT_STORAGE_URI` at a shared store such as Redis.
+
 If you already have a database created by an older version (before
 migrations were added), mark it as up to date once instead of upgrading:
 
