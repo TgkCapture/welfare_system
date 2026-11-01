@@ -14,6 +14,7 @@ from werkzeug.security import generate_password_hash
 from app.auth.forms import RegisterForm, UserEditForm
 from app.decorators.permissions import role_required
 from app.extensions import db
+from app.models.role import Role
 from app.models.user import User
 
 
@@ -89,18 +90,14 @@ class UserController:
             
             # Only validate email uniqueness if it has changed
             if email_changed:
-                # FIX: Used clean filter operations to avoid matching the current user
-                conflict = User.query.filter(
-                    (User.email == form.email.data) & (User.id != user.id)
-                ).first()
-                
-                if conflict:
+                if User.email_taken(form.email.data, user.group_id, exclude_id=user.id):
                     flash('That email address is already in use.', 'danger')
                     return redirect(url_for('main.edit_user', user_id=user_id))
 
             try:
                 user.email = form.email.data
                 user.role = form.role.data
+                user.group_role = Role.for_legacy_role(user.group_id, user.role)
                 user.is_active = form.is_active.data
                 db.session.commit()
 
@@ -262,11 +259,7 @@ class UserController:
             
             # Only validate email uniqueness if it has changed
             if email_changed:
-                conflict = User.query.filter(
-                    (User.email == form.email.data) & (User.id != user.id)
-                ).first()
-                
-                if conflict:
+                if User.email_taken(form.email.data, user.group_id, exclude_id=user.id):
                     flash('That email address is already in use.', 'danger')
                     return redirect(url_for('main.edit_viewer', user_id=user_id))
 
@@ -332,7 +325,8 @@ class UserController:
             success_redirect:  Where to redirect on success.
             failure_redirect:  Where to redirect if the email is taken.
         """
-        if User.query.filter_by(email=email).first():
+        group_id = current_user.group_id
+        if User.email_taken(email, group_id):
             flash('That email address is already registered.', 'danger')
             return redirect(failure_redirect)
 
@@ -341,6 +335,8 @@ class UserController:
                 email=email,
                 password=generate_password_hash(password, method='scrypt'),
                 role=role,
+                group_id=group_id,
+                group_role=Role.for_legacy_role(group_id, role),
             )
             db.session.add(new_user)
             db.session.commit()

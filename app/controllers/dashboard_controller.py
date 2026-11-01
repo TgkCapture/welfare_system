@@ -154,12 +154,10 @@ class DashboardController:
             else:
                 flash(f"Cleanup failed: {cleanup_result.get('error')}", 'error')
 
-        folder_sizes = FileCleanupService.get_folder_sizes()
-
         return render_template(
-            'main/cleanup.html',
+            'admin/cleanup.html',
             version=current_app.version,
-            folder_sizes=folder_sizes,
+            storage_stats=FileCleanupService.get_folder_sizes(),
             cleanup_result=cleanup_result,
         )
 

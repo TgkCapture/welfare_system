@@ -67,12 +67,8 @@ class ProfileController:
             flash('Email is required.', 'danger')
             return redirect(url_for('auth.profile'))
 
-        # Ensure email is not already taken by a *different* account
-        conflict = User.query.filter(
-            User.email == email,
-            User.id != user.id
-        ).first()
-        if conflict:
+        # Ensure email is not already taken by a *different* account in the group
+        if User.email_taken(email, user.group_id, exclude_id=user.id):
             flash('That email address is already in use.', 'danger')
             return redirect(url_for('auth.profile'))
 

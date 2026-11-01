@@ -126,7 +126,7 @@ class ReportManagement:
         if not os.path.exists(report.file_path):
             flash('Source report file not found on disk.', 'error')
             return redirect(
-                url_for('main.report_preview_specific', report_id=report_id)
+                url_for('report.preview_specific', report_id=report_id)
             )
 
         try:
@@ -140,6 +140,7 @@ class ReportManagement:
             shutil.copy2(report.file_path, new_filepath)
 
             new_report = GeneratedReport(
+                group_id=report.group_id,
                 month=report.month,
                 year=report.year,
                 report_type=report.report_type,
@@ -164,7 +165,7 @@ class ReportManagement:
                 'success'
             )
             return redirect(
-                url_for('main.report_preview_specific', report_id=new_report.id)
+                url_for('report.preview_specific', report_id=new_report.id)
             )
 
         except Exception as e:

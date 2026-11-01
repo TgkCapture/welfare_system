@@ -143,7 +143,7 @@ class ReportController:
 
             if 'report_data' not in session:
                 flash('No report data available.', 'error')
-                return redirect(url_for('main.report_preview'))
+                return redirect(url_for('report.preview'))
 
             data = session['report_data']
             image_data = {
@@ -163,7 +163,7 @@ class ReportController:
 
             if img_buffer is None:
                 flash('No paid members to display.', 'info')
-                return redirect(url_for('main.report_preview'))
+                return redirect(url_for('report.preview'))
 
             return send_file(
                 img_buffer,
@@ -177,7 +177,7 @@ class ReportController:
         except Exception as e:
             current_app.logger.error(f"Error generating paid-members image: {e}", exc_info=True)
             flash('Error generating paid members image.', 'error')
-            return redirect(url_for('main.report_preview'))
+            return redirect(url_for('report.preview'))
 
     @staticmethod
     def download_welfare_rules_pdf():
@@ -272,6 +272,7 @@ class ReportController:
                     month_val = None  # fallback
 
             report = GeneratedReport(
+                group_id=current_user.group_id,
                 month=month_val,          # ← always an int now
                 year=report_data.get('year'),
                 report_type='contributions',
@@ -322,6 +323,7 @@ class ReportController:
         """Write an access-log entry — failures are silently swallowed."""
         try:
             log = ReportAccessLog(
+                group_id=current_user.group_id,
                 report_id=report_id,
                 user_id=current_user.id,
                 action=action,
