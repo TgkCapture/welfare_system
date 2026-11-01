@@ -94,7 +94,7 @@
         <i class="fas fa-arrow-down download-card__arrow"></i>
       </a>
 
-      {% if current_user.role in ['admin','clerk'] %}
+      {% if current_user.has_permission('generate_reports') %}
       <form method="POST" action="{{ url_for('report.regenerate', report_id=report.id) }}">
         <button type="submit" class="download-card download-card--amber" style="width:100%;border:none;cursor:pointer;font:inherit;">
           <div class="download-card__icon"><i class="fas fa-redo"></i></div>
@@ -107,7 +107,7 @@
       </form>
       {% endif %}
 
-      {% if current_user.is_admin %}
+      {% if current_user.has_permission('manage_reports') %}
       {% if report.is_archived %}
       <form method="POST" action="{{ url_for('report.restore', report_id=report.id) }}">
         <button type="submit" class="download-card download-card--success" style="width:100%;border:none;cursor:pointer;font:inherit;">

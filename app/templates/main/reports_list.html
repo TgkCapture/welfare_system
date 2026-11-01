@@ -9,7 +9,7 @@
     <p class="page-header__sub">Browse, preview and download reports</p>
   </div>
   <div class="page-header__actions">
-    {% if user_role in ['admin','clerk'] %}
+    {% if current_user.has_permission('upload_data') %}
     <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn--primary btn--sm">
       <i class="fas fa-plus"></i> New Report
     </a>
@@ -34,7 +34,7 @@
         <option value="{{ i }}">{{ month_names[i-1] }}</option>
       {% endfor %}
     </select>
-    {% if current_user.is_admin %}
+    {% if current_user.has_permission('manage_reports') %}
     <select id="fStatus" class="form-control" style="width:auto;">
       <option value="">All status</option>
       <option value="active">Active</option>
@@ -94,19 +94,21 @@
       <a href="{{ r.download_url }}" class="btn btn--primary btn--sm">
         <i class="fas fa-download"></i> Download
       </a>
-      {% if user_role in ['admin','clerk'] %}
+      {% if current_user.has_permission('generate_reports') or current_user.has_permission('manage_reports') %}
       <div class="report-card__more">
         <button class="btn btn--outline btn--sm btn--icon more-btn"
                 aria-haspopup="true" aria-expanded="false">
           <i class="fas fa-ellipsis-v"></i>
         </button>
         <div class="more-menu">
+          {% if current_user.has_permission('generate_reports') %}
           <form method="POST" action="{{ url_for('report.regenerate', report_id=r.id) }}">
             <button type="submit" class="more-menu__item">
               <i class="fas fa-redo"></i> Regenerate
             </button>
           </form>
-          {% if current_user.is_admin %}
+          {% endif %}
+          {% if current_user.has_permission('manage_reports') %}
           {% if r.is_archived %}
           <form method="POST" action="{{ url_for('report.restore', report_id=r.id) }}">
             <button type="submit" class="more-menu__item">
@@ -136,18 +138,20 @@
   {% endfor %}
 </div>
 
-{% if current_user.is_admin %}
+{% if current_user.has_permission('manage_reports') %}
 <div class="card" style="margin-top:1.5rem;">
   <div class="card__header">
     <h2 class="card__title"><i class="fas fa-cog"></i> Report Management</h2>
   </div>
   <div class="card__body" style="display:flex;gap:.75rem;flex-wrap:wrap;">
+    {% if current_user.is_superadmin %}
     <form method="POST" action="{{ url_for('report.cleanup') }}"
           data-confirm="Run report cleanup? Old files will be archived.">
       <button type="submit" class="btn btn--warning btn--sm">
         <i class="fas fa-broom"></i> Cleanup Old Reports
       </button>
     </form>
+    {% endif %}
     <a href="{{ url_for('report.stats') }}" class="btn btn--outline btn--sm">
       <i class="fas fa-chart-bar"></i> Statistics
     </a>
@@ -164,7 +168,7 @@
     <i class="fas fa-file-excel"></i>
     <h3>No reports yet</h3>
     <p>No contribution reports have been generated.</p>
-    {% if user_role in ['admin','clerk'] %}
+    {% if current_user.has_permission('upload_data') %}
     <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn--primary btn--sm">
       <i class="fas fa-plus"></i> Generate first report
     </a>

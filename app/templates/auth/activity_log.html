@@ -24,7 +24,7 @@
     <div style="flex:1;">
       <div style="font-weight:700;">{{ user.email }}</div>
       <div style="display:flex;gap:.625rem;flex-wrap:wrap;margin-top:.25rem;">
-        <span class="role-badge role-badge--{{ user.role }}">{{ user.role|title }}</span>
+        <span class="role-badge role-badge--{{ user.badge_class }}">{{ user.role_name }}</span>
         <span class="text-sm text-muted">
           <i class="fas fa-calendar-plus"></i> Member since {{ user.created_at.strftime('%B %Y') }}
         </span>

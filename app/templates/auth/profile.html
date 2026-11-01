@@ -27,7 +27,7 @@
       <div class="card__body">
         <div class="profile-avatar">
           <div class="profile-avatar__circle">{{ current_user.email[0]|upper }}</div>
-          <span class="role-badge role-badge--{{ current_user.role }}">{{ current_user.role|title }}</span>
+          <span class="role-badge role-badge--{{ current_user.badge_class }}">{{ current_user.role_name }}</span>
         </div>
         <dl class="detail-list">
           <dt><i class="fas fa-envelope"></i> Email</dt>
@@ -55,7 +55,7 @@
       </div>
       <div class="card__body">
         <div class="profile-stats">
-          {% if current_user.is_admin or current_user.is_clerk %}
+          {% if reports_generated %}
           <div class="profile-stat">
             <div class="profile-stat__val">{{ reports_generated|default(0) }}</div>
             <div class="profile-stat__lbl">Reports Generated</div>
@@ -188,7 +188,7 @@
             </div>
             <i class="fas fa-chevron-right action-row__arrow"></i>
           </a>
-          {% if not current_user.is_admin %}
+          {% if not current_user.is_superadmin %}
           <form method="POST" action="{{ url_for('auth.export_data') }}">
             {{ profile_form.hidden_tag() if profile_form }}
             <button type="submit" class="action-row action-row--btn">
@@ -218,7 +218,7 @@
 </div><!-- /profile-layout -->
 
 <!-- Delete account modal -->
-{% if not current_user.is_admin %}
+{% if not current_user.is_superadmin %}
 <div class="modal-backdrop" id="deleteAccountModal">
   <div class="modal">
     <div class="modal__header">

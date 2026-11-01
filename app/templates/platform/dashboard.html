@@ -1,0 +1,51 @@
+<!-- app/templates/platform/dashboard.html -->
+{% extends 'base.html' %}
+{% block title %}Platform — Welfare System{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-globe-africa"></i> Platform</h1>
+    <p class="page-header__sub">Welfare groups on this platform</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    {% if groups %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Group</th>
+          <th>Sign-in page</th>
+          <th>Officers</th>
+          <th>Reports</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in groups %}
+        <tr>
+          <td><strong>{{ row.group.name }}</strong></td>
+          <td><a href="{{ url_for('group.login', slug=row.group.slug) }}">/g/{{ row.group.slug }}/login</a></td>
+          <td>{{ row.officers }}</td>
+          <td>{{ row.reports }}</td>
+          <td>
+            <span class="status-dot status-dot--{{ 'active' if row.group.is_active else 'inactive' }}">
+              {{ 'Active' if row.group.is_active else 'Suspended' }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="padding:1.5rem;">No groups yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<p class="form-hint" style="margin-top:1rem;">
+  Create groups and their first officer with <code>flask create-group</code> and
+  <code>flask create-admin --group &lt;slug&gt;</code>. Managing groups from this page arrives in a later step.
+</p>
+{% endblock %}

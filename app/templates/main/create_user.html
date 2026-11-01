@@ -1,16 +1,16 @@
 <!-- app/templates/main/create_user.html -->
 {% extends 'base.html' %}
-{% block title %}Add User — Mzugoss Welfare{% endblock %}
+{% block title %}Add Officer — Welfare System{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div class="page-header__text">
-    <h1 class="page-header__title"><i class="fas fa-user-plus"></i> Add New User</h1>
-    <p class="page-header__sub">Create a new system user account</p>
+    <h1 class="page-header__title"><i class="fas fa-user-plus"></i> Add Officer</h1>
+    <p class="page-header__sub">Create an account for an officer of your group</p>
   </div>
   <div class="page-header__actions">
     <a href="{{ url_for('main.admin_users') }}" class="btn btn--outline btn--sm">
-      <i class="fas fa-arrow-left"></i> Back to Users
+      <i class="fas fa-arrow-left"></i> Back to Officers
     </a>
   </div>
 </div>
@@ -18,11 +18,11 @@
 <div style="max-width:36rem;">
   <div class="card">
     <div class="card__header">
-      <h2 class="card__title"><i class="fas fa-user-circle"></i> User Information</h2>
+      <h2 class="card__title"><i class="fas fa-user-circle"></i> Officer Information</h2>
     </div>
     <div class="card__body">
       <form method="POST"
-            action="{{ url_for('main.create_user') if is_admin else url_for('main.create_viewer') }}"
+            action="{{ url_for('main.create_user') }}"
             novalidate>
         {{ form.hidden_tag() }}
 
@@ -75,31 +75,19 @@
           {% endfor %}
         </div>
 
-        {% if is_admin %}
         <div class="form-group">
           <label class="form-label" for="{{ form.role.id }}">
             <i class="fas fa-user-tag"></i> Role
           </label>
           {{ form.role(class="form-control") }}
-          <p class="form-hint">
-            <strong>Admin</strong> — full access ·
-            <strong>Clerk</strong> — upload &amp; reports ·
-            <strong>Viewer</strong> — read only
-          </p>
+          <p class="form-hint">You can assign roles whose permissions you hold yourself.</p>
         </div>
-        {% else %}
-        <div class="form-group">
-          <label class="form-label"><i class="fas fa-user-tag"></i> Role</label>
-          <div class="form-control" style="background:var(--clr-slate-50);cursor:default;">Viewer</div>
-          <p class="form-hint">Clerks can only create Viewer accounts.</p>
-        </div>
-        {% endif %}
 
         <div style="display:flex;gap:.75rem;margin-top:1.5rem;">
           <button type="submit" class="btn btn--primary">
-            <i class="fas fa-user-plus"></i> Create user
+            <i class="fas fa-user-plus"></i> Create officer
           </button>
-          <a href="{{ url_for('main.admin_users') if is_admin else url_for('main.clerk_users') }}"
+          <a href="{{ url_for('main.admin_users') }}"
              class="btn btn--outline">
             <i class="fas fa-times"></i> Cancel
           </a>

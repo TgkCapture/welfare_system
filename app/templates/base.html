@@ -34,39 +34,31 @@
       <nav class="topnav__links" aria-label="Main navigation">
         {% set ep = request.endpoint %}
 
-        {% if current_user.is_admin %}
-          <a href="{{ url_for('main.admin_dashboard') }}"
-             class="topnav__link{% if ep == 'main.admin_dashboard' %} is-active{% endif %}">
-            <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
-          </a>
-        {% elif current_user.is_clerk %}
-          <a href="{{ url_for('main.clerk_dashboard') }}"
-             class="topnav__link{% if ep == 'main.clerk_dashboard' %} is-active{% endif %}">
-            <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
-          </a>
-        {% else %}
-          <a href="{{ url_for('main.viewer_dashboard') }}"
-             class="topnav__link{% if ep == 'main.viewer_dashboard' %} is-active{% endif %}">
-            <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
-          </a>
-        {% endif %}
+        <a href="{{ url_for('main.dashboard') }}"
+           class="topnav__link{% if ep in ('main.admin_dashboard', 'main.clerk_dashboard', 'main.viewer_dashboard', 'platform.dashboard') %} is-active{% endif %}">
+          <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+        </a>
 
-        {% if current_user.has_permission('upload_files') %}
+        {% if current_user.has_permission('upload_data') %}
           <a href="{{ url_for('main.upload_dashboard') }}"
              class="topnav__link{% if ep == 'main.upload_dashboard' %} is-active{% endif %}">
             <i class="fas fa-file-upload"></i><span>Generate</span>
           </a>
         {% endif %}
 
+        {% if current_user.has_permission('view_reports') %}
         <a href="{{ url_for('report.list') }}"
            class="topnav__link{% if ep == 'report.list' %} is-active{% endif %}">
           <i class="fas fa-file-alt"></i><span>Reports</span>
         </a>
+        {% endif %}
 
+        {% if not current_user.is_superadmin %}
         <a href="{{ url_for('main.welfare_rules') }}"
            class="topnav__link{% if ep == 'main.welfare_rules' %} is-active{% endif %}">
           <i class="fas fa-book"></i><span>Rules</span>
         </a>
+        {% endif %}
       </nav>
 
       <!-- User menu -->
@@ -84,8 +76,8 @@
         <div class="topnav__dropdown" id="userDropdown" role="menu" aria-hidden="true">
           <div class="dropdown__header">
             <span class="dropdown__email">{{ current_user.email }}</span>
-            <span class="dropdown__role role-badge role-badge--{{ current_user.role }}">
-              {{ current_user.role|title }}
+            <span class="dropdown__role role-badge role-badge--{{ current_user.badge_class }}">
+              {{ current_user.role_name }}
             </span>
           </div>
 
@@ -95,25 +87,28 @@
             <i class="fas fa-user"></i>Profile
           </a>
 
-          {% if current_user.has_permission('manage_settings') %}
+          {% if current_user.has_permission('edit_settings') %}
           <a href="{{ url_for('main.settings') }}" class="dropdown__item" role="menuitem">
             <i class="fas fa-cog"></i>Settings
           </a>
           {% endif %}
 
-          {% if current_user.is_admin %}
+          {% if current_user.has_permission('manage_users') %}
           <div class="dropdown__divider"></div>
-          <span class="dropdown__section-label">Admin</span>
+          <span class="dropdown__section-label">Group</span>
           <a href="{{ url_for('main.admin_users') }}" class="dropdown__item" role="menuitem">
-            <i class="fas fa-users-cog"></i>User Management
+            <i class="fas fa-users-cog"></i>Officers
+          </a>
+          {% endif %}
+
+          {% if current_user.is_superadmin %}
+          <div class="dropdown__divider"></div>
+          <span class="dropdown__section-label">Platform</span>
+          <a href="{{ url_for('platform.dashboard') }}" class="dropdown__item" role="menuitem">
+            <i class="fas fa-globe-africa"></i>Groups
           </a>
           <a href="{{ url_for('main.cleanup_files') }}" class="dropdown__item" role="menuitem">
             <i class="fas fa-broom"></i>Cleanup Files
-          </a>
-          {% elif current_user.is_clerk %}
-          <div class="dropdown__divider"></div>
-          <a href="{{ url_for('main.clerk_users') }}" class="dropdown__item" role="menuitem">
-            <i class="fas fa-user-plus"></i>Manage Viewers
           </a>
           {% endif %}
 
@@ -150,7 +145,7 @@
         <span class="topnav__avatar">{{ current_user.email[0]|upper }}</span>
         <div>
           <div class="mobile-nav__email">{{ current_user.email }}</div>
-          <span class="role-badge role-badge--{{ current_user.role }}">{{ current_user.role|title }}</span>
+          <span class="role-badge role-badge--{{ current_user.badge_class }}">{{ current_user.role_name }}</span>
         </div>
       </div>
       <button class="mobile-nav__close" id="mobileNavClose" aria-label="Close menu">
@@ -159,55 +154,52 @@
     </div>
 
     <div class="mobile-nav__links">
-      {% if current_user.is_admin %}
-        <a href="{{ url_for('main.admin_dashboard') }}" class="mobile-nav__link">
-          <i class="fas fa-tachometer-alt"></i>Dashboard
-        </a>
-      {% elif current_user.is_clerk %}
-        <a href="{{ url_for('main.clerk_dashboard') }}" class="mobile-nav__link">
-          <i class="fas fa-tachometer-alt"></i>Dashboard
-        </a>
-      {% else %}
-        <a href="{{ url_for('main.viewer_dashboard') }}" class="mobile-nav__link">
-          <i class="fas fa-tachometer-alt"></i>Dashboard
-        </a>
-      {% endif %}
+      <a href="{{ url_for('main.dashboard') }}" class="mobile-nav__link">
+        <i class="fas fa-tachometer-alt"></i>Dashboard
+      </a>
 
-      {% if current_user.has_permission('upload_files') %}
+      {% if current_user.has_permission('upload_data') %}
         <a href="{{ url_for('main.upload_dashboard') }}" class="mobile-nav__link">
           <i class="fas fa-file-upload"></i>Generate Report
         </a>
       {% endif %}
 
+      {% if current_user.has_permission('view_reports') %}
       <a href="{{ url_for('report.list') }}" class="mobile-nav__link">
         <i class="fas fa-file-alt"></i>Reports
       </a>
+      {% endif %}
+      {% if not current_user.is_superadmin %}
       <a href="{{ url_for('main.welfare_rules') }}" class="mobile-nav__link">
         <i class="fas fa-book"></i>Welfare Rules
       </a>
+      {% endif %}
       <a href="{{ url_for('auth.profile') }}" class="mobile-nav__link">
         <i class="fas fa-user"></i>Profile
       </a>
 
-      {% if current_user.has_permission('manage_settings') %}
+      {% if current_user.has_permission('edit_settings') %}
         <a href="{{ url_for('main.settings') }}" class="mobile-nav__link">
           <i class="fas fa-cog"></i>Settings
         </a>
       {% endif %}
 
-      {% if current_user.is_admin %}
+      {% if current_user.has_permission('manage_users') %}
         <div class="mobile-nav__divider"></div>
-        <span class="mobile-nav__section">Admin</span>
+        <span class="mobile-nav__section">Group</span>
         <a href="{{ url_for('main.admin_users') }}" class="mobile-nav__link">
-          <i class="fas fa-users-cog"></i>User Management
+          <i class="fas fa-users-cog"></i>Officers
+        </a>
+      {% endif %}
+
+      {% if current_user.is_superadmin %}
+        <div class="mobile-nav__divider"></div>
+        <span class="mobile-nav__section">Platform</span>
+        <a href="{{ url_for('platform.dashboard') }}" class="mobile-nav__link">
+          <i class="fas fa-globe-africa"></i>Groups
         </a>
         <a href="{{ url_for('main.cleanup_files') }}" class="mobile-nav__link">
           <i class="fas fa-broom"></i>Cleanup Files
-        </a>
-      {% elif current_user.is_clerk %}
-        <div class="mobile-nav__divider"></div>
-        <a href="{{ url_for('main.clerk_users') }}" class="mobile-nav__link">
-          <i class="fas fa-user-plus"></i>Manage Viewers
         </a>
       {% endif %}
 

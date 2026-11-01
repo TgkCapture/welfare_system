@@ -1,15 +1,15 @@
 <!-- app/templates/main/edit_user.html -->
 {% extends 'base.html' %}
-{% block title %}Edit User — Mzugoss Welfare{% endblock %}
+{% block title %}Edit Officer — Welfare System{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div class="page-header__text">
-    <h1 class="page-header__title"><i class="fas fa-user-edit"></i> Edit User</h1>
+    <h1 class="page-header__title"><i class="fas fa-user-edit"></i> Edit Officer</h1>
     <p class="page-header__sub">{{ user.email }}</p>
   </div>
   <div class="page-header__actions">
-    <a href="{{ url_for('main.admin_users') if is_admin else url_for('main.clerk_users') }}"
+    <a href="{{ url_for('main.admin_users') }}"
        class="btn btn--outline btn--sm">
       <i class="fas fa-arrow-left"></i> Back
     </a>
@@ -25,11 +25,11 @@
         </span>
         {{ user.email }}
       </h2>
-      <span class="role-badge role-badge--{{ user.role }}">{{ user.role|title }}</span>
+      <span class="role-badge role-badge--{{ user.badge_class }}">{{ user.role_name }}</span>
     </div>
     <div class="card__body">
       <form method="POST"
-            action="{{ url_for('main.edit_user', user_id=user.id) if is_admin else url_for('main.edit_viewer', user_id=user.id) }}"
+            action="{{ url_for('main.edit_user', user_id=user.id) }}"
             novalidate>
         {{ form.hidden_tag() }}
 
@@ -46,14 +46,12 @@
           {% endfor %}
         </div>
 
-        {% if is_admin %}
         <div class="form-group">
           <label class="form-label" for="{{ form.role.id }}">
             <i class="fas fa-user-tag"></i> Role
           </label>
           {{ form.role(class="form-control") }}
         </div>
-        {% endif %}
 
         <div class="form-group">
           <label class="check-label">
@@ -67,12 +65,12 @@
           <button type="submit" class="btn btn--primary">
             <i class="fas fa-save"></i> Save changes
           </button>
-          <a href="{{ url_for('main.admin_users') if is_admin else url_for('main.clerk_users') }}"
+          <a href="{{ url_for('main.admin_users') }}"
              class="btn btn--outline">Cancel</a>
-          {% if is_admin and user.id != current_user.id %}
+          {% if user.id != current_user.id %}
           <button type="button" class="btn btn--danger" data-modal-open="delUserModal"
                   style="margin-left:auto;">
-            <i class="fas fa-trash"></i> Delete user
+            <i class="fas fa-trash"></i> Delete officer
           </button>
           {% endif %}
         </div>
@@ -81,11 +79,11 @@
   </div>
 </div>
 
-{% if is_admin and user.id != current_user.id %}
+{% if user.id != current_user.id %}
 <div class="modal-backdrop" id="delUserModal">
   <div class="modal">
     <div class="modal__header">
-      <h3 class="modal__title">Delete User</h3>
+      <h3 class="modal__title">Delete Officer</h3>
       <button class="modal__close" data-modal-close="delUserModal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal__body">

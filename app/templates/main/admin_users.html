@@ -1,33 +1,33 @@
 <!-- app/templates/main/admin_users.html -->
 {% extends 'base.html' %}
-{% block title %}User Management — Mzugoss Welfare{% endblock %}
+{% block title %}Officers — Welfare System{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div class="page-header__text">
-    <h1 class="page-header__title"><i class="fas fa-users-cog"></i> User Management</h1>
-    <p class="page-header__sub">Manage system users and permissions</p>
+    <h1 class="page-header__title"><i class="fas fa-users-cog"></i> Officers</h1>
+    <p class="page-header__sub">Officer accounts and roles for your group</p>
   </div>
   <div class="page-header__actions">
     <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn--outline btn--sm">
       <i class="fas fa-arrow-left"></i> Dashboard
     </a>
     <a href="{{ url_for('main.create_user') }}" class="btn btn--primary btn--sm">
-      <i class="fas fa-user-plus"></i> Add User
+      <i class="fas fa-user-plus"></i> Add Officer
     </a>
   </div>
 </div>
 
 <!-- Mini stats -->
 <div class="stats-grid" style="margin-bottom:1.25rem;">
-  {% for role, icon in [('admin','user-shield'),('clerk','user-edit'),('viewer','user')] %}
+  {% for role in roles %}
   <div class="stat-card">
-    <div class="stat-card__icon stat-card__icon--{{ 'purple' if role=='admin' else 'amber' if role=='clerk' else 'cyan' }}">
-      <i class="fas fa-{{ icon }}"></i>
+    <div class="stat-card__icon stat-card__icon--{{ loop.cycle('purple', 'amber', 'cyan') }}">
+      <i class="fas fa-user-tag"></i>
     </div>
     <div>
-      <div class="stat-card__value">{{ users|selectattr('role','equalto',role)|list|length }}</div>
-      <div class="stat-card__label">{{ role|title }}s</div>
+      <div class="stat-card__value">{{ users|selectattr('role_id','equalto',role.id)|list|length }}</div>
+      <div class="stat-card__label">{{ role.name }}</div>
     </div>
   </div>
   {% endfor %}
@@ -65,7 +65,7 @@
               <span style="font-size:.875rem;font-weight:600;">{{ u.email }}</span>
             </div>
           </td>
-          <td><span class="role-badge role-badge--{{ u.role }}">{{ u.role|title }}</span></td>
+          <td><span class="role-badge role-badge--{{ u.badge_class }}">{{ u.role_name }}</span></td>
           <td>
             <span class="status-dot status-dot--{{ 'active' if u.is_active else 'inactive' }}">
               {{ 'Active' if u.is_active else 'Inactive' }}
@@ -76,7 +76,7 @@
             {{ u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else '—' }}
           </td>
           <td>
-            {% if u.id != current_user.id %}
+            {% if u.id != current_user.id and (not u.role or current_user.can_grant(u.role)) %}
             <div style="display:flex;gap:.375rem;flex-wrap:wrap;">
               <a href="{{ url_for('main.edit_user', user_id=u.id) }}"
                  class="btn btn--outline btn--sm" title="Edit">
@@ -96,7 +96,7 @@
                 <i class="fas fa-trash"></i>
               </button>
             </div>
-            {% else %}
+            {% elif u.id == current_user.id %}
             <a href="{{ url_for('auth.profile') }}" class="btn btn--outline btn--sm">
               <i class="fas fa-user-edit"></i> Profile
             </a>
@@ -109,10 +109,10 @@
     {% else %}
     <div class="empty-state">
       <i class="fas fa-users-slash"></i>
-      <h3>No users yet</h3>
-      <p>Create the first user account to get started.</p>
+      <h3>No officers yet</h3>
+      <p>Create the first officer account to get started.</p>
       <a href="{{ url_for('main.create_user') }}" class="btn btn--primary btn--sm">
-        <i class="fas fa-user-plus"></i> Add user
+        <i class="fas fa-user-plus"></i> Add officer
       </a>
     </div>
     {% endif %}

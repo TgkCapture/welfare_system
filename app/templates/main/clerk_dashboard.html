@@ -71,13 +71,12 @@
     <div class="card__body">
       <div class="action-tiles">
         {% set tiles = [
-          (url_for('main.upload_dashboard'), 'fas fa-file-upload',  'blue',   'Generate Report',  'Create reports from Excel or Sheets'),
-          (url_for('main.clerk_users'),      'fas fa-user-plus',    'green',  'Manage Viewers',   'Add, edit or disable viewer accounts'),
-          (url_for('report.list'),           'fas fa-file-alt',     'purple', 'View Reports',     'Browse and download reports'),
-          (url_for('main.welfare_rules'),    'fas fa-book',         'cyan',   'Welfare Rules',    'View and download rules PDF'),
-          (url_for('main.settings'),         'fas fa-cog',          'amber',  'Settings',         'Configure Google Sheets URL'),
+          (url_for('main.upload_dashboard'), 'fas fa-file-upload',  'blue',   'Generate Report',  'Create reports from Excel or Sheets', 'upload_data'),
+          (url_for('report.list'),           'fas fa-file-alt',     'purple', 'View Reports',     'Browse and download reports',         'view_reports'),
+          (url_for('main.welfare_rules'),    'fas fa-book',         'cyan',   'Welfare Rules',    'View and download rules PDF',         None),
+          (url_for('main.settings'),         'fas fa-cog',          'amber',  'Settings',         'Configure Google Sheets URL',         'edit_settings'),
         ] %}
-        {% for href, icon, color, title, desc in tiles %}
+        {% for href, icon, color, title, desc, perm in tiles if not perm or current_user.has_permission(perm) %}
         <a href="{{ href }}" class="action-tile">
           <div class="action-tile__icon action-tile__icon--{{ color }}">
             <i class="{{ icon }}"></i>

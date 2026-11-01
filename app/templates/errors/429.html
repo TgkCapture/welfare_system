@@ -1,0 +1,18 @@
+<!-- app/templates/errors/429.html -->
+{% extends 'base.html' %}
+{% block title %}Error 429 — Welfare System{% endblock %}
+{% block content %}
+<div class="error-page">
+  <div class="error-page__code">429</div>
+  <div class="error-page__icon">
+    <i class="fas fa-hourglass-half"></i>
+  </div>
+  <h1 class="error-page__title">Too Many Attempts</h1>
+  <p class="error-page__msg">{{ message }}</p>
+  <div class="error-page__actions">
+    <button onclick="history.back()" class="btn btn--outline">
+      <i class="fas fa-arrow-left"></i> Go Back
+    </button>
+  </div>
+</div>
+{% endblock %}
