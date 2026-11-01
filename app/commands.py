@@ -5,9 +5,11 @@ Flask CLI commands.
 Register with the app via ``init_commands(app)`` in the app factory.
 
 Available commands:
-  flask cleanup-files   — delete old files from upload / report folders
-  flask storage-status  — print current folder sizes
-  flask create-admin    — create an admin user interactively
+  flask cleanup-files       — delete old files from upload / report folders
+  flask storage-status      — print current folder sizes
+  flask create-group        — create a welfare group with preset roles
+  flask create-admin        — create a group's first officer (Chairperson)
+  flask create-superadmin   — create a platform superadmin
 """
 import click
 from flask import current_app
@@ -110,35 +112,104 @@ def init_commands(app) -> None:
             )
 
     # ------------------------------------------------------------------
+    # create-group
+    # ------------------------------------------------------------------
+
+    @app.cli.command('create-group')
+    @click.option('--name', prompt='Group name')
+    @click.option('--slug', prompt='URL slug (e.g. mzugoss)')
+    def create_group(name, slug):
+        """Create a welfare group with default settings and preset roles."""
+        from app.extensions import db
+        from app.models.group import Group, GroupSettings
+        from app.models.role import Role
+
+        slug = slug.strip().lower()
+        if not Group.is_valid_slug(slug):
+            click.secho('✗ Slug must be lowercase letters, digits and single hyphens.', fg='red')
+            return
+        if Group.query.filter_by(slug=slug).first():
+            click.secho(f'✗ A group with slug {slug!r} already exists.', fg='red')
+            return
+
+        try:
+            group = Group(name=name, slug=slug)
+            group.settings = GroupSettings(display_name=name)
+            db.session.add(group)
+            Role.seed_presets(group)
+            db.session.commit()
+            click.secho(f'✓ Group {name!r} created at /g/{slug}.', fg='green')
+        except Exception as e:
+            db.session.rollback()
+            click.secho(f'✗ Failed: {e}', fg='red')
+
+    # ------------------------------------------------------------------
     # create-admin
     # ------------------------------------------------------------------
 
     @app.cli.command('create-admin')
+    @click.option('--group', 'slug', prompt='Group slug')
     @click.option('--email',    prompt='Admin email')
     @click.option('--password', prompt='Password', hide_input=True,
                   confirmation_prompt=True)
-    def create_admin(email, password):
-        """Create an admin user account."""
-        from app.extensions import db
-        from app.models.user import User
+    def create_admin(slug, email, password):
+        """Create a group's first officer with the Chairperson role."""
+        from app.models.group import Group
+        from app.models.role import Role
 
-        if len(password) < 8:
-            click.secho('✗ Password must be at least 8 characters.', fg='red')
+        group = Group.query.filter_by(slug=slug.strip().lower()).first()
+        if not group:
+            click.secho(f'✗ No group with slug {slug!r}. Run `flask create-group` first.', fg='red')
             return
 
-        if User.query.filter_by(email=email).first():
-            click.secho(f'✗ Email {email!r} is already registered.', fg='red')
-            return
+        _create_account(
+            email, password, label=f'{group.name} admin',
+            role='admin', group_id=group.id,
+            group_role=Role.query.filter_by(group_id=group.id, name='Chairperson').first(),
+        )
 
-        try:
-            user = User(
-                email=email,
-                password=generate_password_hash(password, method='scrypt'),
-                role='admin',
-            )
-            db.session.add(user)
-            db.session.commit()
-            click.secho(f'✓ Admin account created for {email}.', fg='green')
-        except Exception as e:
-            db.session.rollback()
-            click.secho(f'✗ Failed: {e}', fg='red')
+    # ------------------------------------------------------------------
+    # create-superadmin
+    # ------------------------------------------------------------------
+
+    @app.cli.command('create-superadmin')
+    @click.option('--email',    prompt='Superadmin email')
+    @click.option('--password', prompt='Password', hide_input=True,
+                  confirmation_prompt=True)
+    def create_superadmin(email, password):
+        """Create a platform superadmin (belongs to no group)."""
+        # `role` is the legacy column, unused for superadmins; removed in 1b
+        _create_account(
+            email, password, label='Superadmin',
+            role='viewer', group_id=None, is_superadmin=True,
+        )
+
+
+def _create_account(email, password, label, **fields) -> None:
+    """Validate and create a User, reporting the outcome on the console."""
+    from app.extensions import db
+    from app.models.user import User
+
+    email = email.strip()
+    if len(password) < 8:
+        click.secho('✗ Password must be at least 8 characters.', fg='red')
+        return
+
+    # Login still looks users up by email alone until per-group login
+    # (step 1b), so an email may not be reused across groups yet.
+    if User.query.filter_by(email=email).first():
+        click.secho(f'✗ Email {email!r} is already registered.', fg='red')
+        return
+
+    try:
+        user = User(
+            email=email,
+            password=generate_password_hash(password, method='scrypt'),
+            **fields,
+        )
+        db.session.add(user)
+        db.session.commit()
+        click.secho(f'✓ {label} account created for {email}.', fg='green')
+    except Exception as e:
+        db.session.rollback()
+        click.secho(f'✗ Failed: {e}', fg='red')

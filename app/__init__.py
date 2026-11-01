@@ -83,6 +83,14 @@ def create_app(env: str = None, test_config: dict = None) -> Flask:
             'version':    app.version,
         }
 
+    @app.template_filter('intcomma')
+    def intcomma(value):
+        """Format a number with thousands separators: 12345 → 12,345."""
+        try:
+            return f'{int(value):,}'
+        except (TypeError, ValueError):
+            return value
+
     # ── Blueprints ────────────────────────────────────────────────────
     _register_blueprints(app)
 
