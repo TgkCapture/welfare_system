@@ -29,8 +29,7 @@ class UserController:
     def admin_users():
         """List the officers of the current group."""
         users = (
-            User.query
-            .filter_by(group_id=current_user.group_id)
+            User.for_group()
             .order_by(User.created_at.desc())
             .all()
         )
@@ -190,7 +189,7 @@ class UserController:
 
     @staticmethod
     def _group_roles():
-        return Role.query.filter_by(group_id=current_user.group_id).order_by(Role.name).all()
+        return Role.for_group().order_by(Role.name).all()
 
     @staticmethod
     def _grantable_role_choices():
@@ -199,8 +198,8 @@ class UserController:
     @staticmethod
     def _grantable_role(role_id):
         """Return the submitted role, or 403 if the officer may not grant it."""
-        role = db.session.get(Role, role_id)
-        if role is None or role.group_id != current_user.group_id or not current_user.can_grant(role):
+        role = Role.for_group().filter_by(id=role_id).first()
+        if role is None or not current_user.can_grant(role):
             abort(403)
         return role
 
@@ -210,9 +209,7 @@ class UserController:
 
         Officers of other groups are reported as not found.
         """
-        user = db.session.get(User, user_id)
-        if user is None or user.group_id != current_user.group_id:
-            abort(404)
+        user = User.get_for_group_or_404(user_id)
         if user.role and not current_user.can_grant(user.role):
             abort(403)
         return user
@@ -222,7 +219,7 @@ class UserController:
         """True if changing *user* would leave the group with no active manager."""
         if keeps_access or not (user.is_active and user.has_permission('manage_users')):
             return False
-        others = User.query.filter(
-            User.group_id == user.group_id, User.id != user.id, User.is_active.is_(True),
+        others = User.for_group(user.group_id).filter(
+            User.id != user.id, User.is_active.is_(True),
         ).all()
         return not any(u.has_permission('manage_users') for u in others)

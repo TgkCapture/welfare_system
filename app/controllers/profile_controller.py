@@ -30,7 +30,7 @@ class ProfileController:
     @login_required
     def profile():
         """Render the profile page with stats, activity and preference forms."""
-        user = User.query.get(current_user.id)
+        user = db.session.get(User, current_user.id)  # own account
         stats = ProfileController._get_user_statistics(user)
         recent_activity = ProfileController._get_user_activity(user)
 
@@ -60,7 +60,7 @@ class ProfileController:
     @login_required
     def update_profile():
         """Handle profile info update (email + preferences)."""
-        user = User.query.get(current_user.id)
+        user = db.session.get(User, current_user.id)  # own account
         email = request.form.get('email', '').strip()
 
         if not email:
@@ -92,7 +92,7 @@ class ProfileController:
     @login_required
     def change_password():
         """Handle password change form submission."""
-        user = User.query.get(current_user.id)
+        user = db.session.get(User, current_user.id)  # own account
 
         current_password = request.form.get('current_password', '')
         new_password = request.form.get('new_password', '')
@@ -125,7 +125,7 @@ class ProfileController:
     @login_required
     def activity_log():
         """Render the full activity log for the current user."""
-        user = User.query.get(current_user.id)
+        user = db.session.get(User, current_user.id)  # own account
         activity_data = Setting.get_value(f'user_{user.id}_activity', '[]')
 
         try:
@@ -147,7 +147,7 @@ class ProfileController:
     @login_required
     def export_data():
         """Export the current user's profile data as a CSV download."""
-        user = User.query.get(current_user.id)
+        user = db.session.get(User, current_user.id)  # own account
 
         output = io.StringIO()
         writer = csv.writer(output)
@@ -203,7 +203,7 @@ class ProfileController:
             flash('Please type "DELETE" to confirm account deletion.', 'danger')
             return redirect(url_for('auth.profile'))
 
-        user = User.query.get(current_user.id)
+        user = db.session.get(User, current_user.id)  # own account
 
         try:
             # Log out AFTER the delete succeeds, not before
@@ -227,7 +227,7 @@ class ProfileController:
         days_active = max((datetime.now() - user.created_at).days, 0) + 1
 
         # Real count from the database instead of guessing from session
-        reports_generated = GeneratedReport.query.filter_by(
+        reports_generated = GeneratedReport.for_group(user.group_id).filter_by(
             generated_by=user.id
         ).count()
 

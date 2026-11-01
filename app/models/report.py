@@ -7,10 +7,11 @@ ReportAccessLog  — audit trail: who accessed which report and when.
 """
 from datetime import datetime
 
-from app.extensions import db   # FIX: was `from app import db` — use extensions
+from app.extensions import db
+from app.models.tenancy import TenantScoped
 
 
-class GeneratedReport(db.Model):
+class GeneratedReport(TenantScoped, db.Model):
     __tablename__ = 'generated_reports'
 
     id           = db.Column(db.Integer, primary_key=True)
@@ -96,7 +97,7 @@ class GeneratedReport(db.Model):
         )
 
 
-class ReportAccessLog(db.Model):
+class ReportAccessLog(TenantScoped, db.Model):
     """Audit trail for report access events."""
     __tablename__ = 'report_access_logs'
 

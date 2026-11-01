@@ -9,6 +9,7 @@ New groups are seeded with PRESET_ROLES, which they can rename or edit.
 from datetime import datetime
 
 from app.extensions import db
+from app.models.tenancy import TenantScoped
 
 # code → human label, in display order
 PERMISSIONS = {
@@ -32,7 +33,7 @@ PRESET_ROLES = {
 }
 
 
-class Role(db.Model):
+class Role(TenantScoped, db.Model):
     __tablename__ = 'roles'
     __table_args__ = (
         db.UniqueConstraint('group_id', 'name', name='uq_roles_group_name'),

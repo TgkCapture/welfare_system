@@ -6,7 +6,7 @@ import os
 import shutil
 from datetime import datetime, timedelta
 
-from flask import abort, current_app, flash, redirect, url_for
+from flask import current_app, flash, redirect, url_for
 from flask_login import current_user
 
 from app.decorators.permissions import permission_required, superadmin_required
@@ -19,21 +19,13 @@ from app.controllers.report_controller import ReportController
 class ReportManagement:
     """Officer operations on existing reports."""
 
-    @staticmethod
-    def _group_report(report_id):
-        """Return a report of the current group; other groups' reports are 404."""
-        report = db.session.get(GeneratedReport, report_id)
-        if report is None or report.group_id != current_user.group_id:
-            abort(404)
-        return report
-
     # ==================== ARCHIVE / RESTORE ====================
 
     @staticmethod
     @permission_required('manage_reports')
     def archive_report(report_id):
         """Soft-delete a report (manage_reports)."""
-        report = ReportManagement._group_report(report_id)
+        report = GeneratedReport.get_for_group_or_404(report_id)
 
         try:
             report.is_archived = True
@@ -55,7 +47,7 @@ class ReportManagement:
     @permission_required('manage_reports')
     def restore_report(report_id):
         """Restore an archived report (manage_reports)."""
-        report = ReportManagement._group_report(report_id)
+        report = GeneratedReport.get_for_group_or_404(report_id)
 
         try:
             report.is_archived = False
@@ -79,7 +71,7 @@ class ReportManagement:
     @permission_required('manage_reports')
     def delete_report(report_id):
         """Permanently delete a report and its file (manage_reports)."""
-        report = ReportManagement._group_report(report_id)
+        report = GeneratedReport.get_for_group_or_404(report_id)
 
         try:
             # Remove file from disk first — if this fails, abort before
@@ -87,7 +79,7 @@ class ReportManagement:
             if os.path.exists(report.file_path):
                 os.remove(report.file_path)
 
-            ReportAccessLog.query.filter_by(report_id=report_id).delete()
+            ReportAccessLog.for_group().filter_by(report_id=report_id).delete()
             db.session.delete(report)
             db.session.commit()
 
@@ -114,7 +106,7 @@ class ReportManagement:
         raw contribution data per report, which is on the roadmap.
         Until then the method is honestly named 'duplicate' in the UI.
         """
-        report = ReportManagement._group_report(report_id)
+        report = GeneratedReport.get_for_group_or_404(report_id)
 
         if not os.path.exists(report.file_path):
             flash('Source report file not found on disk.', 'error')
@@ -183,7 +175,7 @@ class ReportManagement:
 
             # 2. Auto-archive old DB records whose files have been removed
             cutoff = datetime.utcnow() - timedelta(days=days_to_keep)
-            old_reports = GeneratedReport.query.filter(
+            old_reports = GeneratedReport.query.filter(  # platform-wide: superadmin cleanup
                 GeneratedReport.generated_at < cutoff,
                 GeneratedReport.is_archived == False,
             ).all()

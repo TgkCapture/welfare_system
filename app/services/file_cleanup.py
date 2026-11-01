@@ -116,7 +116,7 @@ class FileCleanupService:
 
         try:
             cutoff = datetime.utcnow() - timedelta(days=days)
-            old = GeneratedReport.query.filter(
+            old = GeneratedReport.query.filter(  # platform-wide: scheduled job
                 GeneratedReport.generated_at < cutoff,
                 GeneratedReport.is_archived == False,
             ).all()

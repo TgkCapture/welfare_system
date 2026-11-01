@@ -9,10 +9,11 @@ import os
 
 from flask import (
     current_app, flash, redirect, render_template,
-    request, session, url_for,
+    request, url_for,
 )
 from flask_login import current_user
 
+from app.controllers.report_controller import ReportController
 from app.decorators.permissions import permission_required
 from app.models.setting import Setting
 from app.models.report import GeneratedReport
@@ -92,7 +93,9 @@ class UploadController:
             )
 
             # --- 5. Store in session for preview / download ---
-            session.update(ReportDataSerializer.serialize(data, report_path))
+            ReportController.store_session_report(
+                ReportDataSerializer.serialize(data, report_path)
+            )
 
             # --- 6. Persist metadata to DB ---
             UploadController._save_report_to_db(data, report_path)
@@ -123,7 +126,6 @@ class UploadController:
     @staticmethod
     def _save_report_to_db(data, report_path):
         try:
-            from app.controllers.report_controller import ReportController
             report_data = {
                 'month': MONTH_NAMES.index(data.get('month')) + 1  # convert to int
                         if data.get('month') in MONTH_NAMES else data.get('month'),
@@ -150,7 +152,7 @@ class UploadController:
     def _get_recent_reports_for_user():
         try:
             reports = (
-                GeneratedReport.query
+                GeneratedReport.for_group()
                 .filter_by(generated_by=current_user.id)
                 .order_by(GeneratedReport.generated_at.desc())
                 .limit(5)

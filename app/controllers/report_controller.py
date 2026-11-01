@@ -33,11 +33,10 @@ class ReportController:
     @permission_required('view_reports')
     def report_preview():
         """Preview a freshly generated report stored in the session."""
-        if 'report_data' not in session:
+        data = ReportController.session_report()
+        if data is None:
             flash('No report data available. Please generate a report first.', 'error')
             return redirect(url_for('main.dashboard'))
-
-        data = session['report_data']
 
         return render_template(
             'main/report_preview.html',
@@ -57,7 +56,7 @@ class ReportController:
     @permission_required('view_reports')
     def report_preview_specific(report_id):
         """Preview a specific archived report from the database."""
-        report = GeneratedReport.query.get_or_404(report_id)
+        report = GeneratedReport.get_for_group_or_404(report_id)
 
         if not ReportController.can_access_report(current_user, report):
             flash('You do not have permission to access this report.', 'error')
@@ -82,7 +81,7 @@ class ReportController:
         """
         try:
             if report_id:
-                report = GeneratedReport.query.get_or_404(report_id)
+                report = GeneratedReport.get_for_group_or_404(report_id)
 
                 if not ReportController.can_access_report(current_user, report):
                     flash('You do not have permission to access this report.', 'error')
@@ -93,12 +92,13 @@ class ReportController:
                 ReportController._log_access(report.id, 'download')
 
             else:
-                if 'report_path' not in session:
+                data = ReportController.session_report()
+                if data is None or 'report_path' not in session:
                     flash('No report available for download.', 'error')
                     return redirect(url_for('main.dashboard'))
 
                 file_path = session['report_path']
-                download_name = session.get('report_data', {}).get(
+                download_name = data.get(
                     'report_filename',
                     f"report_{datetime.now().strftime('%Y%m%d')}.pdf",
                 )
@@ -126,7 +126,7 @@ class ReportController:
         """
         try:
             if report_id:
-                report = GeneratedReport.query.get_or_404(report_id)
+                report = GeneratedReport.get_for_group_or_404(report_id)
 
                 if not ReportController.can_access_report(current_user, report):
                     flash('You do not have permission to access this report.', 'error')
@@ -142,11 +142,11 @@ class ReportController:
                     url_for('report.preview_specific', report_id=report_id)
                 )
 
-            if 'report_data' not in session:
+            data = ReportController.session_report()
+            if data is None:
                 flash('No report data available.', 'error')
-                return redirect(url_for('report.preview'))
+                return redirect(url_for('main.dashboard'))
 
-            data = session['report_data']
             image_data = {
                 'data': pd.DataFrame(data['data']),
                 'month_col': data['month_col'],
@@ -203,11 +203,11 @@ class ReportController:
     @permission_required('view_reports')
     def paid_members_view():
         """Render the paid-members list for the current session report."""
-        if 'report_data' not in session:
+        data = ReportController.session_report()
+        if data is None:
             flash('No report data available. Please generate a report first.', 'info')
             return redirect(url_for('main.dashboard'))
 
-        data = session['report_data']
         paid_members = ReportController._extract_paid_members(data)
 
         return render_template(
@@ -224,7 +224,7 @@ class ReportController:
     @permission_required('view_reports')
     def paid_members_for_report(report_id):
         """View paid members for a specific archived report."""
-        report = GeneratedReport.query.get_or_404(report_id)
+        report = GeneratedReport.get_for_group_or_404(report_id)
 
         if not ReportController.can_access_report(current_user, report):
             flash('You do not have permission to access this report.', 'error')
@@ -303,6 +303,32 @@ class ReportController:
             db.session.rollback()
             return None
 
+    # ==================== SESSION REPORT ====================
+    #
+    # A freshly uploaded report is kept in the session for preview and
+    # download. It is tagged with the officer who generated it and cleared
+    # on login and logout, so it can never reach another officer.
+
+    SESSION_REPORT_KEYS = ('report_data', 'report_path', 'report_owner_id', 'last_report_id')
+
+    @staticmethod
+    def store_session_report(serialized: dict) -> None:
+        """Keep a freshly generated report for the current officer."""
+        session.update(serialized)
+        session['report_owner_id'] = current_user.id
+
+    @staticmethod
+    def session_report():
+        """Return the session report's data if the current officer generated it."""
+        if 'report_data' not in session or session.get('report_owner_id') != current_user.id:
+            return None
+        return session['report_data']
+
+    @staticmethod
+    def clear_session_report() -> None:
+        for key in ReportController.SESSION_REPORT_KEYS:
+            session.pop(key, None)
+
     # ==================== SHARED UTILITIES ====================
 
     @staticmethod
@@ -335,7 +361,7 @@ class ReportController:
     def _get_available_reports_for_user(user):
         """Return a list of report dicts the given user may see."""
         try:
-            query = GeneratedReport.query.filter_by(group_id=user.group_id)
+            query = GeneratedReport.for_group(user.group_id)
 
             if not user.has_permission('manage_reports'):
                 query = query.filter(GeneratedReport.is_archived.is_(False))

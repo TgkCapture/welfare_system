@@ -16,6 +16,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.auth.forms import LoginForm
+from app.controllers.report_controller import ReportController
 from app.extensions import db, limiter
 from app.models.group import Group
 from app.models.user import User
@@ -96,9 +97,7 @@ class AuthController:
         form = LoginForm()
 
         if form.validate_on_submit():
-            user = User.query.filter_by(
-                group_id=group.id, email=form.email.data.strip(),
-            ).first()
+            user = User.for_group(group.id).filter_by(email=form.email.data.strip()).first()
             if AuthController._complete_login(user, form):
                 response = redirect(next_url or url_for('main.dashboard'))
                 response.set_cookie(
@@ -127,7 +126,7 @@ class AuthController:
         form = LoginForm()
 
         if form.validate_on_submit():
-            user = User.query.filter_by(
+            user = User.query.filter_by(  # platform-wide: superadmins have no group
                 is_superadmin=True, email=form.email.data.strip(),
             ).first()
             if AuthController._complete_login(user, form):
@@ -146,6 +145,7 @@ class AuthController:
     def logout():
         """Log the current user out and return them to their own login page."""
         group, is_superadmin = current_user.group, current_user.is_superadmin
+        ReportController.clear_session_report()
         logout_user()
         flash('You have been logged out.', 'info')
 
@@ -181,6 +181,7 @@ class AuthController:
         user.last_login = db.func.current_timestamp()
         db.session.commit()
 
+        ReportController.clear_session_report()
         login_user(
             user,
             remember=form.remember.data,

@@ -73,7 +73,7 @@ Everything later depends on this phase.
 ## Phase 1: Multi-tenancy, officers and permissions
 
 Delivered in steps: **1a** models and data migration (done), **1b** login
-and permissions (done), **1c** tenant scoping, **1d** management screens,
+and permissions (done), **1c** tenant scoping (done), **1d** management screens,
 **1e** per-group files and settings.
 
 Step 1a delivered:
@@ -115,6 +115,26 @@ Step 1b delivered:
   replaces the `/admin/login` idea, since `/admin/...` holds group pages.
 - Tests: each test request now gets its own app context, as in production.
 
+Step 1c delivered:
+- `TenantScoped` mixin (`app/models/tenancy.py`) on users, roles, reports and
+  access logs: `Model.for_group()` and `Model.get_for_group_or_404()`. Other
+  groups' rows are always 404, never 403, so their existence isn't revealed.
+- `current_group_id()` is the single place the current group is resolved
+  (instead of `g.group`); the 1d superadmin "act as group" switch hooks in there.
+- Every controller and service query on group-owned tables uses the helpers.
+  Raw queries must carry a `# platform-wide` or `# own account` marker; a
+  test fails on any unmarked one.
+- Leaks fixed: the officer dashboard's recent reports and paid-members count
+  covered every group; the freshly generated report kept in the session
+  survived logout and could be opened by the next officer on the same
+  browser. It is now tagged with its owner and cleared on login and logout.
+- Tests: a cross-tenant crawl tries every id route with another group's ids;
+  a mutation check confirmed the isolation tests fail if scoping is removed.
+- Known limitation, fixed by Phase 2: the session report (member names and
+  amounts) lives in Flask's signed, unencrypted cookie, which is near the
+  ~4 KB cookie limit for a 50+ member group. Phase 2's stored sync results
+  replace it.
+
 - [ ] New `Group` model: `id`, `name`, `slug`, `is_active`, `created_at`.
 - [ ] New `GroupSettings` model, one per group, holding:
   - Branding: display name, short name, logo path, primary colour, report title.
@@ -145,9 +165,9 @@ Step 1b delivered:
       The superadmin logs in at `/platform/login`.
 - [x] Fix the open redirect in login: only follow a `next` URL that points
       to this site. Add Flask-Limiter rate limits on login.
-- [ ] Tenant scoping:
-  - Resolve the current group from `current_user.group_id`, and store it in `g.group`.
-  - Add a query helper (`Model.for_group(g.group)`) and use it in every controller.
+- [x] Tenant scoping:
+  - Resolve the current group from `current_user.group_id` (`current_group_id()`).
+  - Add a query helper (`Model.for_group()`) and use it in every controller.
   - Add tests that check one group's data is never visible to another group.
 - [ ] Superadmin tooling: create, suspend and edit groups, create a group's
       first officer, and switch into a group's context for support.

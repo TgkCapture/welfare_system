@@ -22,12 +22,12 @@ class PlatformController:
     def dashboard():
         """List every group with its officer and report counts."""
         officers = (
-            db.session.query(User.group_id, func.count(User.id))
+            db.session.query(User.group_id, func.count(User.id))  # platform-wide
             .filter(User.group_id.isnot(None), User.is_active.is_(True))
             .group_by(User.group_id)
         )
         reports = (
-            db.session.query(GeneratedReport.group_id, func.count(GeneratedReport.id))
+            db.session.query(GeneratedReport.group_id, func.count(GeneratedReport.id))  # platform-wide
             .group_by(GeneratedReport.group_id)
         )
         officer_counts, report_counts = dict(officers.all()), dict(reports.all())

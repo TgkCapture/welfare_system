@@ -11,9 +11,10 @@ no group permissions; platform pages check ``is_superadmin`` instead.
 """
 from flask_login import UserMixin
 from app.extensions import db
+from app.models.tenancy import TenantScoped
 
 
-class User(UserMixin, db.Model):
+class User(TenantScoped, UserMixin, db.Model):
     __tablename__ = 'users'
     __table_args__ = (
         db.UniqueConstraint('group_id', 'email', name='uq_users_group_email'),

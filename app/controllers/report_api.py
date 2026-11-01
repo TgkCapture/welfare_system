@@ -15,7 +15,6 @@ from flask_login import current_user
 from sqlalchemy import func
 
 from app.decorators.permissions import permission_required
-from app.extensions import db
 from app.models.report import GeneratedReport, ReportAccessLog
 from app.controllers.report_controller import ReportController
 
@@ -39,7 +38,7 @@ class ReportAPI:
         month = request.args.get('month', type=int)
         year = request.args.get('year', type=int)
 
-        query = GeneratedReport.query.filter_by(group_id=current_user.group_id)
+        query = GeneratedReport.for_group()
 
         if month:
             query = query.filter_by(month=month)
@@ -76,7 +75,7 @@ class ReportAPI:
     @permission_required('view_reports')
     def api_report_details(report_id):
         """GET /api/reports/<id> — full detail for one report."""
-        report = GeneratedReport.query.get_or_404(report_id)
+        report = GeneratedReport.get_for_group_or_404(report_id)
 
         if not ReportController.can_access_report(current_user, report):
             return jsonify({'error': 'Access denied.'}), 403
@@ -99,30 +98,26 @@ class ReportAPI:
     @staticmethod
     def _build_statistics(group_id):
         """Compile aggregate report statistics for one group."""
-        reports = GeneratedReport.query.filter_by(group_id=group_id)
-        in_group = GeneratedReport.group_id == group_id
+        reports = GeneratedReport.for_group(group_id)
 
         total_reports = reports.count()
         active_reports = reports.filter_by(is_archived=False).count()
         archived_reports = reports.filter_by(is_archived=True).count()
 
-        total_contributions = (
-            db.session.query(func.sum(GeneratedReport.total_contributions))
-            .filter(in_group).scalar() or 0
-        )
-        avg_contributors = (
-            db.session.query(func.avg(GeneratedReport.contributors_count))
-            .filter(in_group).scalar() or 0
-        )
+        total_contributions = reports.with_entities(
+            func.sum(GeneratedReport.total_contributions)
+        ).scalar() or 0
+        avg_contributors = reports.with_entities(
+            func.avg(GeneratedReport.contributors_count)
+        ).scalar() or 0
 
-        reports_by_year = db.session.query(
+        reports_by_year = reports.with_entities(
             GeneratedReport.year,
             func.count(GeneratedReport.id),
-        ).filter(in_group).group_by(GeneratedReport.year).all()
+        ).group_by(GeneratedReport.year).all()
 
         recent_accesses = (
-            ReportAccessLog.query
-            .filter_by(group_id=group_id)
+            ReportAccessLog.for_group(group_id)
             .order_by(ReportAccessLog.accessed_at.desc())
             .limit(10)
             .all()
@@ -153,7 +148,7 @@ class ReportAPI:
     def export_reports_data():
         """GET /api/reports/export — download the group's reports as an Excel file."""
         try:
-            reports = GeneratedReport.query.filter_by(group_id=current_user.group_id).all()
+            reports = GeneratedReport.for_group().all()
 
             rows = [
                 {

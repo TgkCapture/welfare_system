@@ -186,7 +186,7 @@ def test_reports_of_other_groups_are_hidden(client, make_group, make_user, as_of
 
     listed = [r['id'] for r in client.get('/reports/api/list').get_json()['reports']]
     assert listed == [mine.id]
-    assert client.get(f'/reports/api/{theirs.id}').status_code == 403
+    assert client.get(f'/reports/api/{theirs.id}').status_code == 404
     assert client.post(f'/reports/{theirs.id}/archive').status_code == 404
 
 

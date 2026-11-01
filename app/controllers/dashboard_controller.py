@@ -48,16 +48,16 @@ class DashboardController:
     @permission_required('manage_users')
     def admin_dashboard():
         """Group overview for officers who manage officers."""
-        group_users = User.query.filter_by(group_id=current_user.group_id)
+        group_users = User.for_group()
         total_users = group_users.count()
         active_users = group_users.filter_by(is_active=True).count()
 
         users_by_role = [
             {'role': name, 'count': count}
             for name, count in (
-                db.session.query(Role.name, func.count(User.id))
+                Role.for_group()
                 .join(User, User.role_id == Role.id)
-                .filter(Role.group_id == current_user.group_id)
+                .with_entities(Role.name, func.count(User.id))
                 .group_by(Role.name)
                 .all()
             )
@@ -104,7 +104,7 @@ class DashboardController:
         recent_reports = ReportController._get_available_reports_for_user(current_user)
         paid_members_count = DashboardController._get_paid_members_count()
 
-        user = User.query.get(current_user.id)
+        user = db.session.get(User, current_user.id)  # own account
         last_login = (
             user.last_login.strftime('%B %d, %Y %I:%M %p')
             if user.last_login else 'Never'
@@ -226,11 +226,11 @@ class DashboardController:
 
     @staticmethod
     def _get_recent_reports_from_db():
-        """Return the 10 most recent reports from the database.
+        """Return the current group's 10 most recent reports.
         """
         try:
             reports = (
-                GeneratedReport.query
+                GeneratedReport.for_group()
                 .order_by(GeneratedReport.generated_at.desc())
                 .limit(10)
                 .all()
@@ -252,14 +252,15 @@ class DashboardController:
 
     @staticmethod
     def _get_paid_members_count():
-        """Return the total number of contributors across all active reports.
+        """Return the total number of contributors across the group's active reports.
         """
         try:
-            result = db.session.query(
-                func.sum(GeneratedReport.contributors_count)
-            ).filter(
-                GeneratedReport.is_archived == False
-            ).scalar()
+            result = (
+                GeneratedReport.for_group()
+                .filter(GeneratedReport.is_archived.is_(False))
+                .with_entities(func.sum(GeneratedReport.contributors_count))
+                .scalar()
+            )
             return int(result) if result else 0
         except Exception as e:
             current_app.logger.error(f"Error getting paid members count: {e}")
