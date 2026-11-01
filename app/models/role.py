@@ -31,10 +31,6 @@ PRESET_ROLES = {
     'Secretary': ['generate_reports', 'view_reports', 'edit_rules'],
 }
 
-# Transitional: maps the legacy User.role string to a preset role name.
-# Removed with the legacy column in step 1b.
-LEGACY_ROLE_PRESETS = {'admin': 'Chairperson', 'clerk': 'Treasurer'}
-
 
 class Role(db.Model):
     __tablename__ = 'roles'
@@ -64,14 +60,6 @@ class Role(db.Model):
         }
         db.session.add_all(roles.values())
         return roles
-
-    @classmethod
-    def for_legacy_role(cls, group_id, legacy_role: str):
-        """Return the group's preset role matching a legacy role string, or None."""
-        name = LEGACY_ROLE_PRESETS.get(legacy_role)
-        if not (group_id and name):
-            return None
-        return cls.query.filter_by(group_id=group_id, name=name).first()
 
     def __repr__(self) -> str:
         return f'<Role {self.name!r} group={self.group_id}>'

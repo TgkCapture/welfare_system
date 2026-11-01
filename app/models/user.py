@@ -6,10 +6,8 @@ An officer belongs to exactly one group (``group_id``) and holds one of
 that group's roles (``role_id``). Email is unique within a group, so the
 same person may hold separate, unrelated accounts in different groups.
 
-Platform superadmins have ``is_superadmin`` set and no group.
-
-Transitional: the legacy ``role`` string (admin/clerk/viewer) still drives
-permission checks until step 1b switches them to ``group_role``.
+Platform superadmins have ``is_superadmin`` set and no group. They hold
+no group permissions; platform pages check ``is_superadmin`` instead.
 """
 from flask_login import UserMixin
 from app.extensions import db
@@ -20,10 +18,6 @@ class User(UserMixin, db.Model):
     __table_args__ = (
         db.UniqueConstraint('group_id', 'email', name='uq_users_group_email'),
     )
-
-    # Canonical role values — reference this tuple anywhere you need
-    # to validate or iterate roles rather than hard-coding strings.
-    ROLES = ('admin', 'clerk', 'viewer')
 
     id         = db.Column(db.Integer, primary_key=True)
     group_id   = db.Column(
@@ -38,12 +32,6 @@ class User(UserMixin, db.Model):
     email      = db.Column(db.String(150), nullable=False, index=True)
     # scrypt hashes are longer than bcrypt — 256 chars is safe headroom
     password   = db.Column(db.String(256), nullable=False)
-    role       = db.Column(
-        db.String(20),
-        nullable=False,
-        default='viewer',
-        server_default='viewer',
-    )
     is_active  = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(
         db.DateTime,
@@ -52,9 +40,8 @@ class User(UserMixin, db.Model):
     )
     last_login = db.Column(db.DateTime, nullable=True)
 
-    group      = db.relationship('Group', back_populates='users')
-    # Named group_role while the legacy `role` string column still exists
-    group_role = db.relationship('Role')
+    group = db.relationship('Group', back_populates='users')
+    role  = db.relationship('Role')
 
     # ------------------------------------------------------------------
     # Lookup
@@ -73,59 +60,45 @@ class User(UserMixin, db.Model):
         return db.session.query(query.exists()).scalar()
 
     # ------------------------------------------------------------------
-    # Validation
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def validate_role(role: str) -> None:
-        """Raise ValueError if *role* is not a recognised value."""
-        if role not in User.ROLES:
-            raise ValueError(
-                f"Invalid role '{role}'. Must be one of: {User.ROLES}"
-            )
-
-    # ------------------------------------------------------------------
-    # Role helpers
+    # Permissions
     # ------------------------------------------------------------------
 
     @property
-    def is_admin(self) -> bool:
-        return self.role == 'admin'
-
-    @property
-    def is_clerk(self) -> bool:
-        return self.role == 'clerk'
-
-    @property
-    def is_viewer(self) -> bool:
-        return self.role == 'viewer'
-
-    # ------------------------------------------------------------------
-    # Permission helpers
-    # ------------------------------------------------------------------
-
-    # Single source of truth for role → permissions mapping.
-    # Use frozenset so membership checks are O(1).
-    _ROLE_PERMISSIONS: dict = {
-        'admin': frozenset([
-            'manage_users', 'upload_files', 'view_reports',
-            'download_reports', 'manage_settings', 'cleanup_files',
-        ]),
-        'clerk': frozenset([
-            'upload_files', 'view_reports', 'download_reports',
-        ]),
-        'viewer': frozenset([
-            'view_reports',
-        ]),
-    }
+    def permissions(self) -> frozenset:
+        if self.is_superadmin or self.role is None:
+            return frozenset()
+        return frozenset(self.role.permissions or ())
 
     def has_permission(self, permission: str) -> bool:
-        """Return True if this user's role grants *permission*."""
-        return permission in self._ROLE_PERMISSIONS.get(self.role, frozenset())
+        """True if this officer's group role grants *permission*."""
+        return permission in self.permissions
+
+    def can_grant(self, role) -> bool:
+        """An officer may only assign roles whose permissions they hold."""
+        return set(role.permissions or ()) <= self.permissions
+
+    # ------------------------------------------------------------------
+    # Display
+    # ------------------------------------------------------------------
+
+    @property
+    def role_name(self) -> str:
+        if self.is_superadmin:
+            return 'Superadmin'
+        return self.role.name if self.role else 'No role'
+
+    @property
+    def badge_class(self) -> str:
+        """CSS modifier for the existing role-badge styles."""
+        if self.is_superadmin or self.has_permission('manage_users'):
+            return 'admin'
+        if self.has_permission('upload_data'):
+            return 'clerk'
+        return 'viewer'
 
     # ------------------------------------------------------------------
     # Dunder
     # ------------------------------------------------------------------
 
     def __repr__(self) -> str:
-        return f'<User {self.email!r} role={self.role!r}>'
+        return f'<User {self.email!r} group={self.group_id} role={self.role_name!r}>'
