@@ -81,6 +81,12 @@ def test_seeds_default_payout_purposes(migrated_legacy_db):
     ]
 
 
+def test_existing_groups_get_an_access_code_that_is_on(migrated_legacy_db):
+    [(code, enabled, paid_enabled)] = _rows(
+        migrated_legacy_db, 'SELECT access_code, access_code_enabled, public_paid_enabled FROM group_settings')
+    assert len(code) == 6 and enabled and paid_enabled
+
+
 def test_seeds_mzugoss_welfare_rules(migrated_legacy_db):
     titles = [t for (t,) in _rows(migrated_legacy_db, 'SELECT title FROM rule_sections ORDER BY position')]
     assert titles[:3] == ['Quick summary', 'Who can receive support', 'Funeral support']

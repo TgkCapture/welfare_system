@@ -567,6 +567,40 @@ Delivered:
 All public pages live under `/g/<slug>/`. They show the group's branding,
 send `noindex` to search engines, and display when the data was last updated.
 
+Delivered (migration `0a94e0dbf35b`):
+- Shared public layout (`templates/public/_layout.html`), phone-first, with
+  the group's name, colour and links. Every public page sends noindex,
+  no-store and no-referrer.
+- Home `/g/<slug>/`: links to the rules, who has paid, and my contributions,
+  plus when contributions were last updated.
+- Who has paid `/g/<slug>/paid`:
+  - It lists only members whose month is fully paid, by money or credit.
+    Part-paid and unpaid members never appear on any public page.
+  - Amounts and totals are off by default, and only months within
+    `public_months_back` of the latest synced month can be browsed
+    (`?period=YYYY-M`).
+- Group access code: on for every group, including existing ones (the
+  migration generates a code). It uses 6 characters with no 0/O/1/I/L, is
+  checked in constant time, ignores case and spaces, is remembered per group
+  in the session, and one group's code never opens another's list.
+- Name + PIN lookup `/g/<slug>/check` (`app/services/public_access.py`):
+  - It matches the name and aliases of active members, and shows the same
+    history page as the personal link.
+  - Every failure (unknown name, no PIN, wrong PIN, locked, retired) gives an
+    identical page and does the same hashing work.
+  - Five wrong PINs lock the name for 15 minutes, then 30, 60 and so on, up
+    to 24 hours. A correct PIN or a new PIN from an officer resets it.
+- Access code and PIN attempts share one rate limit per IP
+  (`PUBLIC_LOOKUP_RATE_LIMIT`, default 10/min and 30/hour). Viewing the pages
+  isn't limited.
+- Public forms turn off autocomplete, and nothing on a public page suggests
+  names.
+- Officers (Settings → Public pages, `edit_settings`) can:
+  - copy the group page link
+  - see, copy, regenerate, set or turn off the code
+  - choose whether the paid page exists, whether it shows amounts and
+    totals, and how many months can be browsed
+
 - [ ] **Group landing** at `/g/<slug>`: group name, links to the rules, the
       paid list and "check my contributions".
 - [ ] **Rules** at `/g/<slug>/rules`.
