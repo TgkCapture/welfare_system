@@ -691,6 +691,29 @@ Step 5b delivered:
   and so on), so flash messages had lost their colours. Those class patterns
   are now safelisted in `tailwind.config.js`.
 
+Step 5c delivered (the monthly cycle: upload or sync, check, share):
+- Upload page:
+  - It suggests the month after the last one synced, but never a month
+    still to come, and says which month was last synced.
+  - The Google Sheet and file upload choices are tabs, with drag and drop for
+    files and a "Reading the workbook…" state while it works.
+  - For standard workbooks it explains that the whole workbook is stored and
+    the month only chooses the report.
+- After an upload, the report page (`/reports/preview`) becomes Check and
+  Share:
+  - Check lists the sync's new names, each with likely matches from the
+    name-matching rules. Merging happens in place with htmx (the merge
+    endpoint returns a small fragment for htmx requests). It also lists the
+    first warnings, with a link to all of them. This part needs
+    `manage_members`.
+  - Share has a ready-to-paste group chat message: the paid page for that
+    month, the group code if on, and the "check your own" link. It has copy
+    and WhatsApp buttons, plus the PNG and PDF. It notes that the PDF lists
+    who hasn't paid, so it stays among officers.
+- The session remembers the sync behind the report (`last_run_id`, cleared
+  on login and logout with the report). The upload's flash messages are gone,
+  since the Check step shows the same things.
+
 - [ ] Add Tailwind (standalone CLI, no Node build in production) and htmx.
 - [ ] Build a component library of Jinja macros: buttons, cards, tables,
       forms, flash messages, empty states and modals.
