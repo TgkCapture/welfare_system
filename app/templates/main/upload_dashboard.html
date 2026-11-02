@@ -1,650 +1,109 @@
+<!-- app/templates/main/upload_dashboard.html — step 1 of the monthly cycle -->
 {% extends 'base.html' %}
-{% block title %}Generate Report — {{ brand.name }}{% endblock %}
+{% from 'components/ui.html' import page_header, card, button %}
+{% from 'main/_cycle_steps.html' import cycle_steps %}
+{% block title %}Upload or sync — {{ brand.name }}{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="page-header__text">
-    <h1 class="page-header__title"><i class="fas fa-file-upload"></i> Generate Report</h1>
-    <p class="page-header__sub">Upload an Excel file or pull from Google Sheets</p>
-  </div>
-  <div class="page-header__actions">
-      <a href="{{ url_for('main.dashboard') }}" class="btn btn--outline btn--sm">
-        <i class="fas fa-arrow-left"></i> Dashboard
-      </a>
-  </div>
-</div>
+{% call page_header('Upload or sync', icon='file-arrow-up',
+                    sub=('Last month synced: ' ~ latest_label) if latest_label else 'No month synced yet') %}
+  {{ button('Workbook', href=url_for('main.workbook'), icon='file-excel', variant='outline', size='sm') }}
+{% endcall %}
+{{ cycle_steps(1) }}
 
-<div class="upload-layout">
+<form action="{{ url_for('main.upload') }}" method="POST" enctype="multipart/form-data" id="uploadForm"
+      class="max-w-2xl space-y-5">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-  <!-- ── Upload card ── -->
-  <div class="card upload-card">
-    <div class="card__header">
-      <h2 class="card__title"><i class="fas fa-file-excel"></i> Contribution Data</h2>
-    </div>
-    <div class="card__body">
-      <form action="{{ url_for('main.upload') }}" method="POST"
-            enctype="multipart/form-data" id="uploadForm" novalidate>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-        <!-- Input method toggle -->
-        <div class="method-toggle">
-          <label class="method-option" id="optFile">
-            <input type="radio" name="input_method" value="file"
-                   {{ 'checked' if not sheet_url else '' }} id="radioFile">
-            <i class="fas fa-file-upload"></i>
-            <span>File Upload</span>
-          </label>
-          <label class="method-option" id="optSheets">
-            <input type="radio" name="input_method" value="sheets"
-                   {{ 'checked' if sheet_url else '' }} id="radioSheets">
-            <i class="fab fa-google"></i>
-            <span>Google Sheets</span>
-          </label>
-        </div>
-
-        <!-- File upload section -->
-        <div class="upload-section" id="fileSection"
-             {% if sheet_url %}style="display:none;"{% endif %}>
-          <div class="drop-zone" id="dropZone">
-            <div class="drop-zone__idle" id="dropIdle">
-              <i class="fas fa-cloud-upload-alt drop-zone__icon"></i>
-              <p class="drop-zone__title">Drop your Excel file here</p>
-              <p class="drop-zone__sub">or <span class="drop-zone__browse">click to browse</span></p>
-              <p class="drop-zone__hint">.xlsx and .xls supported (Max 10MB)</p>
-            </div>
-            <div class="drop-zone__preview" id="dropPreview" style="display:none;">
-              <i class="fas fa-file-excel drop-zone__file-icon"></i>
-              <div class="drop-zone__file-info">
-                <div class="drop-zone__file-name" id="fileName"></div>
-                <div class="drop-zone__file-size text-muted text-sm" id="fileSize"></div>
-              </div>
-              <button type="button" class="btn btn--outline btn--sm btn--icon" id="removeFile"
-                      aria-label="Remove file">
-                <i class="fas fa-times"></i>
-              </button>
-            </div>
-          </div>
-          <input type="file" name="file" id="fileInput"
-                 accept=".xlsx,.xls" class="sr-only"
-                 {{ 'required' if not sheet_url else '' }}>
-          <div id="fileError" class="error-message" style="display:none;"></div>
-        </div>
-
-        <!-- Google Sheets section -->
-        <div class="upload-section" id="sheetsSection"
-             style="{{ '' if sheet_url else 'display:none;' }}">
-          <div class="form-group">
-            <label class="form-label" for="sheet_url">
-              <i class="fab fa-google"></i> Google Sheets URL
-            </label>
-            <div class="input-wrap">
-              <i class="input-icon fab fa-google"></i>
-              <input type="url" id="sheet_url" name="sheet_url"
-                     class="form-control"
-                     value="{{ sheet_url }}"
-                     placeholder="https://docs.google.com/spreadsheets/d/…"
-                     {{ 'required' if sheet_url else '' }}>
-            </div>
-            <p class="form-hint">
-              The sheet must be shared with view access for the service account.
-            </p>
-          </div>
-          {% if sheet_url %}
-          <div class="sheets-current">
-            <i class="fas fa-link"></i>
-            <a href="{{ sheet_url }}" target="_blank" rel="noopener" class="sheets-current__link">
-              {{ sheet_url|truncate(55) }}
-            </a>
-            <a href="{{ url_for('main.settings') }}" class="btn btn--outline btn--sm">
-              <i class="fas fa-edit"></i> Change
-            </a>
-          </div>
-          {% endif %}
-          <div id="sheetsError" class="error-message" style="display:none;"></div>
-        </div>
-
-        <!-- Date selection -->
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label" for="year">
-              <i class="fas fa-calendar"></i> Year
-            </label>
-            <select name="year" id="year" class="form-control" required>
-              {% for y in range(2018, year + 1) %}
-                <option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="month">
-              <i class="fas fa-calendar-alt"></i> Month
-            </label>
-            <select name="month" id="month" class="form-control" required>
-              {% for m in range(1, 13) %}
-                <option value="{{ m }}" {{ 'selected' if m == month }}>
-                  {{ month_names[m-1] }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-
-        <!-- Preview label -->
-        <div class="period-preview">
-          <i class="fas fa-calendar-check"></i>
-          Generating report for <strong id="periodLabel">{{ month_names[month-1] }} {{ year }}</strong>
-        </div>
-
-        <!-- Submit -->
-        <button type="submit" class="btn btn--primary btn--full btn--lg" id="submitBtn">
-          <i class="fas fa-file-import"></i>
-          <span id="submitText">Generate Report</span>
-        </button>
-
-      </form>
-    </div>
-  </div>
-
-  <!-- ── Recent reports sidebar ── -->
-  {% if recent_reports %}
-  <div class="card upload-sidebar">
-    <div class="card__header">
-      <h2 class="card__title"><i class="fas fa-history"></i> Recent</h2>
-      <a href="{{ url_for('report.list') }}" class="btn btn--outline btn--sm">All</a>
-    </div>
-    <div class="card__body" style="padding:0;">
-      <div class="recent-list">
-        {% for r in recent_reports %}
-        <div class="report-row">
-          <div>
-            <div style="font-weight:600;font-size:.875rem;">{{ r.month }} {{ r.year }}</div>
-            <div class="text-xs text-muted">{{ r.generated_date }}</div>
-          </div>
-          <div class="report-row__stats">
-            <span class="badge badge--primary">{{ r.contributors }}</span>
-          </div>
-        </div>
-        {% endfor %}
+  {% call card('Which month?', icon='calendar') %}
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div>
+        <label class="form-label" for="month">Month</label>
+        <select name="month" id="month" class="form-control">
+          {% for name in month_names %}<option value="{{ loop.index }}" {{ 'selected' if loop.index == month }}>{{ name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label" for="year">Year</label>
+        <select name="year" id="year" class="form-control">
+          {% for y in range(this_year + 1, this_year - 8, -1) %}<option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>{% endfor %}
+        </select>
       </div>
     </div>
-  </div>
-  {% endif %}
+    <p class="form-hint">
+      {% if standard %}
+        The whole workbook is read and stored each time; this is the month the report is made for.
+      {% else %}
+        The month to read from the workbook and report on.
+      {% endif %}
+    </p>
+  {% endcall %}
 
-</div><!-- /upload-layout -->
+  {% call card('Where is the data?', icon='database') %}
+    <div class="mb-4 grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1" role="radiogroup" aria-label="Data source">
+      {% for value, icon, label in (('sheets', 'fab fa-google', 'Google Sheet'), ('file', 'fas fa-file-excel', 'Upload a file')) %}
+      <label class="flex cursor-pointer items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-slate-600
+                    has-[:checked]:bg-white has-[:checked]:text-brand has-[:checked]:shadow-sm">
+        <input type="radio" name="input_method" value="{{ value }}" class="sr-only" data-source
+               {{ 'checked' if (value == 'sheets') == (sheet_url != '') }}>
+        <i class="{{ icon }}"></i> {{ label }}
+      </label>
+      {% endfor %}
+    </div>
 
-<style>
-.upload-layout {
-  display: grid;
-  grid-template-columns: 1fr 18rem;
-  gap: 1.25rem;
-  align-items: start;
-}
-.upload-sidebar { min-width: 0; }
+    <div data-source-panel="sheets" {{ 'hidden' if not sheet_url }}>
+      <label class="form-label" for="sheet_url">Google Sheet link</label>
+      <input type="url" id="sheet_url" name="sheet_url" class="form-control" value="{{ sheet_url }}"
+             placeholder="https://docs.google.com/spreadsheets/d/…">
+      <p class="form-hint">The latest version is fetched now. Saved as your group's sheet for next time.</p>
+    </div>
 
-.method-toggle {
-  display: flex; gap: .5rem; margin-bottom: 1.5rem;
-  background: var(--clr-slate-100);
-  border-radius: var(--r-lg); padding: .25rem;
-}
-.method-option {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: .5rem;
-  padding: .625rem; border-radius: var(--r-md);
-  font-size: .875rem; font-weight: 600;
-  color: var(--txt-muted); cursor: pointer;
-  transition: background var(--t), color var(--t), box-shadow var(--t);
-  user-select: none;
-}
-.method-option input { display: none; }
-.method-option.is-active {
-  background: var(--bg-card); color: var(--clr-primary);
-  box-shadow: var(--shadow-sm);
-}
+    <div data-source-panel="file" {{ 'hidden' if sheet_url }}>
+      <label for="fileInput"
+             class="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 px-6 py-8 text-center
+                    hover:border-brand hover:bg-brand-pale" id="dropZone">
+        <i class="fas fa-cloud-arrow-up text-3xl text-brand"></i>
+        <span class="font-semibold text-slate-700" id="fileName">Choose or drop the workbook</span>
+        <span class="text-xs text-slate-500">.xlsx, .xls or .csv, up to 16 MB</span>
+      </label>
+      <input type="file" name="file" id="fileInput" accept=".xlsx,.xls,.csv" class="sr-only">
+    </div>
+  {% endcall %}
 
-.drop-zone {
-  border: 2px dashed var(--border);
-  border-radius: var(--r-xl);
-  padding: 2rem 1.5rem;
-  text-align: center; cursor: pointer;
-  transition: border-color var(--t), background var(--t);
-  margin-bottom: 1.25rem;
-}
-.drop-zone:hover, .drop-zone.is-over {
-  border-color: var(--clr-primary); background: var(--clr-primary-pale);
-}
-.drop-zone.has-file { border-style: solid; border-color: var(--clr-success); }
-.drop-zone__icon { font-size: 2.5rem; color: var(--clr-primary); margin-bottom: .75rem; }
-.drop-zone__title { font-weight: 700; font-size: 1rem; margin-bottom: .25rem; }
-.drop-zone__sub   { font-size: .875rem; color: var(--txt-muted); }
-.drop-zone__browse{ color: var(--clr-primary); text-decoration: underline; cursor: pointer; }
-.drop-zone__hint  { font-size: .75rem; color: var(--txt-muted); margin-top: .375rem; }
-.drop-zone__preview {
-  display: flex; align-items: center; gap: .875rem; justify-content: center;
-}
-.drop-zone__file-icon { font-size: 2rem; color: var(--clr-success); flex-shrink: 0; }
-.drop-zone__file-name { font-weight: 600; font-size: .9rem; }
-
-.form-row {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;
-}
-.period-preview {
-  display: flex; align-items: center; gap: .5rem;
-  padding: .75rem 1rem; border-radius: var(--r-lg);
-  background: var(--clr-primary-pale); color: var(--clr-primary);
-  font-size: .875rem; margin-bottom: 1.25rem;
-}
-.sheets-current {
-  display: flex; align-items: center; gap: .75rem;
-  padding: .75rem; border-radius: var(--r-lg);
-  background: var(--clr-slate-50); border: 1px solid var(--border);
-  font-size: .8125rem; color: var(--txt-muted);
-  margin-top: .75rem;
-}
-.sheets-current__link {
-  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: var(--clr-primary);
-}
-.upload-section { margin-bottom: .5rem; }
-
-.report-row {
-  display: flex; align-items: center; gap: .75rem;
-  padding: .75rem 1.25rem;
-  border-bottom: 1px solid var(--border);
-}
-.report-row:last-child { border-bottom: 0; }
-.report-row__stats { margin-left: auto; }
-
-.error-message {
-  color: var(--clr-danger);
-  font-size: .8125rem;
-  margin-top: .5rem;
-  padding: .5rem;
-  background: var(--clr-danger-pale);
-  border-radius: var(--r-md);
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-}
-.error-message::before {
-  content: '\f071';
-  font-family: 'Font Awesome 6 Free';
-  font-weight: 900;
-}
-
-.btn--loading {
-  position: relative;
-  pointer-events: none;
-  opacity: 0.8;
-}
-.btn--loading i, 
-.btn--loading span {
-  visibility: hidden;
-}
-.btn--loading::after {
-  content: '';
-  position: absolute;
-  width: 1.25rem;
-  height: 1.25rem;
-  top: 50%;
-  left: 50%;
-  margin-left: -0.625rem;
-  margin-top: -0.625rem;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: white;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.recent-list {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-@media (max-width: 900px) {
-  .upload-layout { grid-template-columns: 1fr; }
-}
-@media (max-width: 480px) {
-  .form-row { grid-template-columns: 1fr; }
-}
-</style>
+  <button type="submit" class="btn btn--primary btn--lg btn--full" id="submitBtn">
+    <i class="fas fa-arrow-right"></i> <span>Read the workbook</span>
+  </button>
+  <p class="text-center text-xs text-slate-500">Members, contributions and balances are stored, then you'll check and share them.</p>
+</form>
+{% endblock %}
 
 {% block extra_js %}
 <script>
-(function() {
-  // DOM Elements
-  const radioFile = document.getElementById('radioFile');
-  const radioSheets = document.getElementById('radioSheets');
-  const optFile = document.getElementById('optFile');
-  const optSheets = document.getElementById('optSheets');
-  const fileSection = document.getElementById('fileSection');
-  const sheetsSection = document.getElementById('sheetsSection');
-  const fileInput = document.getElementById('fileInput');
-  const sheetInput = document.querySelector('#sheetsSection input[name="sheet_url"]');
-  const dropZone = document.getElementById('dropZone');
-  const dropIdle = document.getElementById('dropIdle');
-  const dropPreview = document.getElementById('dropPreview');
-  const fileName = document.getElementById('fileName');
-  const fileSize = document.getElementById('fileSize');
-  const removeBtn = document.getElementById('removeFile');
-  const form = document.getElementById('uploadForm');
-  const submitBtn = document.getElementById('submitBtn');
-  const submitText = document.getElementById('submitText');
-  const yearSelect = document.getElementById('year');
-  const monthSelect = document.getElementById('month');
-  const periodLabel = document.getElementById('periodLabel');
-  const fileError = document.getElementById('fileError');
-  const sheetsError = document.getElementById('sheetsError');
-  
-  // Months array from backend
-  const months = {{ month_names|tojson }};
-  
-  // Maximum file size (10MB)
-  const MAX_FILE_SIZE = 10 * 1024 * 1024;
-  
-  // Allowed file extensions
-  const ALLOWED_EXTENSIONS = ['.xlsx', '.xls'];
-  
-  // Helper: Show error message
-  function showError(element, message) {
-    if (element) {
-      element.textContent = message;
-      element.style.display = 'flex';
-      setTimeout(() => {
-        element.style.display = 'none';
-      }, 5000);
-    }
-  }
-  
-  // Helper: Clear error message
-  function clearError(element) {
-    if (element) {
-      element.style.display = 'none';
-      element.textContent = '';
-    }
-  }
-  
-  // Validate file
-  function validateFile(file) {
-    if (!file) return false;
-    
-    // Check file size
-    if (file.size > MAX_FILE_SIZE) {
-      showError(fileError, `File too large! Maximum size is 10MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`);
-      return false;
-    }
-    
-    // Check file extension
-    const fileName = file.name;
-    const extension = '.' + fileName.split('.').pop().toLowerCase();
-    if (!ALLOWED_EXTENSIONS.includes(extension)) {
-      showError(fileError, `Invalid file type! Please upload ${ALLOWED_EXTENSIONS.join(', ')} files.`);
-      return false;
-    }
-    
-    clearError(fileError);
-    return true;
-  }
-  
-  // Show file in dropzone
-  function showFile(file) {
-    if (!file) return;
-    
-    if (!validateFile(file)) {
-      clearFile();
-      return;
-    }
-    
-    fileName.textContent = file.name;
-    const sizeInKB = (file.size / 1024).toFixed(0);
-    const sizeDisplay = sizeInKB >= 1024 ? (sizeInKB / 1024).toFixed(1) + ' MB' : sizeInKB + ' KB';
-    fileSize.textContent = sizeDisplay;
-    
-    dropIdle.style.display = 'none';
-    dropPreview.style.display = 'flex';
-    dropZone.classList.add('has-file');
-    dropZone.classList.remove('is-over');
-  }
-  
-  // Clear file
-  function clearFile() {
-    if (fileInput) {
-      fileInput.value = '';
-      // Create a new file input to ensure clean state
-      const newFileInput = fileInput.cloneNode(true);
-      if (fileInput.parentNode) {
-        fileInput.parentNode.replaceChild(newFileInput, fileInput);
-        window.fileInput = newFileInput;
-        
-        // Re-attach event listeners to new file input
-        newFileInput.addEventListener('change', function(e) {
-          e.stopPropagation();
-          if (this.files && this.files[0]) {
-            showFile(this.files[0]);
-          } else {
-            clearFile();
-          }
-        });
-      }
-    }
-    
-    dropIdle.style.display = '';
-    dropPreview.style.display = 'none';
-    dropZone.classList.remove('has-file', 'is-over');
-    clearError(fileError);
-  }
-  
-  // Set input method (file or sheets)
-  function setMethod(method) {
-    const isFile = method === 'file';
-    
-    // Toggle sections
-    if (fileSection) fileSection.style.display = isFile ? 'block' : 'none';
-    if (sheetsSection) sheetsSection.style.display = isFile ? 'none' : 'block';
-    
-    // Toggle active classes
-    if (optFile) optFile.classList.toggle('is-active', isFile);
-    if (optSheets) optSheets.classList.toggle('is-active', !isFile);
-    
-    // Set required attributes
-    if (fileInput) fileInput.required = isFile;
-    if (sheetInput) sheetInput.required = !isFile;
-    
-    // Clear errors when switching
-    clearError(fileError);
-    clearError(sheetsError);
-  }
-  
-  // Update period label
-  function updatePeriodLabel() {
-    if (periodLabel && yearSelect && monthSelect) {
-      const month = parseInt(monthSelect.value, 10);
-      const monthName = months[month - 1] || '';
-      periodLabel.textContent = `${monthName} ${yearSelect.value}`;
-    }
-  }
-  
-  // Initialize method toggle
-  if (radioFile && radioSheets) {
-    const initialMethod = radioFile.checked ? 'file' : 'sheets';
-    setMethod(initialMethod);
-    
-    if (optFile) {
-      optFile.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (radioFile) radioFile.checked = true;
-        if (radioSheets) radioSheets.checked = false;
-        setMethod('file');
-      });
-    }
-    
-    if (optSheets) {
-      optSheets.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (radioSheets) radioSheets.checked = true;
-        if (radioFile) radioFile.checked = false;
-        setMethod('sheets');
-      });
-    }
-  }
-  
-  // Drop zone click handler (browse)
-  if (dropZone) {
-    dropZone.addEventListener('click', (e) => {
-      // Don't trigger if clicking remove button
-      if (removeBtn && (e.target === removeBtn || removeBtn.contains(e.target))) {
-        return;
-      }
-      if (fileInput) {
-        fileInput.click();
-      }
-    });
-  }
-  
-  // File input change handler
-  if (fileInput) {
-    window.fileInput = fileInput;
-    fileInput.addEventListener('change', function(e) {
-      e.stopPropagation();
-      if (this.files && this.files[0]) {
-        showFile(this.files[0]);
-      } else {
-        clearFile();
-      }
-    });
-  }
-  
-  // Remove file button
-  if (removeBtn) {
-    removeBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      clearFile();
-    });
-  }
-  
-  // Drag and drop handlers
-  if (dropZone) {
-    ['dragover', 'dragenter'].forEach(eventName => {
-      dropZone.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.classList.add('is-over');
-      });
-    });
-    
-    ['dragleave', 'dragend'].forEach(eventName => {
-      dropZone.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.classList.remove('is-over');
-      });
-    });
-    
-    dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dropZone.classList.remove('is-over');
-      
-      const file = e.dataTransfer.files[0];
-      if (file && fileInput) {
-        if (validateFile(file)) {
-          // Create a new FileList containing the dropped file
-          const dataTransfer = new DataTransfer();
-          dataTransfer.items.add(file);
-          fileInput.files = dataTransfer.files;
-          showFile(file);
-          
-          // Trigger change event
-          const changeEvent = new Event('change', { bubbles: true });
-          fileInput.dispatchEvent(changeEvent);
-        }
-      }
-    });
-  }
-  
-  // Period label update
-  if (yearSelect) yearSelect.addEventListener('change', updatePeriodLabel);
-  if (monthSelect) monthSelect.addEventListener('change', updatePeriodLabel);
-  updatePeriodLabel();
-  
-  // Form submission handler
-  if (form) {
-    form.addEventListener('submit', function(e) {
-      const isFileMethod = radioFile && radioFile.checked;
-      
-      // Validate based on method
-      if (isFileMethod) {
-        if (!fileInput || !fileInput.files || !fileInput.files[0]) {
-          e.preventDefault();
-          showError(fileError, 'Please select a file to upload');
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('btn--loading');
-          }
-          return false;
-        }
-        
-        // Final validation before submit
-        if (!validateFile(fileInput.files[0])) {
-          e.preventDefault();
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('btn--loading');
-          }
-          return false;
-        }
-      } else {
-        if (!sheetInput || !sheetInput.value.trim()) {
-          e.preventDefault();
-          showError(sheetsError, 'Please enter a valid Google Sheets URL');
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('btn--loading');
-          }
-          return false;
-        }
-        
-        // Basic URL validation for Google Sheets
-        const url = sheetInput.value.trim();
-        const googleSheetsPattern = /^https:\/\/(docs\.google\.com\/spreadsheets\/d\/|script\.google\.com\/macros\/)/;
-        if (!googleSheetsPattern.test(url)) {
-          e.preventDefault();
-          showError(sheetsError, 'Please enter a valid Google Sheets URL');
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('btn--loading');
-          }
-          return false;
-        }
-        
-        clearError(sheetsError);
-      }
-      
-      // Show loading state
-      if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.classList.add('btn--loading');
-      }
-      if (submitText) submitText.textContent = 'Processing...';
-      
-      return true;
-    });
-  }
-  
-  // Reset button state on page navigation (in case of back button)
-  window.addEventListener('pageshow', function() {
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.classList.remove('btn--loading');
-    }
-    if (submitText) submitText.textContent = 'Generate Report';
+(function () {
+  const panels = document.querySelectorAll('[data-source-panel]');
+  document.querySelectorAll('[data-source]').forEach((radio) => radio.addEventListener('change', () => {
+    panels.forEach((p) => { p.hidden = p.dataset.sourcePanel !== radio.value; });
+  }));
+
+  const input = document.getElementById('fileInput');
+  const zone = document.getElementById('dropZone');
+  const name = document.getElementById('fileName');
+  input.addEventListener('change', () => { if (input.files[0]) name.textContent = input.files[0].name; });
+  ['dragover', 'dragenter'].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('border-brand'); }));
+  zone.addEventListener('dragleave', () => zone.classList.remove('border-brand'));
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    if (e.dataTransfer.files[0]) { input.files = e.dataTransfer.files; name.textContent = e.dataTransfer.files[0].name; }
   });
-  
+
+  document.getElementById('uploadForm').addEventListener('submit', (e) => {
+    const source = document.querySelector('[data-source]:checked').value;
+    if (source === 'file' && !input.files.length) { e.preventDefault(); name.textContent = 'Choose a file first'; return; }
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.querySelector('i').className = 'fas fa-spinner fa-spin';
+    btn.querySelector('span').textContent = source === 'sheets' ? 'Fetching the sheet…' : 'Reading the workbook…';
+  });
 })();
 </script>
-{% endblock %}
-
 {% endblock %}

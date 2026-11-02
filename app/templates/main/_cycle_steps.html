@@ -1,0 +1,16 @@
+{# app/templates/main/_cycle_steps.html — where the officer is in the monthly cycle #}
+{% macro cycle_steps(current) %}
+<ol class="mb-6 flex flex-wrap items-center gap-2 text-sm" aria-label="Monthly steps">
+  {% for n, label in [(1, 'Upload or sync'), (2, 'Check'), (3, 'Share')] %}
+  <li class="flex items-center gap-2">
+    <span class="grid h-7 w-7 place-items-center rounded-full text-xs font-bold
+                 {{ 'bg-brand text-white' if n == current else 'bg-emerald-500 text-white' if n < current else 'bg-slate-200 text-slate-500' }}"
+          {% if n == current %}aria-current="step"{% endif %}>
+      {% if n < current %}<i class="fas fa-check"></i>{% else %}{{ n }}{% endif %}
+    </span>
+    <span class="{{ 'font-semibold text-slate-800' if n == current else 'text-slate-500' }}">{{ label }}</span>
+    {% if not loop.last %}<span class="mx-1 h-px w-6 bg-slate-300 sm:w-10"></span>{% endif %}
+  </li>
+  {% endfor %}
+</ol>
+{% endmacro %}
