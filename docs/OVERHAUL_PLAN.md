@@ -227,6 +227,34 @@ Step 1e delivered:
 
 ## Phase 2: Standard workbook, configurable parsing and stored data
 
+Delivered in steps: **2a** stored data and sync (done), **2b** standard
+workbook template, parser and sync checks, **2c** MGSS.xlsx conversion for
+review, **2d** Members screen (merge, links, PINs), **2e** column mapping for
+older layouts, with reports built from stored data.
+
+Step 2a delivered:
+- New tables (migration `80408a6fc2fd`): `members` (with `history_token` and
+  PIN fields ready for Phase 4), `member_aliases`, `contributions` (one row per
+  member and month, with `paid` / `partial` / `unpaid` status) and
+  `period_summaries`. All are tenant-scoped and covered by the static guard.
+  A test fails if a tenant model is added without the guard.
+- `PeriodStore.sync()` (`app/services/period_store.py`) stores a parsed month.
+  It replaces that month's contributions and summary, matches names by
+  normalised form (case, spacing and dots ignored) and then by alias, and
+  creates members for names that match nobody. The upload reports new names
+  and names listed twice in the same month (their amounts are added together).
+- Uploads now go parse → sync → PDF built from the stored month. The report
+  record's totals come from the stored summary.
+- The session-cookie report is gone. The session keeps only the id of the
+  officer's latest report. Preview, download and the paid-members list and
+  PNG read the stored month, so the paid-members detail now also works for
+  older reports, as long as their month has been synced since 2a.
+- Without a known rate, any amount above zero counts as paid, as before.
+  Partial payments need the Rates sheet (2b).
+- Tried on the real MGSS.xlsx (in memory): all 48 months sync, giving 66
+  members, no name listed twice in a month, and one likely respelling pair
+  for the merge screen.
+
 ### Findings from the real Mzugoss workbook (MGSS.xlsx)
 
 - The current parser matches the sheet's own Total row in all 48 months of 2023–2026.
