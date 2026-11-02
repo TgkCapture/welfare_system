@@ -33,6 +33,21 @@ class Brand:
         """A safe start for download filenames."""
         return self.slug or 'welfare'
 
+    @property
+    def rgb(self) -> str:
+        """The colour as CSS channels ("29 78 216") for --brand-rgb."""
+        return ' '.join(str(c) for c in _channels(self.color))
+
+    @property
+    def dark_rgb(self) -> str:
+        """A darker shade of the colour, for hover states."""
+        return ' '.join(str(int(c * 0.85)) for c in _channels(self.color))
+
+
+def _channels(color):
+    color = color if is_valid_color(color) else DEFAULT_COLOR
+    return tuple(int(color[i:i + 2], 16) for i in (1, 3, 5))
+
 
 PLATFORM = Brand(PLATFORM_NAME, 'Welfare', 'Monthly contributions report', 'MWK', DEFAULT_COLOR)
 

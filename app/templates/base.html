@@ -7,274 +7,128 @@
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
-  {% if brand.color != '#1d4ed8' %}<style>:root { --clr-primary: {{ brand.color }}; }</style>{% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <style>:root { --brand-rgb: {{ brand.rgb }}; --brand-dark-rgb: {{ brand.dark_rgb }}; }</style>
   {% block extra_css %}{% endblock %}
 </head>
 <body>
+{% from 'components/ui.html' import flashes %}
+<a href="#main-content" class="skip-link">Skip to content</a>
 
-  <!-- ══ SKIP LINK (accessibility) ════════════════════════════════════ -->
-  <a href="#main-content" class="skip-link">Skip to content</a>
+{% if current_user.is_authenticated %}
+{% set ep = request.endpoint or '' %}
+{% macro nav_link(endpoint, icon, label, active=()) %}
+  <a href="{{ url_for(endpoint) }}" class="sidebar__link {{ 'is-active' if ep == endpoint or ep in active }}">
+    <i class="fas fa-{{ icon }}"></i>{{ label }}
+  </a>
+{% endmacro %}
 
-  <!-- ══ TOP NAV ════════════════════════════════════════════════════════ -->
-  <header class="topnav" role="banner">
-    <div class="topnav__inner">
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+    <a href="{{ url_for('main.dashboard') }}" class="sidebar__brand">
+      <span class="sidebar__logo"><i class="fas fa-hands-helping"></i></span>
+      <span class="min-w-0">
+        <span class="sidebar__name block">{{ brand.short_name }}</span>
+        <span class="sidebar__tag block">{{ 'Platform' if current_user.is_superadmin else 'Welfare' }}</span>
+      </span>
+    </a>
 
-      <!-- Logo -->
-      <a href="{{ url_for('main.dashboard') }}" class="topnav__logo" aria-label="{{ brand.name }} home">
-        <span class="topnav__logo-icon"><i class="fas fa-hands-helping"></i></span>
-        <span class="topnav__logo-text">
-          <span class="topnav__logo-primary">{{ brand.short_name }}</span>
-          <span class="topnav__logo-secondary">Welfare</span>
-        </span>
-      </a>
+    <nav class="sidebar__nav">
+      {% if current_user.is_superadmin %}
+        <div class="sidebar__section">Platform</div>
+        {{ nav_link('platform.dashboard', 'layer-group', 'Groups', ('platform.group_detail', 'platform.create_group')) }}
+        {{ nav_link('platform.storage', 'hdd', 'Storage') }}
+      {% else %}
+        {{ nav_link('main.dashboard', 'gauge-high', 'Dashboard',
+                    ('main.admin_dashboard', 'main.clerk_dashboard', 'main.viewer_dashboard')) }}
 
-      {% if current_user.is_authenticated %}
-
-      <!-- Desktop nav links -->
-      <nav class="topnav__links" aria-label="Main navigation">
-        {% set ep = request.endpoint %}
-
-        <a href="{{ url_for('main.dashboard') }}"
-           class="topnav__link{% if ep in ('main.admin_dashboard', 'main.clerk_dashboard', 'main.viewer_dashboard', 'platform.dashboard') %} is-active{% endif %}">
-          <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
-        </a>
-
+        {% if current_user.has_permission('upload_data') or current_user.has_permission('view_reports')
+              or current_user.has_permission('manage_members') %}
+        <div class="sidebar__section">Contributions</div>
         {% if current_user.has_permission('upload_data') %}
-          <a href="{{ url_for('main.upload_dashboard') }}"
-             class="topnav__link{% if ep == 'main.upload_dashboard' %} is-active{% endif %}">
-            <i class="fas fa-file-upload"></i><span>Generate</span>
-          </a>
-          <a href="{{ url_for('main.workbook') }}"
-             class="topnav__link{% if ep in ('main.workbook', 'main.sync_run') %} is-active{% endif %}">
-            <i class="fas fa-file-excel"></i><span>Workbook</span>
-          </a>
+          {{ nav_link('main.upload_dashboard', 'file-arrow-up', 'Upload or sync') }}
+          {{ nav_link('main.workbook', 'file-excel', 'Workbook', ('main.sync_run',)) }}
+        {% endif %}
+        {% if current_user.has_permission('view_reports') %}
+          {{ nav_link('report.list', 'file-lines', 'Reports',
+                      ('report.preview', 'report.preview_specific', 'report.paid_members', 'report.paid_members_for_report')) }}
         {% endif %}
         {% if current_user.has_permission('manage_members') %}
-          <a href="{{ url_for('main.members') }}"
-             class="topnav__link{% if ep in ('main.members', 'main.member') %} is-active{% endif %}">
-            <i class="fas fa-users"></i><span>Members</span>
-          </a>
+          {{ nav_link('main.members', 'users', 'Members', ('main.member',)) }}
+        {% endif %}
         {% endif %}
 
-        {% if current_user.has_permission('view_reports') %}
-        <a href="{{ url_for('report.list') }}"
-           class="topnav__link{% if ep == 'report.list' %} is-active{% endif %}">
-          <i class="fas fa-file-alt"></i><span>Reports</span>
-        </a>
+        <div class="sidebar__section">Group</div>
+        {{ nav_link('main.welfare_rules', 'book-open', 'Welfare rules',
+                    ('main.rules_editor', 'main.edit_rule_section')) }}
+        {% if current_user.has_permission('manage_users') %}
+          {{ nav_link('main.admin_users', 'users-gear', 'Officers',
+                      ('main.create_user', 'main.edit_user', 'main.roles', 'main.create_role', 'main.edit_role')) }}
         {% endif %}
-
-        {% if not current_user.is_superadmin %}
-        <a href="{{ url_for('main.welfare_rules') }}"
-           class="topnav__link{% if ep == 'main.welfare_rules' %} is-active{% endif %}">
-          <i class="fas fa-book"></i><span>Rules</span>
-        </a>
+        {% if current_user.has_permission('manage_reports') %}
+          {{ nav_link('main.cleanup_files', 'hdd', 'Storage') }}
         {% endif %}
-      </nav>
-
-      <!-- User menu -->
-      <div class="topnav__user" id="userMenu">
-        <button class="topnav__user-btn" id="userMenuBtn"
-                aria-haspopup="true" aria-expanded="false"
-                aria-controls="userDropdown">
-          <span class="topnav__avatar" aria-hidden="true">
-            {{ current_user.email[0]|upper }}
-          </span>
-          <span class="topnav__email">{{ current_user.email }}</span>
-          <i class="fas fa-chevron-down topnav__chevron" aria-hidden="true"></i>
-        </button>
-
-        <div class="topnav__dropdown" id="userDropdown" role="menu" aria-hidden="true">
-          <div class="dropdown__header">
-            <span class="dropdown__email">{{ current_user.email }}</span>
-            <span class="dropdown__role role-badge role-badge--{{ current_user.badge_class }}">
-              {{ current_user.role_name }}
-            </span>
-          </div>
-
-          <div class="dropdown__divider"></div>
-
-          <a href="{{ url_for('auth.profile') }}" class="dropdown__item" role="menuitem">
-            <i class="fas fa-user"></i>Profile
-          </a>
-
-          {% if current_user.has_permission('edit_settings') %}
-          <a href="{{ url_for('main.settings') }}" class="dropdown__item" role="menuitem">
-            <i class="fas fa-cog"></i>Settings
-          </a>
-          {% endif %}
-
-          {% if current_user.has_permission('manage_users') %}
-          <div class="dropdown__divider"></div>
-          <span class="dropdown__section-label">Group</span>
-          <a href="{{ url_for('main.admin_users') }}" class="dropdown__item" role="menuitem">
-            <i class="fas fa-users-cog"></i>Officers
-          </a>
-          <a href="{{ url_for('main.roles') }}" class="dropdown__item" role="menuitem">
-            <i class="fas fa-user-tag"></i>Roles
-          </a>
-          {% endif %}
-
-          {% if current_user.is_superadmin %}
-          <div class="dropdown__divider"></div>
-          <span class="dropdown__section-label">Platform</span>
-          <a href="{{ url_for('platform.dashboard') }}" class="dropdown__item" role="menuitem">
-            <i class="fas fa-globe-africa"></i>Groups
-          </a>
-          <a href="{{ url_for('platform.storage') }}" class="dropdown__item" role="menuitem">
-            <i class="fas fa-hdd"></i>Storage
-          </a>
-          {% endif %}
-
-          <div class="dropdown__divider"></div>
-          <a href="{{ url_for('auth.logout') }}" class="dropdown__item dropdown__item--danger" role="menuitem">
-            <i class="fas fa-sign-out-alt"></i>Log out
-          </a>
-        </div>
-      </div>
-
-      <!-- Hamburger -->
-      <button class="topnav__hamburger" id="hamburgerBtn"
-              aria-label="Open menu" aria-expanded="false" aria-controls="mobileNav">
-        <span class="hamburger__bar"></span>
-        <span class="hamburger__bar"></span>
-        <span class="hamburger__bar"></span>
-      </button>
-
-      {% else %}
-      <div class="topnav__auth-links">
-        <a href="{{ url_for('auth.login') }}" class="btn btn--outline btn--sm">Log in</a>
-      </div>
-      {% endif %}
-
-    </div><!-- /topnav__inner -->
-  </header>
-
-  <!-- ══ MOBILE DRAWER ══════════════════════════════════════════════════ -->
-  {% if current_user.is_authenticated %}
-  <div class="mobile-nav__overlay" id="mobileOverlay" aria-hidden="true"></div>
-  <nav class="mobile-nav" id="mobileNav" aria-label="Mobile navigation" aria-hidden="true">
-    <div class="mobile-nav__header">
-      <div class="mobile-nav__user">
-        <span class="topnav__avatar">{{ current_user.email[0]|upper }}</span>
-        <div>
-          <div class="mobile-nav__email">{{ current_user.email }}</div>
-          <span class="role-badge role-badge--{{ current_user.badge_class }}">{{ current_user.role_name }}</span>
-        </div>
-      </div>
-      <button class="mobile-nav__close" id="mobileNavClose" aria-label="Close menu">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
-
-    <div class="mobile-nav__links">
-      <a href="{{ url_for('main.dashboard') }}" class="mobile-nav__link">
-        <i class="fas fa-tachometer-alt"></i>Dashboard
-      </a>
-
-      {% if current_user.has_permission('upload_data') %}
-        <a href="{{ url_for('main.upload_dashboard') }}" class="mobile-nav__link">
-          <i class="fas fa-file-upload"></i>Generate Report
-        </a>
-        <a href="{{ url_for('main.workbook') }}" class="mobile-nav__link">
-          <i class="fas fa-file-excel"></i>Workbook
-        </a>
-      {% endif %}
-      {% if current_user.has_permission('manage_members') %}
-        <a href="{{ url_for('main.members') }}" class="mobile-nav__link">
-          <i class="fas fa-users"></i>Members
-        </a>
-      {% endif %}
-
-      {% if current_user.has_permission('view_reports') %}
-      <a href="{{ url_for('report.list') }}" class="mobile-nav__link">
-        <i class="fas fa-file-alt"></i>Reports
-      </a>
-      {% endif %}
-      {% if not current_user.is_superadmin %}
-      <a href="{{ url_for('main.welfare_rules') }}" class="mobile-nav__link">
-        <i class="fas fa-book"></i>Welfare Rules
-      </a>
-      {% endif %}
-      <a href="{{ url_for('auth.profile') }}" class="mobile-nav__link">
-        <i class="fas fa-user"></i>Profile
-      </a>
-
-      {% if current_user.has_permission('edit_settings') %}
-        <a href="{{ url_for('main.settings') }}" class="mobile-nav__link">
-          <i class="fas fa-cog"></i>Settings
-        </a>
-      {% endif %}
-
-      {% if current_user.has_permission('manage_users') %}
-        <div class="mobile-nav__divider"></div>
-        <span class="mobile-nav__section">Group</span>
-        <a href="{{ url_for('main.admin_users') }}" class="mobile-nav__link">
-          <i class="fas fa-users-cog"></i>Officers
-        </a>
-        <a href="{{ url_for('main.roles') }}" class="mobile-nav__link">
-          <i class="fas fa-user-tag"></i>Roles
-        </a>
-      {% endif %}
-
-      {% if current_user.is_superadmin %}
-        <div class="mobile-nav__divider"></div>
-        <span class="mobile-nav__section">Platform</span>
-        <a href="{{ url_for('platform.dashboard') }}" class="mobile-nav__link">
-          <i class="fas fa-globe-africa"></i>Groups
-        </a>
-        <a href="{{ url_for('platform.storage') }}" class="mobile-nav__link">
-          <i class="fas fa-hdd"></i>Storage
-        </a>
-      {% endif %}
-
-      <div class="mobile-nav__divider"></div>
-      <a href="{{ url_for('auth.logout') }}" class="mobile-nav__link mobile-nav__link--danger">
-        <i class="fas fa-sign-out-alt"></i>Log out
-      </a>
-    </div>
-  </nav>
-  {% endif %}
-
-  <!-- ══ MAIN CONTENT ═══════════════════════════════════════════════════ -->
-  <main class="page-main" id="main-content">
-    <div class="page-container">
-
-      <!-- Flash messages -->
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <div class="flash-stack" role="alert" aria-live="polite">
-            {% for category, message in messages %}
-              <div class="flash flash--{{ category }}">
-                <i class="flash__icon fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' or category == 'error' %}exclamation-triangle{% elif category == 'warning' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
-                <span class="flash__msg">{{ message }}</span>
-                <button class="flash__close" onclick="this.closest('.flash').remove()" aria-label="Dismiss">
-                  <i class="fas fa-times"></i>
-                </button>
-              </div>
-            {% endfor %}
-          </div>
+        {% if current_user.has_permission('edit_settings') %}
+          {{ nav_link('main.settings', 'gear', 'Settings',
+                      ('main.payout_purposes', 'main.workbook_layout', 'main.public_pages')) }}
         {% endif %}
-      {% endwith %}
+      {% endif %}
+    </nav>
 
-      {% block content %}{% endblock %}
-
-    </div>
-  </main>
-
-  <!-- ══ FOOTER ══════════════════════════════════════════════════════════ -->
-  <footer class="site-footer">
-    <div class="page-container">
-      <div class="site-footer__inner">
-        <span>&copy; {{ now.year if now else '2025' }} {{ brand.name }}</span>
-        <span class="site-footer__version">
-          <i class="fas fa-code-branch"></i> v{{ version }}
+    <div class="sidebar__user">
+      <a href="{{ url_for('auth.profile') }}" class="flex items-center gap-3 rounded-lg p-2 text-slate-700 hover:bg-slate-100 hover:text-slate-900">
+        <span class="avatar" aria-hidden="true">{{ current_user.email[0]|upper }}</span>
+        <span class="min-w-0">
+          <span class="block truncate text-sm font-semibold">{{ current_user.email }}</span>
+          <span class="block text-xs text-slate-500">{{ current_user.role_name }}</span>
         </span>
-      </div>
+      </a>
+      <a href="{{ url_for('auth.logout') }}" class="sidebar__link mt-1 text-red-600 hover:bg-red-50 hover:text-red-700">
+        <i class="fas fa-right-from-bracket !text-red-500"></i>Log out
+      </a>
     </div>
-  </footer>
+  </aside>
+  <div class="sidebar__overlay" id="sidebarOverlay" hidden></div>
 
-  <script src="{{ url_for('static', filename='js/base.js') }}"></script>
-  {% block extra_js %}{% endblock %}
+  <div class="main-area">
+    <header class="topbar">
+      <button type="button" class="btn btn--ghost btn--sm" data-sidebar-toggle aria-controls="sidebar"
+              aria-expanded="false" aria-label="Open menu"><i class="fas fa-bars text-base"></i></button>
+      <span class="truncate font-bold">{{ brand.short_name }}</span>
+    </header>
+{% else %}
+<div class="flex min-h-screen flex-col">
+  <header class="border-b border-slate-200 bg-white">
+    <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+      <span class="flex items-center gap-2.5 font-extrabold text-slate-800">
+        <span class="sidebar__logo h-8 w-8"><i class="fas fa-hands-helping"></i></span>{{ brand.short_name }}
+      </span>
+      <a href="{{ url_for('auth.login') }}" class="btn btn--outline btn--sm">Log in</a>
+    </div>
+  </header>
+{% endif %}
+
+    {# The one place page content goes, inside whichever shell is open #}
+    <main id="main-content" class="page-container flex-1">
+      {{ flashes() }}
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <span>&copy; {{ now.year }} {{ brand.name }}</span>
+        {% if current_user.is_authenticated %}<span><i class="fas fa-code-branch"></i> v{{ version }}</span>{% endif %}
+      </div>
+    </footer>
+{% if current_user.is_authenticated %}
+  </div>{# /main-area #}
+</div>{# /app-shell #}
+{% else %}
+</div>
+{% endif %}
+
+<script src="{{ url_for('static', filename='vendor/htmx.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/base.js') }}"></script>
+{% block extra_js %}{% endblock %}
 </body>
 </html>

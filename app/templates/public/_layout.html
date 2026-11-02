@@ -8,9 +8,9 @@
   <meta name="referrer" content="no-referrer">
   <title>{% block title %}{{ brand.name }}{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  {% if brand.color != '#1d4ed8' %}<style>:root { --clr-primary: {{ brand.color }}; }</style>{% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <style>:root { --brand-rgb: {{ brand.rgb }}; --brand-dark-rgb: {{ brand.dark_rgb }}; }</style>
   <style>
     .public-header { background: var(--clr-primary); color: #fff; }
     .public-header__inner { max-width: 52rem; margin: 0 auto; padding: .875rem 1rem;

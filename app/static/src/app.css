@@ -1,0 +1,256 @@
+/*
+ * The app's one stylesheet (Tailwind). Build: `npm run build:css`.
+ *
+ * Pages use Tailwind utilities and the component macros in
+ * templates/components/ui.html. The component classes below (btn, card,
+ * page-header, data-table, …) are the shared building blocks those macros
+ * and older pages use; there are no per-page stylesheets.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Tokens ────────────────────────────────────────────────────────────
+   --brand-rgb is set per request from the group's colour. The --clr-* and
+   --txt-* names are kept for inline styles in older templates. */
+@layer base {
+  :root {
+    --brand-rgb: 29 78 216;
+    --brand-dark-rgb: 25 66 184;
+
+    --clr-primary: rgb(var(--brand-rgb));
+    --clr-primary-dark: rgb(var(--brand-dark-rgb));
+    --clr-primary-pale: rgb(var(--brand-rgb) / 0.12);
+    --clr-success: theme('colors.emerald.500');
+    --clr-success-pale: theme('colors.emerald.100');
+    --clr-danger: theme('colors.red.500');
+    --clr-danger-pale: theme('colors.red.100');
+    --clr-warning: theme('colors.amber.500');
+    --clr-warning-pale: theme('colors.amber.100');
+    --clr-info: theme('colors.cyan.500');
+    --clr-info-pale: theme('colors.cyan.100');
+    --clr-slate-50: theme('colors.slate.50');
+    --clr-slate-100: theme('colors.slate.100');
+    --clr-slate-200: theme('colors.slate.200');
+    --clr-slate-300: theme('colors.slate.300');
+    --clr-slate-400: theme('colors.slate.400');
+    --clr-slate-500: theme('colors.slate.500');
+    --clr-slate-800: theme('colors.slate.800');
+
+    --txt-primary: theme('colors.slate.800');
+    --txt-secondary: theme('colors.slate.600');
+    --txt-muted: theme('colors.slate.500');
+    --bg-page: theme('colors.slate.50');
+    --bg-card: theme('colors.white');
+    --border: theme('colors.slate.200');
+
+    --clr-primary-light: rgb(var(--brand-rgb) / 0.8);
+    --r-sm: 0.375rem; --r-md: 0.5rem; --r-lg: 0.75rem; --r-xl: 1rem; --r-2xl: 1.5rem; --r-full: 9999px;
+    --shadow-sm: theme('boxShadow.sm');
+    --shadow-md: theme('boxShadow.md');
+    --shadow-lg: theme('boxShadow.lg');
+    --shadow-xl: theme('boxShadow.xl');
+    --nav-h: 3.5rem;
+  }
+
+  body { @apply bg-slate-50 text-slate-800 antialiased; }
+  a { @apply text-brand hover:text-brand-dark; }
+  h1, h2, h3, h4 { @apply font-bold leading-tight; }
+  code { @apply rounded bg-slate-100 px-1.5 py-0.5 text-[0.85em]; }
+  [x-cloak], [hidden] { display: none !important; }
+}
+
+/* ── Shell: sidebar on large screens, top bar and drawer on small ─────── */
+@layer components {
+  .app-shell { @apply min-h-screen lg:flex; }
+
+  .sidebar {
+    @apply fixed inset-y-0 left-0 z-40 flex w-64 -translate-x-full flex-col border-r border-slate-200
+           bg-white transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0;
+  }
+  .sidebar.is-open { @apply translate-x-0 shadow-2xl; }
+  .sidebar__brand { @apply flex items-center gap-3 border-b border-slate-200 px-5 py-4 text-slate-800 hover:text-slate-800; }
+  .sidebar__logo { @apply grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand text-sm text-white; }
+  .sidebar__name { @apply truncate text-sm font-extrabold leading-tight; }
+  .sidebar__tag  { @apply text-[0.6875rem] uppercase tracking-wider text-slate-500; }
+  .sidebar__nav  { @apply flex-1 overflow-y-auto px-3 py-4; }
+  .sidebar__section { @apply px-3 pb-1 pt-4 text-[0.6875rem] font-semibold uppercase tracking-wider text-slate-400 first:pt-0; }
+  .sidebar__link {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600
+           hover:bg-slate-100 hover:text-slate-900;
+  }
+  .sidebar__link i { @apply w-4 text-center text-[0.8125rem] text-slate-400; }
+  .sidebar__link.is-active { @apply bg-brand-pale text-brand; }
+  .sidebar__link.is-active i { @apply text-brand; }
+  .sidebar__user { @apply border-t border-slate-200 p-3; }
+  .sidebar__overlay { @apply fixed inset-0 z-30 bg-slate-900/40 lg:hidden; }
+
+  .topbar {
+    @apply sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-slate-200 bg-white/90 px-4
+           backdrop-blur lg:hidden;
+  }
+  .main-area { @apply flex min-w-0 flex-1 flex-col; }
+  .page-container { @apply mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:py-8; }
+  .site-footer { @apply mt-auto border-t border-slate-200 bg-white; }
+  .site-footer__inner { @apply mx-auto flex max-w-6xl items-center justify-between px-4 py-4 text-xs text-slate-500 sm:px-6; }
+
+  .avatar { @apply grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand text-xs font-bold text-white; }
+  .skip-link { @apply absolute -top-12 left-4 z-50 rounded-md bg-brand px-4 py-2 text-white focus:top-3; }
+
+  /* ── Page header ── */
+  .page-header { @apply mb-6 flex flex-wrap items-start justify-between gap-4; }
+  .page-header__title { @apply flex items-center gap-2.5 text-2xl font-extrabold text-slate-800; }
+  .page-header__title i { @apply text-brand; }
+  .page-header__sub { @apply mt-1 text-[0.9375rem] text-slate-600; }
+  .page-header__actions { @apply flex flex-wrap items-center gap-2.5; }
+
+  /* ── Buttons ── */
+  .btn {
+    @apply inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-transparent
+           px-4 py-2.5 text-sm font-semibold transition active:translate-y-px disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn i { @apply text-[0.8125rem]; }
+  .btn--primary { @apply bg-brand text-white shadow-sm hover:bg-brand-dark hover:text-white; }
+  .btn--outline { @apply border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900; }
+  .btn--danger  { @apply bg-red-500 text-white hover:bg-red-600 hover:text-white; }
+  .btn--success { @apply bg-emerald-500 text-white hover:bg-emerald-600 hover:text-white; }
+  .btn--warning { @apply bg-amber-500 text-white hover:bg-amber-600 hover:text-white; }
+  .btn--ghost   { @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900; }
+  .btn--sm { @apply px-3 py-1.5 text-[0.8125rem]; }
+  .btn--lg { @apply px-6 py-3 text-base; }
+  .btn--full { @apply w-full; }
+
+  /* ── Cards ── */
+  .card { @apply overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm; }
+  .card__header { @apply flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4; }
+  .card__title { @apply flex items-center gap-2 text-base font-bold; }
+  .card__title i { @apply text-sm text-brand; }
+  .card__body { @apply px-5 py-4; }
+  .card__footer { @apply border-t border-slate-200 bg-slate-50 px-5 py-3; }
+
+  /* ── Stats ── */
+  .stats-grid { @apply mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4; }
+  .stat-card { @apply flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm; }
+  .stat-card__icon { @apply grid h-11 w-11 shrink-0 place-items-center rounded-lg text-lg; }
+  .stat-card__icon--blue   { @apply bg-brand-pale text-brand; }
+  .stat-card__icon--green  { @apply bg-emerald-100 text-emerald-600; }
+  .stat-card__icon--amber  { @apply bg-amber-100 text-amber-600; }
+  .stat-card__icon--cyan   { @apply bg-cyan-100 text-cyan-600; }
+  .stat-card__icon--purple { @apply bg-violet-100 text-violet-600; }
+  .stat-card__icon--red    { @apply bg-red-100 text-red-600; }
+  .stat-card__value { @apply text-2xl font-extrabold leading-none text-slate-800; }
+  .stat-card__label { @apply mt-1 text-[0.8125rem] text-slate-500; }
+  .stat-card__meta  { @apply mt-1 text-xs text-slate-500; }
+  .content-grid { @apply grid gap-5 lg:grid-cols-2; }
+
+  /* ── Forms ── */
+  .form-group { @apply mb-5; }
+  .form-label { @apply mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-800; }
+  .form-label i { @apply text-xs text-brand; }
+  .form-control {
+    @apply block w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-[0.9375rem] text-slate-800
+           placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15;
+  }
+  .form-control.is-invalid { @apply border-red-500 focus:ring-red-500/15; }
+  .form-hint { @apply mt-1.5 text-[0.8125rem] text-slate-500; }
+  .form-error { @apply mt-1.5 flex items-center gap-1.5 text-[0.8125rem] font-medium text-red-600; }
+  .check-label { @apply flex cursor-pointer select-none items-center gap-2.5 text-sm text-slate-700; }
+  .check-label input { @apply h-4 w-4 accent-brand; }
+  .input-wrap { @apply relative; }
+  .input-wrap .input-icon { @apply pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400; }
+  .input-wrap .form-control { @apply pl-10; }
+  .input-wrap .input-suffix { @apply absolute right-3 top-1/2 -translate-y-1/2 p-1 text-sm text-slate-400 hover:text-slate-700; }
+  .input-wrap .form-control.has-suffix { @apply pr-10; }
+
+  /* ── Badges & status ── */
+  .badge { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold; }
+  .badge--primary { @apply bg-brand-pale text-brand; }
+  .badge--success { @apply bg-emerald-100 text-emerald-800; }
+  .badge--danger  { @apply bg-red-100 text-red-800; }
+  .badge--warning { @apply bg-amber-100 text-amber-800; }
+  .badge--neutral { @apply bg-slate-100 text-slate-600; }
+  .role-badge { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[0.7rem] font-bold uppercase tracking-wide; }
+  .role-badge--admin  { @apply bg-violet-100 text-violet-700; }
+  .role-badge--clerk  { @apply bg-amber-100 text-amber-800; }
+  .role-badge--viewer { @apply bg-cyan-100 text-cyan-800; }
+  .status-dot { @apply inline-flex items-center gap-1.5 text-[0.8125rem] font-medium; }
+  .status-dot::before { content: ''; @apply h-2 w-2 shrink-0 rounded-full; }
+  .status-dot--active::before   { @apply bg-emerald-500; }
+  .status-dot--inactive::before { @apply bg-slate-400; }
+
+  /* ── Tables ── */
+  .table-wrap { @apply overflow-x-auto; }
+  .data-table { @apply w-full border-collapse text-sm; }
+  .data-table th {
+    @apply whitespace-nowrap border-b-2 border-slate-200 px-4 py-3 text-left text-xs font-bold uppercase
+           tracking-wide text-slate-500;
+  }
+  .data-table td { @apply border-b border-slate-200 px-4 py-3 align-middle text-slate-700; }
+  .data-table tr:last-child td { @apply border-b-0; }
+  .data-table tbody tr:hover { @apply bg-slate-50; }
+  .data-table .row--highlight { @apply bg-brand-pale; }
+
+  /* ── Flash messages ── */
+  .flash-stack { @apply mb-5 flex flex-col gap-2; }
+  .flash { @apply flex items-center gap-3 rounded-lg border px-4 py-3 text-sm; }
+  .flash--success { @apply border-emerald-300 bg-emerald-50 text-emerald-900; }
+  .flash--danger, .flash--error { @apply border-red-300 bg-red-50 text-red-900; }
+  .flash--warning { @apply border-amber-300 bg-amber-50 text-amber-900; }
+  .flash--info    { @apply border-cyan-300 bg-cyan-50 text-cyan-900; }
+  .flash__msg { @apply flex-1; }
+  .flash__close { @apply rounded p-1 opacity-60 hover:opacity-100; }
+
+  /* ── Modal ── */
+  .modal-backdrop { @apply fixed inset-0 z-50 hidden place-items-center bg-slate-900/45 p-4 backdrop-blur-sm; }
+  .modal-backdrop.is-open { @apply grid; }
+  .modal { @apply w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl; }
+  .modal__header { @apply flex items-center justify-between border-b border-slate-200 px-5 py-4; }
+  .modal__title { @apply text-lg font-bold; }
+  .modal__close { @apply grid h-8 w-8 place-items-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700; }
+  .modal__body { @apply px-5 py-4; }
+  .modal__footer { @apply flex justify-end gap-3 border-t border-slate-200 px-5 py-3; }
+
+  /* ── Empty states & errors ── */
+  .empty-state { @apply flex flex-col items-center gap-3 px-4 py-12 text-center text-slate-500; }
+  .empty-state > i { @apply text-4xl opacity-40; }
+  .empty-state h3 { @apply text-lg text-slate-700; }
+  .empty-state p { @apply max-w-sm text-sm; }
+  .error-page { @apply flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 py-8 text-center; }
+  .error-page__code { @apply text-8xl font-black leading-none tracking-tighter text-slate-200; }
+  .error-page__icon { @apply -mt-2 text-5xl text-brand; }
+  .error-page__title { @apply text-3xl font-extrabold text-slate-800; }
+  .error-page__msg { @apply max-w-md text-slate-500; }
+  .error-page__actions { @apply mt-2 flex flex-wrap justify-center gap-3; }
+
+  /* ── Download tiles (report pages) ── */
+  .download-grid { @apply grid gap-3 sm:grid-cols-2 lg:grid-cols-3; }
+  .download-card {
+    @apply flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left text-slate-800
+           transition hover:border-brand hover:text-slate-800 hover:shadow-md;
+  }
+  .download-card__icon { @apply grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand-pale text-brand; }
+  .download-card--success .download-card__icon { @apply bg-emerald-100 text-emerald-600; }
+  .download-card--amber .download-card__icon { @apply bg-amber-100 text-amber-600; }
+  .download-card--danger .download-card__icon { @apply bg-red-100 text-red-600; }
+  .download-card__title { @apply text-sm font-bold; }
+  .download-card__sub { @apply text-xs text-slate-500; }
+  .download-card__arrow { @apply ml-auto text-slate-400; }
+
+  /* ── Action tiles (dashboard) ── */
+  .action-tiles { @apply grid gap-3 sm:grid-cols-2; }
+  .action-tile {
+    @apply flex items-center gap-3 rounded-xl border border-slate-200 p-4 text-slate-800 transition
+           hover:border-brand hover:text-slate-800 hover:shadow-sm;
+  }
+  .action-tile > i { @apply grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand-pale text-brand; }
+  .action-tile__title { @apply text-sm font-bold; }
+  .action-tile__desc { @apply text-xs text-slate-500; }
+
+  /* ── Small helpers the older templates use ── */
+  .text-muted { @apply text-slate-500; }
+  .divider { @apply my-4 h-px bg-slate-200; }
+}
+
+@media print {
+  .sidebar, .topbar, .site-footer, .page-header__actions, .no-print { display: none !important; }
+}

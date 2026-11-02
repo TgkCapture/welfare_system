@@ -165,6 +165,17 @@ flask db migrate -m "describe the change"
 flask db upgrade
 ```
 
+Styles are Tailwind, written in `app/static/src/app.css` and shared Jinja
+macros (`app/templates/components/ui.html`). The built `app/static/css/app.css`
+is committed, so running the app never needs Node. To change styles:
+
+```bash
+npm install            # once
+npm run build:css      # or: npm run watch:css while editing
+```
+
+Commit the rebuilt `app/static/css/app.css` with your template changes.
+
 ```bash
 # Version management (using bump2version)
 bump2version patch  # for bug fixes

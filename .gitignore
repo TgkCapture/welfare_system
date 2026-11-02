@@ -24,3 +24,7 @@ backups/
 
 # Legacy workbook conversions (real member data)
 conversion/
+
+# Front-end build tooling (the built CSS is committed)
+node_modules/
+tools/
