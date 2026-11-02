@@ -166,7 +166,7 @@ class CleanupScheduler:
             from app.services.file_cleanup import FileCleanupService
             with self.app.app_context():
                 result = FileCleanupService.cleanup_scheduled()
-                deleted = result.get('file_cleanup', {}).get('deleted_count', 0)
+                deleted = result.get('deleted_count', 0)
                 archived = result.get('reports_archived', 0)
                 logger.info(
                     f"CleanupScheduler: done — "
