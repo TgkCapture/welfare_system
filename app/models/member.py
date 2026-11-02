@@ -108,11 +108,37 @@ class Contribution(TenantScoped, db.Model):
     member_id = db.Column(db.Integer, db.ForeignKey('members.id'), nullable=False, index=True)
     year      = db.Column(db.Integer, nullable=False)
     month     = db.Column(db.Integer, nullable=False)
-    amount    = db.Column(db.Float, nullable=False, default=0.0)
+    amount    = db.Column(db.Float, nullable=False, default=0.0)   # money received that month
+    # Part of the month's due covered by credit (an earlier overpayment)
+    credit_used = db.Column(db.Float, nullable=False, default=0.0, server_default='0')
     status    = db.Column(db.String(10), nullable=False)   # PAID / PARTIAL / UNPAID
     synced_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     member = db.relationship('Member', back_populates='contributions')
+
+    @property
+    def credited(self) -> float:
+        """What counts towards the month: money received plus credit used."""
+        return self.amount + (self.credit_used or 0.0)
+
+
+class MemberYear(TenantScoped, db.Model):
+    """A member's credit over one year: brought in, paid as excess, and carried out."""
+    __tablename__ = 'member_years'
+    __table_args__ = (
+        db.UniqueConstraint('member_id', 'year', name='uq_member_years_member_year'),
+    )
+
+    id          = db.Column(db.Integer, primary_key=True)
+    group_id    = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=False, index=True)
+    member_id   = db.Column(db.Integer, db.ForeignKey('members.id'), nullable=False, index=True)
+    year        = db.Column(db.Integer, nullable=False)
+    credit_in   = db.Column(db.Float, nullable=False, default=0.0)   # carried in from last year
+    excess_paid = db.Column(db.Float, nullable=False, default=0.0)   # the sheet's Excess column
+    credit_out  = db.Column(db.Float, nullable=False, default=0.0)   # carried into next year
+    synced_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    member = db.relationship('Member')
 
 
 class PeriodSummary(TenantScoped, db.Model):
