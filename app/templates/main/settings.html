@@ -42,7 +42,14 @@
           </div>
           <p class="form-hint">
             Leave blank to clear the current URL.
-            The sheet must be shared with the service account email.
+            {% if service_account_email %}
+              Share the sheet (as Viewer) with
+              <code>{{ service_account_email }}</code>
+              <button type="button" class="btn btn--outline btn--sm" data-copy="{{ service_account_email }}">
+                <i class="fas fa-copy"></i> Copy</button>
+            {% else %}
+              Google Sheets isn't set up on this platform yet: ask the platform administrator.
+            {% endif %}
           </p>
         </div>
 
@@ -86,6 +93,21 @@
     </div>
   </div>
 
+  <!-- Workbook layout -->
+  <div class="card" style="margin-bottom:1.25rem;">
+    <div class="card__body" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+      <div>
+        <strong><i class="fas fa-table"></i> Workbook layout</strong>
+        <p class="form-hint" style="margin:0;">
+          {{ 'Custom settings for reading your workbook.' if custom_layout else 'Worked out automatically.' }}
+          Only needed for workbooks not made from the standard template.
+        </p>
+      </div>
+      <a href="{{ url_for('main.workbook_layout') }}" class="btn btn--outline btn--sm">
+        {{ 'Change' if custom_layout else 'Set up' }}</a>
+    </div>
+  </div>
+
   <!-- Setup instructions -->
   <div class="card">
     <div class="card__header">
@@ -94,8 +116,8 @@
     <div class="card__body">
       <ol class="setup-steps">
         {% set steps = [
-          ('fas fa-file-excel',  'Create a Google Sheet', 'Set it up with the same column format as your Excel file — Name column plus one column per month.'),
-          ('fas fa-share-alt',   'Share the Sheet',       'Go to Share → Anyone with the link → Viewer. Or share with the service account email from your credentials file.'),
+          ('fas fa-file-excel',  'Create a Google Sheet', 'Start from the standard template on the Workbook page, or keep your current layout and set it up under Workbook layout.'),
+          ('fas fa-share-alt',   'Share the Sheet',       'Share it as Viewer with the service account email shown above.'),
           ('fas fa-copy',        'Copy the URL',          'Copy the full URL from your browser address bar while viewing the sheet.'),
           ('fas fa-paste',       'Paste & Save',          'Paste the URL above and click Save Settings. The system will use it as the default source for new reports.'),
         ] %}

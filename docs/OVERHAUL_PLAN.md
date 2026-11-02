@@ -229,7 +229,7 @@ Step 1e delivered:
 
 Delivered in steps: **2a** stored data and sync (done), **2b** standard
 workbook template, parser and sync checks (done), **2c** MGSS.xlsx conversion for
-review (done; awaiting the user's review), **2d** Members screen (merge, links, PINs) (done), **2e** column mapping for
+review (done; awaiting the user's review), **2d** Members screen (merge, links, PINs) (done), **2e** (done) column mapping for
 older layouts, with reports built from stored data.
 
 Step 2a delivered:
@@ -393,6 +393,41 @@ Step 2d delivered (Members screen, `manage_members`):
   credit, sends noindex, no-store and no-referrer headers, and returns 404 for
   a wrong token, another group, a retired member or a suspended group. The
   name + PIN lookup page stays in Phase 4.
+
+Step 2e delivered (other layouts, reports from stored data):
+- `SheetMapping` (`app/services/sheet_mapping.py`), stored per group in
+  `GroupSettings.sheet_mapping` (migration `6d6c9c1b2177`). Its settings:
+  - Sheet: one per year (any name containing the year, or a pattern such as
+    "Contrib {year}"), always the first sheet, or a fixed name.
+  - Header row number, name column letter, and a January column letter for
+    sheets whose month columns aren't titled.
+  - Money dispensed and book balance: found by label, read from given cells,
+    or absent.
+
+  Every setting left blank is worked out exactly as before, so the Mzugoss
+  layout needs none. The parser's output is identical, before and after,
+  for all 84 months checked (MGSS.xlsx and the test workbook).
+- The parser now also accepts short month headings ("Mar"). Its errors name
+  the sheet, row or column. A text amount ("owing", "pending") is still
+  counted as unpaid, but becomes a warning naming the cell, recorded on the
+  sync.
+- Settings → Workbook layout (`edit_settings`): fill in only what differs and
+  test it on a sample file. The test shows the sheet and columns read, the
+  first rows, the totals and any warnings. The file is deleted and nothing is
+  saved until Save. Standard-layout files are recognised and left alone.
+  Reset returns to automatic.
+- Google Sheets: credentials stay platform-wide, and Settings shows the
+  service account's email to share the sheet with (with a copy button). The
+  single-sheet cache is keyed per group.
+- Reports from stored data: since 2a, uploads build the PDF and PNG from the
+  stored month. "Regenerate" now rebuilds the PDF from the latest sync, and
+  only copies the file for months synced before contributions were stored.
+- Fixed: two reports made in the same second shared one PDF file, so deleting
+  either removed the other's file. Report filenames now include a random part.
+- Not done (no data source yet): partial-payment status for older-layout
+  workbooks, which have no Rates sheet. Any amount above zero still counts as
+  paid there. Groups that want partial payments should move to the standard
+  template.
 
 ### Findings from the real Mzugoss workbook (MGSS.xlsx)
 
