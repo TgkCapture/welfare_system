@@ -112,7 +112,9 @@ class FileProcessor:
 
         service = GoogleSheetsService()
         service.init_app(current_app._get_current_object())
-        excel_data = service.get_sheet_as_excel(sheet_url, sheet_name=str(year))
+        # The whole workbook (needed for the standard layout); else just the year's sheet
+        excel_data = (service.get_workbook_as_excel(sheet_url)
+                      or service.get_sheet_as_excel(sheet_url, sheet_name=str(year)))
 
         if excel_data is None:
             raise ValueError(

@@ -137,6 +137,25 @@ class GoogleSheetsService:
 
         return None
 
+    def get_workbook_as_excel(self, sheet_url: str) -> Optional[BytesIO]:
+        """Export the whole spreadsheet (every tab, with calculated values) as .xlsx.
+
+        Returns None on any error, so callers can fall back to one sheet.
+        """
+        if not self._validate_url(sheet_url):
+            return None
+        client = self._get_client()
+        if client is None:
+            return None
+        try:
+            spreadsheet = client.open_by_url(sheet_url)
+            content = spreadsheet.export(format=gspread.utils.ExportFormat.EXCEL)
+            logger.info(f"Exported workbook '{spreadsheet.title}' as Excel")
+            return BytesIO(content)
+        except Exception as e:
+            logger.warning(f"Could not export the whole workbook: {e}")
+            return None
+
     def get_sheet_as_excel(
         self,
         sheet_url: str,
