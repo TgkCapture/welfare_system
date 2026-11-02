@@ -148,15 +148,16 @@
     <h2 class="card__title"><i class="fas fa-cog"></i> Report Management</h2>
   </div>
   <div class="card__body" style="display:flex;gap:.75rem;flex-wrap:wrap;">
-    {% if current_user.is_superadmin %}
     <form method="POST" action="{{ url_for('report.cleanup') }}"
-          data-confirm="Run report cleanup? Old files will be archived.">
+          data-confirm="Run report cleanup? Report files past your group's retention period are deleted and those reports archived.">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn--warning btn--sm">
         <i class="fas fa-broom"></i> Cleanup Old Reports
       </button>
     </form>
-    {% endif %}
+    <a href="{{ url_for('main.cleanup_files') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-hdd"></i> Storage
+    </a>
     <a href="{{ url_for('report.stats') }}" class="btn btn--outline btn--sm">
       <i class="fas fa-chart-bar"></i> Statistics
     </a>

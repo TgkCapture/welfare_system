@@ -5,7 +5,7 @@
 <div class="page-header">
   <div class="page-header__text">
     <h1 class="page-header__title"><i class="fas fa-cog"></i> Settings</h1>
-    <p class="page-header__sub">Configure system-wide preferences</p>
+    <p class="page-header__sub">Settings for your group</p>
   </div>
   <div class="page-header__actions">
     <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn--outline btn--sm">
@@ -19,11 +19,11 @@
   <!-- Google Sheets -->
   <div class="card" style="margin-bottom:1.25rem;">
     <div class="card__header">
-      <h2 class="card__title"><i class="fab fa-google"></i> Google Sheets Integration</h2>
+      <h2 class="card__title"><i class="fas fa-database"></i> Data source and storage</h2>
       {% if sheet_url %}
-        <span class="badge badge--success"><i class="fas fa-plug"></i> Connected</span>
+        <span class="badge badge--success"><i class="fas fa-plug"></i> Sheet connected</span>
       {% else %}
-        <span class="badge badge--neutral">Not configured</span>
+        <span class="badge badge--neutral">No sheet configured</span>
       {% endif %}
     </div>
     <div class="card__body">
@@ -45,6 +45,22 @@
             The sheet must be shared with the service account email.
           </p>
         </div>
+
+        <div class="form-group">
+          <label class="form-label" for="report_retention_days">
+            <i class="fas fa-calendar-day"></i> Keep report files for (days)
+          </label>
+          <input type="number" id="report_retention_days" name="report_retention_days"
+                 class="form-control" min="1" max="{{ max_retention_days }}"
+                 value="{{ retention_days or '' }}"
+                 placeholder="Platform default: {{ default_retention_days }}">
+          <p class="form-hint">
+            Older report files are deleted and their reports archived. The figures and
+            contribution history are kept. Leave blank for the platform default
+            ({{ default_retention_days }} days).
+          </p>
+        </div>
+
         <div style="display:flex;gap:.75rem;align-items:center;">
           <button type="submit" class="btn btn--primary">
             <i class="fas fa-save"></i> Save Settings

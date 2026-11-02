@@ -110,8 +110,8 @@
           <a href="{{ url_for('platform.dashboard') }}" class="dropdown__item" role="menuitem">
             <i class="fas fa-globe-africa"></i>Groups
           </a>
-          <a href="{{ url_for('main.cleanup_files') }}" class="dropdown__item" role="menuitem">
-            <i class="fas fa-broom"></i>Cleanup Files
+          <a href="{{ url_for('platform.storage') }}" class="dropdown__item" role="menuitem">
+            <i class="fas fa-hdd"></i>Storage
           </a>
           {% endif %}
 
@@ -204,8 +204,8 @@
         <a href="{{ url_for('platform.dashboard') }}" class="mobile-nav__link">
           <i class="fas fa-globe-africa"></i>Groups
         </a>
-        <a href="{{ url_for('main.cleanup_files') }}" class="mobile-nav__link">
-          <i class="fas fa-broom"></i>Cleanup Files
+        <a href="{{ url_for('platform.storage') }}" class="mobile-nav__link">
+          <i class="fas fa-hdd"></i>Storage
         </a>
       {% endif %}
 

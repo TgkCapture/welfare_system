@@ -1,0 +1,73 @@
+<!-- app/templates/platform/storage.html -->
+{% extends 'base.html' %}
+{% block title %}Storage — Platform{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-hdd"></i> Storage</h1>
+    <p class="page-header__sub">{{ storage.total_size_mb }} MB across all groups</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('platform.dashboard') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Platform
+    </a>
+    <form method="POST" action="{{ url_for('platform.storage') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" name="dry_run" value="1" class="btn btn--outline btn--sm">
+        <i class="fas fa-search"></i> Preview cleanup
+      </button>
+      <button type="submit" class="btn btn--warning btn--sm"
+              data-confirm="Run cleanup for every group now? Each group's retention period applies.">
+        <i class="fas fa-broom"></i> Clean up all groups
+      </button>
+    </form>
+  </div>
+</div>
+
+{% if result %}
+<div class="card" style="margin-bottom:1.25rem;">
+  <div class="card__body">
+    <strong>{{ 'Preview: would delete' if result.dry_run else 'Deleted' }}</strong>
+    {{ result.deleted_count }} file(s) ({{ result.freed_space_mb }} MB) and
+    {{ 'would archive' if result.dry_run else 'archived' }} {{ result.reports_archived }} report(s).
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Group</th><th>Reports</th><th>Uploads</th><th>Total</th><th>Retention</th>
+            {% if result %}<th>{{ 'Would delete' if result.dry_run else 'Deleted' }}</th>{% endif %}</tr>
+      </thead>
+      <tbody>
+        {% for row in storage.groups %}
+        <tr>
+          <td><a href="{{ url_for('platform.group_detail', group_id=row.group.id) }}">{{ row.group.name }}</a></td>
+          <td>{{ row.folders.reports.size_mb }} MB · {{ row.folders.reports.file_count }}</td>
+          <td>{{ row.folders.uploads.size_mb }} MB · {{ row.folders.uploads.file_count }}</td>
+          <td><strong>{{ row.total_size_mb }} MB</strong></td>
+          <td>{{ row.retention_days }} days</td>
+          {% if result %}<td>{{ result.groups[row.group.slug].deleted_count if row.group.slug in result.groups else '—' }}</td>{% endif %}
+        </tr>
+        {% endfor %}
+        {% for name, s in storage.other.items() %}
+        <tr class="text-muted">
+          <td>{{ name }}</td>
+          <td colspan="2">{{ s.file_count }} files</td>
+          <td>{{ s.size_mb }} MB</td>
+          <td>—</td>
+          {% if result %}<td>{{ result.platform.folder_stats[name|lower].deleted if name|lower in result.platform.folder_stats else '—' }}</td>{% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p class="form-hint" style="margin-top:1rem;">
+  "Unassigned" files sit directly in the upload or report folder, from before each group had its own
+  folder. Run <code>flask move-files-to-groups</code> once to move existing reports into their group's folder.
+</p>
+{% endblock %}

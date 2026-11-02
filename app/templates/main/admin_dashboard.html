@@ -132,12 +132,12 @@
     <div class="card__body">
       <div class="action-tiles">
         {% set tiles = [
-          (url_for('main.upload_dashboard'), 'fas fa-file-upload', 'Generate Report',  'Create contribution reports'),
-          (url_for('main.admin_users'),      'fas fa-users-cog',   'User Management',  'Manage system users'),
-          (url_for('main.settings'),         'fas fa-cog',         'Settings',         'Configure application'),
-          (url_for('main.cleanup_files'),    'fas fa-broom',       'Cleanup Files',    'Remove old temp files'),
+          ('upload_data',    url_for('main.upload_dashboard'), 'fas fa-file-upload', 'Generate Report', 'Create contribution reports'),
+          ('manage_users',   url_for('main.admin_users'),      'fas fa-users-cog',   'Officers',        'Officer accounts and roles'),
+          ('edit_settings',  url_for('main.settings'),         'fas fa-cog',         'Settings',        "Your group's data source and storage"),
+          ('manage_reports', url_for('main.cleanup_files'),    'fas fa-hdd',         'Storage',         'Files and cleanup'),
         ] %}
-        {% for href, icon, title, desc in tiles %}
+        {% for perm, href, icon, title, desc in tiles if current_user.has_permission(perm) %}
         <a href="{{ href }}" class="action-tile">
           <i class="{{ icon }}"></i>
           <div>
