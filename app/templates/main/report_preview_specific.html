@@ -94,6 +94,16 @@
         <i class="fas fa-arrow-down download-card__arrow"></i>
       </a>
 
+      <a href="{{ url_for('report.paid_members_for_report', report_id=report.id) }}"
+         class="download-card download-card--success">
+        <div class="download-card__icon"><i class="fas fa-user-check"></i></div>
+        <div>
+          <div class="download-card__title">Paid Members</div>
+          <div class="download-card__sub">List and PNG image</div>
+        </div>
+        <i class="fas fa-arrow-right download-card__arrow"></i>
+      </a>
+
       {% if current_user.has_permission('generate_reports') %}
       <form method="POST" action="{{ url_for('report.regenerate', report_id=report.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

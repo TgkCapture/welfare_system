@@ -9,10 +9,10 @@
     <p class="page-header__sub">{{ month }} {{ year }} — {{ total_paid }} member(s) paid</p>
   </div>
   <div class="page-header__actions">
-    <a href="{{ url_for('report.preview') }}" class="btn btn--outline btn--sm">
-      <i class="fas fa-arrow-left"></i> Back to Preview
+    <a href="{{ url_for('report.preview_specific', report_id=report.id) }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Back to Report
     </a>
-    <a href="{{ url_for('report.download_paid_members') }}" class="btn btn--primary btn--sm">
+    <a href="{{ url_for('report.download_paid_members_specific', report_id=report.id) }}" class="btn btn--primary btn--sm">
       <i class="fas fa-download"></i> Download PNG
     </a>
   </div>
