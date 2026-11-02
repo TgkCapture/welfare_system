@@ -12,7 +12,7 @@ public history pages (Phase 4).
 import re
 import secrets
 import unicodedata
-from datetime import datetime
+from datetime import date, datetime
 
 from app.extensions import db
 from app.models.tenancy import TenantScoped
@@ -41,12 +41,19 @@ class Member(TenantScoped, db.Model):
     __tablename__ = 'members'
     __table_args__ = (
         db.UniqueConstraint('group_id', 'normalised_name', name='uq_members_group_name'),
+        db.UniqueConstraint('group_id', 'code', name='uq_members_group_code'),
     )
 
     id              = db.Column(db.Integer, primary_key=True)
     group_id        = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=False, index=True)
+    # The Member ID used in the standard workbook (e.g. M001)
+    code            = db.Column(db.String(30), nullable=True)
     display_name    = db.Column(db.String(150), nullable=False)
     normalised_name = db.Column(db.String(150), nullable=False)
+    phone           = db.Column(db.String(30), nullable=True)
+    # First and last month of membership (stored as the 1st of the month)
+    joined_on       = db.Column(db.Date, nullable=True)
+    left_on         = db.Column(db.Date, nullable=True)
     is_active       = db.Column(db.Boolean, nullable=False, default=True)
 
     # Public history access (Phase 4)
@@ -59,6 +66,15 @@ class Member(TenantScoped, db.Model):
 
     aliases = db.relationship('MemberAlias', back_populates='member', cascade='all, delete-orphan')
     contributions = db.relationship('Contribution', back_populates='member', lazy='dynamic')
+
+    def is_member_in(self, year: int, month: int) -> bool:
+        """True if the member had joined and not yet left in that month."""
+        first_of_month = date(year, month, 1)
+        if self.joined_on and first_of_month < self.joined_on.replace(day=1):
+            return False
+        if self.left_on and first_of_month > self.left_on.replace(day=1):
+            return False
+        return True
 
     def __repr__(self) -> str:
         return f'<Member {self.display_name!r} group={self.group_id}>'
