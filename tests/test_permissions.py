@@ -41,14 +41,23 @@ def test_pages_follow_role_permissions(client, as_officer, role, upload, officer
     assert _allowed(client.get('/reports/')) is reports
 
 
-@pytest.mark.parametrize('role,dashboard', [
-    ('Chairperson', '/admin'),
-    ('Treasurer', '/clerk-dashboard'),
-    ('Secretary', '/viewer-dashboard'),
+@pytest.mark.parametrize('role,sees,hidden', [
+    ('Chairperson', ['Upload or sync', 'Recent reports', 'Officers'], []),
+    ('Treasurer',   ['Upload or sync', 'Recent reports'],            ['Officers']),
+    ('Secretary',   ['Recent reports'],                              ['Upload or sync', 'Officers']),
 ])
-def test_dashboard_routes_by_permission(client, as_officer, role, dashboard):
+def test_one_dashboard_shows_what_each_role_may_use(client, as_officer, role, sees, hidden):
     as_officer(role)
-    assert client.get('/').headers['Location'] == dashboard
+    page = client.get('/').data.decode()
+    main = page[page.index('id="main-content"'):]       # the sidebar lists links too
+    assert all(text in main for text in sees), role
+    assert not any(text in main for text in hidden), role
+
+
+@pytest.mark.parametrize('old', ['/admin', '/clerk-dashboard', '/viewer-dashboard'])
+def test_old_dashboard_addresses_lead_to_the_dashboard(client, as_officer, old):
+    as_officer('Secretary')
+    assert client.get(old).headers['Location'] == '/'
 
 
 def test_superadmin_is_sent_to_platform_and_kept_out_of_group_pages(client, make_superadmin, login):

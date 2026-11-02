@@ -666,6 +666,31 @@ Step 5a delivered:
 - Checked by rendering the main pages with sample data and screenshotting
   them with headless Chrome.
 
+Step 5b delivered:
+- One dashboard at `/` replaces the admin, clerk and viewer dashboards.
+  `/admin`, `/clerk-dashboard` and `/viewer-dashboard` redirect to it for old
+  bookmarks. Its figures come from `app/services/dashboard.py`, and each part
+  is only worked out and shown if the officer's permissions allow it.
+  - The latest synced month: who paid out of how many, who didn't (linked to
+    Members), money received and paid out, and the year's calculated closing
+    balance (or the sheet's book balance for older layouts).
+  - The last six months as bars of the share who paid, with money received.
+  - Needs attention:
+    - sync warnings
+    - new names from the last sync to check for respellings
+    - members without a PIN
+    - no payout purposes yet
+    - the group code switched off
+  - The last sync (when, which layout, warnings) and recent reports.
+  - The members' page link to copy, and shortcuts filtered by permission.
+- Without any synced data, it says so and points to the workbook template
+  and the upload page.
+- Removed the three old dashboard templates and their controller helpers.
+- Fixed a 5a build gap: Tailwind dropped component variants whose names are
+  built in templates (`flash--{{ category }}`, `stat-card__icon--{{ tone }}`,
+  and so on), so flash messages had lost their colours. Those class patterns
+  are now safelisted in `tailwind.config.js`.
+
 - [ ] Add Tailwind (standalone CLI, no Node build in production) and htmx.
 - [ ] Build a component library of Jinja macros: buttons, cards, tables,
       forms, flash messages, empty states and modals.

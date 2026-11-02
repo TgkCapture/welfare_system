@@ -17,9 +17,10 @@ main = Blueprint('main', __name__)
 
 # ==================== DASHBOARDS ====================
 main.route('/')(DashboardController.dashboard)
-main.route('/admin')(DashboardController.admin_dashboard)
-main.route('/clerk-dashboard')(DashboardController.clerk_dashboard)
-main.route('/viewer-dashboard')(DashboardController.viewer_dashboard)
+# The old per-role dashboards now lead to the one dashboard
+main.route('/admin', endpoint='admin_dashboard')(DashboardController.old_dashboard)
+main.route('/clerk-dashboard', endpoint='clerk_dashboard')(DashboardController.old_dashboard)
+main.route('/viewer-dashboard', endpoint='viewer_dashboard')(DashboardController.old_dashboard)
 
 # ==================== UPLOAD ====================
 main.route('/upload-dashboard')(UploadController.upload_dashboard)
