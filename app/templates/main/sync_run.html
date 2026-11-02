@@ -38,6 +38,14 @@
     {% set new_members = run.details.new_members %}
     {% if new_members %}
       <p style="margin-top:.75rem;"><strong>{{ new_members|length }} new member(s):</strong> {{ new_members|join(', ') }}</p>
+      {% if current_user.has_permission('manage_members') %}
+      <p style="margin-top:.5rem;">
+        <a href="{{ url_for('main.members', run=run.id) }}" class="btn btn--outline btn--sm">
+          <i class="fas fa-object-group"></i> Review new members
+        </a>
+        <span class="text-muted">— merge any that are another spelling of an existing member.</span>
+      </p>
+      {% endif %}
     {% endif %}
   </div>
 </div>

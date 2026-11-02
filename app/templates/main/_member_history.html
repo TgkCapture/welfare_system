@@ -1,0 +1,47 @@
+{# app/templates/main/_member_history.html — a member's months by year (officer and public pages) #}
+{% macro history_table(history, months) %}
+{% if history %}
+<div class="table-wrap">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Year</th>
+        {% for m in months %}<th title="{{ m }}">{{ m[:3] }}</th>{% endfor %}
+        <th>Paid in</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for y in history %}
+      <tr>
+        <td><strong>{{ y.year }}</strong></td>
+        {% for cell in y.months %}
+        <td class="text-sm" style="white-space:nowrap;">
+          {% if cell is none %}
+            <span class="text-muted">·</span>
+          {% elif cell.status == 'unpaid' %}
+            <span class="badge badge--danger" title="Not paid">✕</span>
+          {% else %}
+            <span class="badge {{ 'badge--success' if cell.status == 'paid' else 'badge--warning' }}"
+                  title="{{ 'Paid' if cell.status == 'paid' else 'Part paid' }}{{ ' (partly from credit)' if cell.credit and cell.amount else ' from credit' if cell.credit else '' }}">
+              {{ '{:,.0f}'.format(cell.amount + cell.credit) }}{{ '*' if cell.credit else '' }}
+            </span>
+          {% endif %}
+        </td>
+        {% endfor %}
+        <td>
+          <strong>{{ '{:,.0f}'.format(y.paid) }}</strong>
+          {% if y.excess %}<div class="text-sm text-muted">incl. {{ '{:,.0f}'.format(y.excess) }} extra</div>{% endif %}
+          {% if y.credit_out %}<div class="text-sm text-muted">{{ '{:,.0f}'.format(y.credit_out) }} credit to {{ y.year + 1 }}</div>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="form-hint" style="padding:0 1rem 1rem;">
+  * covered by credit from an earlier overpayment. · not counted (before joining, after leaving, or not yet collected).
+</p>
+{% else %}
+<p style="padding:1.25rem;" class="text-sm text-muted">No contributions recorded yet.</p>
+{% endif %}
+{% endmacro %}

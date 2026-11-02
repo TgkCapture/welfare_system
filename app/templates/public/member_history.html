@@ -1,0 +1,38 @@
+<!-- app/templates/public/member_history.html — a member's own history, opened by their personal link -->
+{% from 'main/_member_history.html' import history_table %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>My contributions — {{ group.settings.display_name if group.settings else group.name }}</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+  <main class="main-content" style="max-width:64rem;margin:0 auto;padding:1.5rem 1rem;">
+    <p class="text-sm text-muted">{{ group.settings.display_name if group.settings else group.name }}</p>
+    <h1 class="page-header__title" style="margin-bottom:.25rem;">{{ member.display_name }}</h1>
+    <p class="text-sm text-muted" style="margin-bottom:1.25rem;">Your contributions, month by month.</p>
+
+    {% if history and history[0].credit_out %}
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="card__body text-sm">
+        You have <strong>{{ '{:,.0f}'.format(history[0].credit_out) }}</strong> in credit, which covers your
+        first months of {{ history[0].year + 1 }}.
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">{{ history_table(history, months) }}</div>
+
+    <p class="form-hint" style="margin-top:1rem;">
+      This page is private to you: keep the link to yourself. If something looks wrong, contact your
+      group's treasurer.
+    </p>
+  </main>
+</body>
+</html>

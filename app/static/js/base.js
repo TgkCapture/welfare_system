@@ -149,3 +149,19 @@ document.addEventListener('submit', (e) => {
     if (a.getAttribute('href') === path) a.classList.add('is-active');
   });
 })();
+/* ── Copy to clipboard (data-copy="text") ─────────────────────────── */
+document.addEventListener('click', async (e) => {
+  const button = e.target.closest('[data-copy]');
+  if (!button) return;
+  const label = button.innerHTML;
+  try {
+    await navigator.clipboard.writeText(button.dataset.copy);
+    button.innerHTML = '<i class="fas fa-check"></i> Copied';
+  } catch {
+    // No clipboard access (e.g. plain http): select the text so it can be copied by hand
+    const input = button.parentElement.querySelector('input');
+    if (input) { input.select(); }
+    button.innerHTML = 'Press Ctrl+C';
+  }
+  setTimeout(() => { button.innerHTML = label; }, 2000);
+});

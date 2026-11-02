@@ -49,6 +49,12 @@
             <i class="fas fa-file-excel"></i><span>Workbook</span>
           </a>
         {% endif %}
+        {% if current_user.has_permission('manage_members') %}
+          <a href="{{ url_for('main.members') }}"
+             class="topnav__link{% if ep in ('main.members', 'main.member') %} is-active{% endif %}">
+            <i class="fas fa-users"></i><span>Members</span>
+          </a>
+        {% endif %}
 
         {% if current_user.has_permission('view_reports') %}
         <a href="{{ url_for('report.list') }}"
@@ -171,6 +177,11 @@
         </a>
         <a href="{{ url_for('main.workbook') }}" class="mobile-nav__link">
           <i class="fas fa-file-excel"></i>Workbook
+        </a>
+      {% endif %}
+      {% if current_user.has_permission('manage_members') %}
+        <a href="{{ url_for('main.members') }}" class="mobile-nav__link">
+          <i class="fas fa-users"></i>Members
         </a>
       {% endif %}
 
