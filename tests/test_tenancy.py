@@ -16,6 +16,7 @@ import pytest
 
 from app.extensions import db
 from app.models.ledger import PayoutPurpose, SyncRun
+from app.models.member import Member, MemberAlias
 from app.models.report import GeneratedReport
 from app.models.role import Role
 from app.models.user import User
@@ -59,7 +60,12 @@ def other_group_data(make_group, make_user, tmp_path):
         file_path=str(pdf), generated_by=officer.id, total_contributions=999,
     )
     run = SyncRun(group_id=other.id, warnings=[{'where': 'x', 'message': 'theirs'}], details={})
-    db.session.add_all([report, run])
+    purpose = PayoutPurpose(group_id=other.id, name='Their purpose')
+    member = Member(group_id=other.id, display_name='Theirs Member', normalised_name='theirs member')
+    db.session.add_all([report, run, purpose, member])
+    db.session.flush()
+    alias = MemberAlias(group_id=other.id, member_id=member.id, normalised_name='theirs alias')
+    db.session.add(alias)
     db.session.commit()
     return {
         'report_id':  report.id,
@@ -67,7 +73,9 @@ def other_group_data(make_group, make_user, tmp_path):
         'role_id':    Role.for_group(other.id).first().id,
         'group_id':   other.id,
         'run_id':     run.id,
-        'purpose_id': PayoutPurpose.for_group(other.id).first().id,
+        'purpose_id': purpose.id,
+        'member_id':  member.id,
+        'alias_id':   alias.id,
     }
 
 

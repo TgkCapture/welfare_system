@@ -8,7 +8,8 @@ from datetime import date
 import pytest
 from openpyxl import Workbook, load_workbook
 
-from app.services.legacy_conversion import UNSPECIFIED, LegacyConverter, _short_form
+from app.services.legacy_conversion import UNSPECIFIED, LegacyConverter
+from app.services.name_matching import short_form as _short_form
 from app.services.standard_workbook import StandardWorkbook
 from app.services.workbook_template import write_workbook
 from tests.workbooks import MONTHS
@@ -83,7 +84,28 @@ def test_payouts_are_dated_and_marked_unspecified(app, mzugoss_workbook):
         (date(2025, 12, 31), 5000, UNSPECIFIED),
         (TODAY, 20000, UNSPECIFIED), (TODAY, 10000, UNSPECIFIED),   # DISPENSED TO and the column after
     ]
-    assert UNSPECIFIED in conversion.spec.purposes
+    assert conversion.spec.purposes == [UNSPECIFIED]   # no built-in purposes
+
+
+def test_purposes_come_from_the_caller(app, mzugoss_workbook):
+    conversion = _convert(mzugoss_workbook, purposes=['Funeral condolence', 'unspecified', 'Hospital bill'])
+    assert conversion.spec.purposes == ['Funeral condolence', 'Hospital bill', UNSPECIFIED]
+
+
+def test_a_year_missing_between_two_sheets_gets_an_empty_row(app, tmp_path):
+    path = _legacy_book(tmp_path / 'old.xlsx', {
+        2023: (0, [('A', {'August': 500}, []), ('B', {'August': 500}, [])]),
+        2024: (0, [('A', {'January': 500}, [])]),                          # B paid nothing
+        2025: (0, [('A', {'January': 1000}, []), ('B', {'January': 1000}, [])]),
+    })
+
+    conversion = _convert(path)
+    b = _members(conversion)['B']
+
+    assert b.code in conversion.spec.year_members[2024]
+    assert b.code not in conversion.spec.contributions[2024]
+    assert (b.joined, b.left) == (None, None)
+    assert 'counted as unpaid (paid nothing that year)' in b.notes
 
 
 def test_rates_follow_the_most_common_payment(app, tmp_path):
@@ -218,3 +240,16 @@ def test_cli_converts_checks_and_applies_merges(app, mzugoss_workbook, tmp_path)
     assert 'Merged as confirmed: Bright Phiri → Alinafe Banda.' in review
     names = [load_workbook(out / 'mzugoss_standard.xlsx')['Members'].cell(r, 2).value for r in range(2, 9)]
     assert 'Bright Phiri' not in names and 'Chisomo Mwale' in names
+
+
+def test_cli_uses_the_groups_purposes(app, group, mzugoss_workbook, tmp_path):
+    from app.extensions import db
+    from app.models.ledger import PayoutPurpose
+    db.session.add(PayoutPurpose(group_id=group.id, name='Hospital bill'))
+    db.session.commit()
+
+    app.test_cli_runner().invoke(args=['convert-legacy-workbook', str(mzugoss_workbook), '--out-dir',
+                                       str(tmp_path), '--group', 'mzugoss', '--purpose', 'School fees'])
+
+    lists = load_workbook(tmp_path / 'mzugoss_standard.xlsx')['Lists']
+    assert [c.value for c in lists['A'][1:]] == ['Hospital bill', 'School fees', UNSPECIFIED]
