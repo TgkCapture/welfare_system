@@ -9,8 +9,11 @@ from openpyxl import load_workbook
 
 from app.extensions import db
 from app.models.ledger import Payout, PayoutPurpose, Rate, SyncRun, YearSummary
-from app.models.member import PAID, PARTIAL, UNPAID, Contribution, Member, MemberAlias, PeriodSummary
+from app.models.member import (
+    PAID, PARTIAL, UNPAID, Contribution, Member, MemberAlias, MemberYear, PeriodSummary,
+)
 from app.models.report import GeneratedReport
+from app.services.period_store import PeriodStore
 from app.services.standard_sync import StandardSync
 from app.services.standard_workbook import StandardWorkbook
 from app.services.workbook_template import build_template
@@ -191,11 +194,65 @@ def test_rates_mark_partial_payments(app, group, tmp_path):
     assert _month(group, 2025, 3)['Ben Phiri'] == (500, PARTIAL)  # rate now 1000
 
 
-def test_member_missing_from_a_years_sheet_is_unpaid_with_a_warning(app, group, tmp_path):
+def test_paying_above_the_rate_covers_the_next_months(app, group, tmp_path):
+    members = [('M001', 'Ann Banda', None, None), ('M002', 'Ben Phiri', None, None)]
+    _sync(group, _book(tmp_path, members=members, rates=[(date(2025, 1, 1), 1000)], contributions={2025: [
+        ('M001', 'Ann Banda', {'January': 2500}),                       # pays ahead
+        ('M002', 'Ben Phiri', {'January': 1000, 'February': 1000, 'March': 1000}),
+    ]}))
+
+    ann = {m: Contribution.for_group(group.id).filter_by(year=2025, month=m).join(Member)
+           .filter(Member.code == 'M001').one() for m in (1, 2, 3)}
+    assert [(c.amount, c.credit_used, c.status) for c in ann.values()] == [
+        (2500, 0, PAID), (0, 1000, PAID), (0, 500, PARTIAL)]
+    # Money is counted when received, not when credit is used
+    totals = {s.month: s.total_contributions for s in PeriodSummary.for_group(group.id)}
+    assert totals == {1: 3500, 2: 1000, 3: 1000}
+    assert MemberYear.for_group(group.id).count() == 0   # credit used up within the year
+
+
+def test_excess_is_credit_for_next_years_first_months(app, group, tmp_path):
+    members = [('M001', 'Ann Banda', None, None), ('M002', 'Ben Phiri', None, None)]
+    path = _book(tmp_path, members=members, rates=[(date(2025, 1, 1), 1000)],
+                 summary=[(2025, 0, None, None, None)], contributions={
+                     2025: [('M001', 'Ann Banda', {m: 1000 for m in ('January', 'February')}),
+                            ('M002', 'Ben Phiri', {m: 1000 for m in ('January', 'February')})],
+                     2026: [('M001', 'Ann Banda', {'March': 1000}),
+                            ('M002', 'Ben Phiri', {'January': 1000, 'February': 1000, 'March': 1000})],
+                 })
+    wb = load_workbook(path)
+    wb['Contributions 2025']['O1'] = 'Excess'
+    wb['Contributions 2025']['O2'] = 1500     # Ann paid 1,500 extra in 2025
+    wb.save(path)
+
+    _sync(group, path)
+
+    assert _month(group, 2026, 1)['Ann Banda'] == (0, PAID)       # covered by credit
+    assert _month(group, 2026, 2)['Ann Banda'] == (0, PARTIAL)    # 500 left
+    assert _month(group, 2026, 3)['Ann Banda'] == (1000, PAID)
+    year = MemberYear.for_group(group.id).filter_by(year=2025).one()
+    assert (year.credit_in, year.excess_paid, year.credit_out) == (0, 1500, 1500)
+
+    balances = {y.year: y for y in YearSummary.for_group(group.id)}
+    assert balances[2025].total_contributions == 5500              # 4,000 + 1,500 excess
+    jan = PeriodSummary.for_group(group.id).filter_by(year=2026, month=1).one()
+    assert (jan.contributors_count, jan.defaulters_count) == (2, 0)
+    paid = {p['name']: (p['amount'], p['credit']) for p in PeriodStore.paid_members(group.id, 2026, 1)}
+    assert paid['Ann Banda'] == (1000, 1000)
+
+
+def test_template_has_an_excess_column(app, group):
+    wb = load_workbook(build_template(group, 2026))
+    assert wb['Contributions 2026']['O1'].value == 'Excess'
+    assert "!C2:O" in wb['Summary']['C2'].value
+
+
+def test_member_missing_from_a_years_sheet_is_not_counted_but_warned(app, group, tmp_path):
     run = _sync(group, _book(tmp_path, contributions={2025: [('M001', 'Ann Banda', {'January': 1000})]}))
 
-    assert _month(group, 2025, 1) == {'Ann Banda': (1000, PAID), 'Ben Phiri': (0, UNPAID)}
-    assert any('M002 Ben Phiri is a member in 2025 but has no row' in m for m in _messages(run))
+    assert _month(group, 2025, 1) == {'Ann Banda': (1000, PAID)}
+    assert any('M002 Ben Phiri is a member in 2025 but has no row, so they are not counted' in m
+               for m in _messages(run))
 
 
 def test_unknown_and_duplicate_member_ids_are_warnings(app, group, tmp_path):
