@@ -9,6 +9,7 @@ from flask import Blueprint
 
 from app.controllers.auth_controller import AuthController
 from app.controllers.member_controller import MemberController
+from app.controllers.welfare_controller import WelfareController
 
 group = Blueprint('group', __name__, url_prefix='/g/<slug>')
 
@@ -17,3 +18,5 @@ group.route('/login', methods=['GET', 'POST'], endpoint='login')(AuthController.
 
 # ==================== PUBLIC ====================
 group.route('/m/<token>', endpoint='member_history')(MemberController.public_history)
+group.route('/rules', endpoint='rules')(WelfareController.public_rules)
+group.route('/rules.pdf', endpoint='rules_pdf')(WelfareController.public_rules_pdf)

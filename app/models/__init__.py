@@ -7,5 +7,6 @@ from app.models.member import (  # noqa: F401
 )
 from app.models.report import GeneratedReport, ReportAccessLog  # noqa: F401
 from app.models.role import Role  # noqa: F401
+from app.models.rules import RuleSection  # noqa: F401
 from app.models.setting import Setting  # noqa: F401
 from app.models.user import User  # noqa: F401

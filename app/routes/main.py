@@ -40,6 +40,10 @@ main.route('/settings/payout-purposes/<int:purpose_id>/toggle', methods=['POST']
 # ==================== WELFARE RULES (public) ====================
 main.route('/welfare-rules')(WelfareController.welfare_rules)
 main.route('/welfare-rules/download')(WelfareController.download_welfare_rules_pdf)
+main.route('/settings/rules', methods=['GET', 'POST'], endpoint='rules_editor')(WelfareController.editor)
+main.route('/settings/rules/<int:section_id>', methods=['GET', 'POST'], endpoint='edit_rule_section')(WelfareController.edit_section)
+main.route('/settings/rules/<int:section_id>/delete', methods=['POST'], endpoint='delete_rule_section')(WelfareController.delete_section)
+main.route('/settings/rules/<int:section_id>/move', methods=['POST'], endpoint='move_rule_section')(WelfareController.move_section)
 
 # ==================== ADMIN — FILE MANAGEMENT ====================
 main.route('/admin/cleanup', methods=['GET', 'POST'])(DashboardController.cleanup_files)
