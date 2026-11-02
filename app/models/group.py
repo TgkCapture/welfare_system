@@ -6,11 +6,19 @@ Every tenant-owned row carries a ``group_id``. Groups are fully
 independent and never share data.
 """
 import re
+import secrets
 from datetime import datetime
 
 from app.extensions import db
 
 _SLUG_RE = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
+# No 0/O, 1/I/L: the code is read out and typed on phones
+_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+ACCESS_CODE_LENGTH = 6
+
+
+def new_access_code() -> str:
+    return ''.join(secrets.choice(_CODE_CHARS) for _ in range(ACCESS_CODE_LENGTH))
 
 
 class Group(db.Model):
@@ -65,6 +73,16 @@ class GroupSettings(db.Model):
 
     # ── Storage ──────────────────────────────────────────────────────
     report_retention_days = db.Column(db.Integer, nullable=True)  # None → app default
+
+    # ── Public pages (/g/<slug>/...) ─────────────────────────────────
+    # The paid list never shows who hasn't paid; these choose what else it shows
+    public_paid_enabled = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+    public_show_amounts = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    public_show_totals  = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    public_months_back  = db.Column(db.Integer, nullable=False, default=12, server_default='12')
+    # One shared code officers post in the group chat; on for every new group
+    access_code_enabled = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+    access_code         = db.Column(db.String(20), nullable=True, default=lambda: new_access_code())
 
     updated_at = db.Column(
         db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow,

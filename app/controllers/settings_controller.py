@@ -12,6 +12,7 @@ from flask_login import login_required, current_user
 
 from app.decorators.permissions import permission_required
 from app.extensions import db
+from app.models.group import new_access_code
 from app.models.tenancy import current_group
 from app.services.branding import is_valid_color
 
@@ -98,6 +99,53 @@ class SettingsController:
         db.session.commit()
         flash('Branding updated.', 'success')
         return redirect(url_for('main.settings'))
+
+    # ==================== PUBLIC PAGES ====================
+
+    @staticmethod
+    @permission_required('edit_settings')
+    def public_pages():
+        """What the group's public pages show, and the group access code."""
+        group = current_group()
+        settings = group.settings
+        action = request.form.get('action')
+
+        if action == 'options':
+            months = request.form.get('public_months_back', '').strip()
+            if not (months.isdigit() and 1 <= int(months) <= 120):
+                flash('Months that can be browsed must be between 1 and 120.', 'danger')
+            else:
+                settings.public_paid_enabled = bool(request.form.get('public_paid_enabled'))
+                settings.public_show_amounts = bool(request.form.get('public_show_amounts'))
+                settings.public_show_totals = bool(request.form.get('public_show_totals'))
+                settings.public_months_back = int(months)
+                db.session.commit()
+                flash('Public page options saved.', 'success')
+        elif action == 'new_code':
+            settings.access_code, settings.access_code_enabled = new_access_code(), True
+            db.session.commit()
+            flash('New group code made. Share it in the group: the old code no longer works.', 'success')
+        elif action == 'set_code':
+            code = ''.join(request.form.get('code', '').split()).upper()
+            if not re.fullmatch(r'[A-Z0-9]{4,20}', code):
+                flash('A group code must be 4 to 20 letters or digits.', 'danger')
+            else:
+                settings.access_code, settings.access_code_enabled = code, True
+                db.session.commit()
+                flash('Group code changed. Share it in the group: the old code no longer works.', 'success')
+        elif action == 'toggle_code':
+            settings.access_code_enabled = not settings.access_code_enabled
+            if settings.access_code_enabled and not settings.access_code:
+                settings.access_code = new_access_code()
+            db.session.commit()
+            flash('Group code turned ' + ('on.' if settings.access_code_enabled
+                                          else 'off: anyone with the link can see who has paid.'),
+                  'success' if settings.access_code_enabled else 'warning')
+        if action:
+            return redirect(url_for('main.public_pages'))
+
+        return render_template('main/public_pages.html', version=current_app.version, settings=settings,
+                               slug=group.slug)
 
     @staticmethod
     def _render_settings():

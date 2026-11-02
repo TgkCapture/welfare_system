@@ -63,6 +63,8 @@ class BaseConfig:
     # Use a shared store (e.g. redis://) when running several workers.
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
     LOGIN_RATE_LIMIT      = os.environ.get('LOGIN_RATE_LIMIT', '10 per minute;50 per hour')
+    # Access code and PIN attempts on a group's public pages, per IP
+    PUBLIC_LOOKUP_RATE_LIMIT = os.environ.get('PUBLIC_LOOKUP_RATE_LIMIT', '10 per minute;30 per hour')
 
     # ── Month names (convenience) ─────────────────────────────────────
     MONTH_NAMES = [
