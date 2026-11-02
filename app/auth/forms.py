@@ -8,9 +8,11 @@ from wtforms import (
     BooleanField,
     PasswordField,
     SelectField,
+    SelectMultipleField,
     StringField,
     SubmitField,
 )
+from wtforms.widgets import CheckboxInput, ListWidget
 from wtforms.validators import (
     DataRequired,
     Email,
@@ -19,6 +21,8 @@ from wtforms.validators import (
     ValidationError,
 )
 
+from app.models.group import Group
+from app.models.role import Role
 from app.models.user import User
 
 
@@ -71,11 +75,17 @@ class RegisterForm(FlaskForm):
     role   = SelectField('Role', coerce=int)
     submit = SubmitField('Create Account')
 
+    def __init__(self, *args, group_id=None, **kwargs):
+        # The group the account is created in; defaults to the creator's group
+        self.group_id = group_id
+        super().__init__(*args, **kwargs)
+
     # ── Custom validators ──────────────────────────────────────────────
 
     def validate_email(self, field):
-        """Reject emails already registered in the creating officer's group."""
-        if User.email_taken(field.data, current_user.group_id):
+        """Reject emails already registered in the target group."""
+        group_id = self.group_id if self.group_id is not None else current_user.group_id
+        if User.email_taken(field.data.strip(), group_id):
             raise ValidationError('That email address is already registered.')
 
 
@@ -101,6 +111,80 @@ class UserEditForm(FlaskForm):
         exclude_id = self.user.id if self.user else None
         if User.email_taken(field.data, group_id, exclude_id=exclude_id):
             raise ValidationError('That email address is already in use.')
+
+
+# ---------------------------------------------------------------------------
+# Group roles
+# ---------------------------------------------------------------------------
+
+class MultiCheckboxField(SelectMultipleField):
+    """A multiple-choice field rendered as a list of checkboxes."""
+    widget = ListWidget(prefix_label=False)
+    option_widget = CheckboxInput()
+
+
+class RoleForm(FlaskForm):
+    """Create or edit one of the group's roles."""
+    name = StringField('Role name', validators=[DataRequired(), Length(max=50)])
+    # Choices (the permissions the officer holds) are set in the controller
+    permissions = MultiCheckboxField('Permissions')
+    submit = SubmitField('Save role')
+
+    def __init__(self, *args, role=None, **kwargs):
+        self.role = role
+        super().__init__(*args, **kwargs)
+
+    def validate_name(self, field):
+        """Role names are unique within the group."""
+        field.data = field.data.strip()
+        query = Role.for_group().filter(Role.name == field.data)
+        if self.role is not None:
+            query = query.filter(Role.id != self.role.id)
+        if query.first():
+            raise ValidationError('Your group already has a role with that name.')
+
+
+# ---------------------------------------------------------------------------
+# Platform: groups
+# ---------------------------------------------------------------------------
+
+class GroupForm(FlaskForm):
+    """Rename a group. The slug is fixed once created (URLs and folders use it)."""
+    name = StringField('Group name', validators=[DataRequired(), Length(max=150)])
+    submit = SubmitField('Save')
+
+
+class GroupCreateForm(GroupForm):
+    """A new group together with its first officer (Chairperson)."""
+    slug = StringField(
+        'URL slug', validators=[DataRequired(), Length(max=60)],
+        render_kw={'placeholder': 'e.g. mzugoss'},
+    )
+    officer_email = StringField(
+        'First officer email', validators=[DataRequired(), Email(), Length(max=150)],
+    )
+    officer_password = PasswordField(
+        'Password',
+        validators=[
+            DataRequired(),
+            Length(min=8, message='Password must be at least 8 characters.'),
+        ],
+    )
+    confirm_password = PasswordField(
+        'Confirm password',
+        validators=[
+            DataRequired(),
+            EqualTo('officer_password', message='Passwords must match.'),
+        ],
+    )
+    submit = SubmitField('Create group')
+
+    def validate_slug(self, field):
+        field.data = field.data.strip().lower()
+        if not Group.is_valid_slug(field.data):
+            raise ValidationError('Use lowercase letters, digits and single hyphens.')
+        if Group.query.filter_by(slug=field.data).first():
+            raise ValidationError('A group with that slug already exists.')
 
 
 # ---------------------------------------------------------------------------

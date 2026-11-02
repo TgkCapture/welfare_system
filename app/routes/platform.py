@@ -14,3 +14,9 @@ platform.route('/login', methods=['GET', 'POST'], endpoint='login')(AuthControll
 
 # ==================== DASHBOARD ====================
 platform.route('/', endpoint='dashboard')(PlatformController.dashboard)
+
+# ==================== GROUPS ====================
+platform.route('/groups/new', methods=['GET', 'POST'], endpoint='create_group')(PlatformController.create_group)
+platform.route('/groups/<int:group_id>', methods=['GET', 'POST'], endpoint='group_detail')(PlatformController.group_detail)
+platform.route('/groups/<int:group_id>/toggle', methods=['POST'], endpoint='toggle_group')(PlatformController.toggle_group)
+platform.route('/groups/<int:group_id>/officers', methods=['POST'], endpoint='add_officer')(PlatformController.add_officer)

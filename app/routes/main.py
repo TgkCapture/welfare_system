@@ -9,6 +9,7 @@ from app.controllers.upload_controller import UploadController
 from app.controllers.settings_controller import SettingsController
 from app.controllers.welfare_controller import WelfareController
 from app.controllers.user_controller import UserController
+from app.controllers.role_controller import RoleController
 
 main = Blueprint('main', __name__)
 
@@ -39,6 +40,12 @@ main.route('/admin/users/create',                   methods=['GET', 'POST'])(Use
 main.route('/admin/users/<int:user_id>/edit',        methods=['GET', 'POST'])(UserController.edit_user)
 main.route('/admin/users/<int:user_id>/delete',      methods=['POST'])(UserController.delete_user)
 main.route('/admin/users/<int:user_id>/toggle',      methods=['POST'])(UserController.toggle_user_active)
+
+# ==================== ROLES (manage_users) ====================
+main.route('/admin/roles')(RoleController.roles)
+main.route('/admin/roles/create',                   methods=['GET', 'POST'])(RoleController.create_role)
+main.route('/admin/roles/<int:role_id>/edit',        methods=['GET', 'POST'])(RoleController.edit_role)
+main.route('/admin/roles/<int:role_id>/delete',      methods=['POST'])(RoleController.delete_role)
 
 # ==================== UTILITY ====================
 main.route('/version')(DashboardController.version)
