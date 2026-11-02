@@ -85,6 +85,18 @@ Only `create-superadmin` is required. After that, the superadmin can create
 groups and their first officers at `/platform/` in the browser. Officers who
 can manage officers edit their group's roles at `/admin/roles`.
 
+Each group's files are kept in `uploads/<slug>/` and `reports/<slug>/`.
+When upgrading from a version without group folders, run once:
+
+```bash
+flask move-files-to-groups --dry-run   # preview
+flask move-files-to-groups
+```
+
+Report files expire after the group's retention period (set on its Settings
+page, otherwise `REPORT_RETENTION_DAYS`). Expired reports are archived, not
+deleted. `flask cleanup-files [--group <slug>] [--dry-run]` runs cleanup by hand.
+
 Upgrading an existing single-group install automatically creates a
 "Mzugoss" group (slug `mzugoss`) and moves existing users and reports into
 it: admins become Chairperson, clerks become Treasurer, and viewer

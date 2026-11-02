@@ -74,7 +74,7 @@ Everything later depends on this phase.
 
 Delivered in steps: **1a** models and data migration (done), **1b** login
 and permissions (done), **1c** tenant scoping (done), **1d** management screens
-(done), **1e** per-group files and settings.
+(done), **1e** per-group files and settings (done).
 
 Step 1a delivered:
 - `Group`, `GroupSettings`, `Role` (fixed permission list, preset roles),
@@ -151,9 +151,33 @@ Step 1d delivered:
   delete, regenerate and cleanup, file cleanup) had no CSRF token, so they
   failed with 400 in production. Tests run with CSRF off, so a new test
   fails on any POST form without a token.
-- Deferred: the superadmin "act as group" support mode. The rescue path
-  above covers lock-outs. Viewing a group's data as a superadmin needs an
-  audit trail and is better designed with Phase 6 hardening.
+- Deferred to Phase 6: the superadmin "act as group" support mode. The
+  rescue path above covers lock-outs. Viewing a group's data as a superadmin
+  needs an audit trail.
+
+Step 1e delivered:
+- Files per group: reports are saved in `reports/<slug>/` and uploads in
+  `uploads/<slug>/` (`app/services/group_storage.py`). Uploads get a unique
+  name, so two groups uploading `contributions.xlsx` at once can't collide.
+  They are deleted as soon as the report is generated, since they hold member
+  data and nothing reads them again.
+- Settings per group: the Google Sheet URL and the report retention period
+  are read from and written to `GroupSettings`. The global `Setting` rows for
+  them are no longer used (`Setting` still holds officers' profile preferences).
+- Cleanup per group: `cleanup_group()` deletes expired files and archives
+  (never deletes) the matching reports, using the group's own retention.
+  Officers with `manage_reports` get the storage page (`/admin/cleanup`) and
+  the "Cleanup Old Reports" button again, for their own group only. Uploading
+  only cleans the uploader's group. The nightly job and `flask cleanup-files`
+  clean every group, plus logs and loose files. `--group <slug>` limits it to
+  one group, and `--days` is gone because retention is a group setting.
+- Superadmins have `/platform/storage`: usage per group, with preview and
+  cleanup for all groups.
+- `flask move-files-to-groups [--dry-run]` moves existing report files into
+  their group's folder. It can safely be re-run.
+- Removed dead code: `app/utils/helpers.py` (a second copy of the upload code
+  that wrote the global sheet URL), the unused storage-status template and the
+  old cleanup page's JS and CSS, which called endpoints that don't exist.
 
 - [ ] New `Group` model: `id`, `name`, `slug`, `is_active`, `created_at`.
 - [ ] New `GroupSettings` model, one per group, holding:
