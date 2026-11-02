@@ -13,7 +13,11 @@ from flask_login import current_user, login_required
 
 from app.decorators.permissions import permission_required
 from app.extensions import db
+from app.models.ledger import SyncRun
+from app.models.member import Member, normalise_name
 from app.models.report import GeneratedReport, ReportAccessLog
+from app.models.tenancy import current_group
+from app.services import member_service
 from app.services.image_generator import ImageGenerator
 from app.services.period_store import PeriodStore
 
@@ -35,25 +39,52 @@ class ReportController:
     @staticmethod
     @permission_required('view_reports')
     def report_preview():
-        """Preview the report the officer just generated."""
+        """Steps 2 and 3 of the monthly cycle: check what the sync found, then share it."""
         report = ReportController.session_report()
         if report is None:
             flash('No report data available. Please generate a report first.', 'error')
             return redirect(url_for('main.dashboard'))
 
+        group = current_group()
+        run = (SyncRun.for_group().filter_by(id=session.get('last_run_id')).first()
+               if session.get('last_run_id') else None)
+        month = MONTH_NAMES[report.month - 1]
+        period = f'{report.year}-{report.month}'
+        paid_url = url_for('group.paid', slug=group.slug, period=period, _external=True)
+        code = group.settings.access_code if group.settings.access_code_enabled else None
+
         return render_template(
             'main/report_preview.html',
             version=current_app.version,
-            month=MONTH_NAMES[report.month - 1],
+            report=report,
+            month=month,
             year=report.year,
-            total_contributions=report.total_contributions,
-            contributors=report.contributors_count,
-            defaulters=report.defaulters_count,
-            money_dispensed=report.money_dispensed,
-            total_book_balance=report.total_book_balance,
-            filename=report.filename,
-            current_date=datetime.now(),
+            run=run,
+            new_members=ReportController._new_members(run),
+            paid_url=paid_url if group.settings.public_paid_enabled else None,
+            share_text=ReportController._share_text(month, report.year, paid_url, code,
+                                                    group.settings.public_paid_enabled),
         )
+
+    @staticmethod
+    def _new_members(run):
+        """The sync's new names, each with members it may be a respelling of (manage_members only)."""
+        if run is None or not current_user.has_permission('manage_members'):
+            return []
+        names = {normalise_name(n) for n in (run.details or {}).get('new_members', [])}
+        members = Member.for_group().filter(Member.normalised_name.in_(names)).order_by(Member.display_name).all()
+        return [(m, member_service.possible_duplicates(m)) for m in members]
+
+    @staticmethod
+    def _share_text(month, year, paid_url, code, paid_enabled):
+        """A message officers can paste into the group chat."""
+        lines = [f'{month} {year} contributions are now updated.']
+        if paid_enabled:
+            lines.append(f'See who has paid: {paid_url}')
+            if code:
+                lines.append(f'Group code: {code}')
+        lines.append(f"Check your own: {url_for('group.check', slug=current_group().slug, _external=True)}")
+        return '\n'.join(lines)
 
     @staticmethod
     @permission_required('view_reports')
@@ -241,13 +272,14 @@ class ReportController:
     # tagged with the officer and cleared on login and logout. The data
     # itself is stored in the DB, scoped to the group.
 
-    SESSION_REPORT_KEYS = ('last_report_id', 'report_owner_id',
+    SESSION_REPORT_KEYS = ('last_report_id', 'last_run_id', 'report_owner_id',
                            'report_data', 'report_path')   # last two: pre-2a cookies
 
     @staticmethod
-    def remember_report(report_id: int) -> None:
-        """Remember the report the current officer just generated."""
+    def remember_report(report_id: int, run_id: int = None) -> None:
+        """Remember the report the current officer just generated, and the sync behind it."""
         session['last_report_id'] = report_id
+        session['last_run_id'] = run_id
         session['report_owner_id'] = current_user.id
         session.pop('report_data', None)
         session.pop('report_path', None)

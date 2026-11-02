@@ -12,13 +12,12 @@ from flask import (
     request, url_for,
 )
 from flask_login import current_user
-from markupsafe import Markup
 
 from app.controllers.report_controller import ReportController
 from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.ledger import SyncRun
-from app.models.report import GeneratedReport
+from app.models.member import PeriodSummary
 from app.models.tenancy import current_group
 from app.services.excel_parser import ExcelParser
 from app.services.pdf_service import PDFGenerator
@@ -44,20 +43,33 @@ class UploadController:
     @staticmethod
     @permission_required('upload_data')
     def upload_dashboard():
-        """Landing page for officers with upload_data."""
-        current_date = datetime.now()
-        sheet_url = current_group().settings.google_sheet_url or ''
-        recent_reports = UploadController._get_recent_reports_for_user()
+        """Step 1 of the monthly cycle: choose the month and where the data comes from."""
+        group = current_group()
+        latest = (PeriodSummary.for_group(group.id)
+                  .order_by(PeriodSummary.year.desc(), PeriodSummary.month.desc()).first())
+        year, month = UploadController._suggested_month(latest)
+        last_run = SyncRun.for_group(group.id).order_by(SyncRun.synced_at.desc()).first()
 
         return render_template(
             'main/upload_dashboard.html',
             version=current_app.version,
-            sheet_url=sheet_url,
-            year=current_date.year,
-            month=current_date.month,
+            sheet_url=group.settings.google_sheet_url or '',
+            year=year,
+            month=month,
+            this_year=datetime.now().year,
             month_names=MONTH_NAMES,
-            recent_reports=recent_reports,
+            latest_label=f'{MONTH_NAMES[latest.month - 1]} {latest.year}' if latest else None,
+            standard=bool(last_run and last_run.layout == 'standard'),
         )
+
+    @staticmethod
+    def _suggested_month(latest):
+        """The month after the last one synced, but never a month still to come."""
+        now = datetime.now()
+        if latest is None:
+            return now.year, now.month
+        year, month = (latest.year + 1, 1) if latest.month == 12 else (latest.year, latest.month + 1)
+        return (year, month) if (year, month) <= (now.year, now.month) else (latest.year, latest.month)
 
     # ==================== UPLOAD & GENERATE ====================
 
@@ -113,13 +125,12 @@ class UploadController:
             # --- 6. Record the report; remember it for preview / download ---
             report_id = UploadController._save_report_to_db(data, report_path)
             if report_id:
-                ReportController.remember_report(report_id)
+                ReportController.remember_report(report_id, run.id)
 
             # --- 7. Background cleanup ---
             UploadController._run_background_cleanup()
 
-            flash('Report generated successfully!', 'success')
-            UploadController._flash_sync_notes(run)
+            # The check page shows the new names and warnings itself
             return redirect(url_for('report.preview'))
 
         except ValueError as e:
@@ -178,78 +189,12 @@ class UploadController:
         return run
 
     @staticmethod
-    def _flash_sync_notes(run):
-        """Point the officer at new names and warnings from the sync."""
-        new_members = run.details.get('new_members', [])
-        if new_members:
-            names = ', '.join(new_members[:10])
-            more = len(new_members) - 10
-            flash(
-                f"{len(new_members)} new member(s) added: {names}"
-                f"{f' and {more} more' if more > 0 else ''}. "
-                "If any is a respelling of an existing member, they can be merged.",
-                'info',
-            )
-        if run.warnings:
-            flash(
-                Markup('The workbook raised {} warning(s). <a href="{}">Review them</a>.').format(
-                    len(run.warnings), url_for('main.sync_run', run_id=run.id)),
-                'warning',
-            )
-
-    @staticmethod
     def _run_background_cleanup():
         """Expire the group's old files; other groups are left to the daily job."""
         try:
             FileCleanupService.cleanup_group(current_group())
         except Exception as e:
             current_app.logger.warning(f"Background cleanup failed: {e}")
-
-    @staticmethod
-    def _get_recent_reports_for_user():
-        try:
-            reports = (
-                GeneratedReport.for_group()
-                .filter_by(generated_by=current_user.id)
-                .order_by(GeneratedReport.generated_at.desc())
-                .limit(5)
-                .all()
-            )
-            
-            processed_reports = []
-            for r in reports:
-                # Handle month safely - could be int, str, or None
-                month_display = r.month
-                if r.month is not None:
-                    try:
-                        # Try to convert to int if it's a string
-                        month_num = int(r.month) if isinstance(r.month, str) else r.month
-                        # Check if it's a valid month number (1-12)
-                        if isinstance(month_num, int) and 1 <= month_num <= 12:
-                            month_display = MONTH_NAMES[month_num - 1]
-                        else:
-                            # If it's a number but out of range, keep as is
-                            month_display = str(r.month)
-                    except (ValueError, TypeError):
-                        # If conversion fails, keep original value
-                        month_display = str(r.month)
-                else:
-                    month_display = 'Unknown'
-                
-                processed_reports.append({
-                    'id': r.id,
-                    'month': month_display,
-                    'year': r.year,
-                    'total_contributions': r.total_contributions,
-                    'contributors': r.contributors_count,
-                    'generated_date': r.generated_at.strftime('%d %b %Y %H:%M'),
-                })
-            
-            return processed_reports
-            
-        except Exception as e:
-            current_app.logger.error(f"Error fetching recent reports: {e}")
-            return []
 
 
 def _ascii_safe(text: str) -> str:

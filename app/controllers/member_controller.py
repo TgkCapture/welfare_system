@@ -100,25 +100,37 @@ class MemberController:
     @staticmethod
     @permission_required('manage_members')
     def merge(member_id):
-        """Merge this member into another (two records of one person)."""
+        """Merge this member into another (two records of one person).
+
+        From the monthly check page (htmx), the answer is a short note that
+        replaces the name in place; otherwise it redirects with messages.
+        """
         source = Member.get_for_group_or_404(member_id)
         target_id = request.form.get('into', type=int)
         target = Member.for_group().filter_by(id=target_id).first() if target_id else None
+        inline = bool(request.headers.get('HX-Request'))
         if target is None:
-            flash('Choose the member to merge into.', 'danger')
-            return redirect(url_for('main.member', member_id=source.id))
+            return MemberController._merge_answer(inline, source, error='Choose the member to merge into.')
 
         name = source.display_name
         try:
             notes = member_service.merge(source, target)
         except MemberError as e:
-            flash(str(e), 'danger')
-            return redirect(url_for('main.member', member_id=source.id))
+            return MemberController._merge_answer(inline, source, error=str(e))
+        if inline:
+            return render_template('main/_merge_result.html', name=name, target=target, notes=notes)
         flash(f'{name} merged into {target.display_name}. Their payments and names now belong to '
               f'{target.display_name}.', 'success')
         for note in notes:
             flash(note, 'warning')
         return redirect(url_for('main.member', member_id=target.id))
+
+    @staticmethod
+    def _merge_answer(inline, source, error):
+        if inline:
+            return render_template('main/_merge_result.html', error=error, name=source.display_name)
+        flash(error, 'danger')
+        return redirect(url_for('main.member', member_id=source.id))
 
     @staticmethod
     @permission_required('manage_members')
