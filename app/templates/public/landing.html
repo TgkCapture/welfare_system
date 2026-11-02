@@ -1,0 +1,31 @@
+<!-- app/templates/public/landing.html — a group's home page for members -->
+{% extends 'public/_layout.html' %}
+
+{% block content %}
+<h1 class="page-header__title" style="margin-bottom:.5rem;">{{ brand.name }}</h1>
+<p class="text-muted" style="margin-bottom:1.5rem;">Contributions and welfare rules for members.</p>
+
+<div style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));">
+  {% set tiles = [
+    (url_for('group.rules', slug=group.slug), 'fas fa-book-open', 'Welfare rules',
+     'What members pay and what support they can receive.', True),
+    (url_for('group.paid', slug=group.slug), 'fas fa-user-check', 'Who has paid',
+     'Members who have paid this month.', group.settings.public_paid_enabled),
+    (url_for('group.check', slug=group.slug), 'fas fa-calendar-check', 'My contributions',
+     'See your own payments with your name and PIN.', True),
+  ] %}
+  {% for href, icon, title, desc, shown in tiles if shown %}
+  <a href="{{ href }}" class="card" style="display:block;text-decoration:none;color:inherit;">
+    <div class="card__body">
+      <i class="{{ icon }}" style="font-size:1.5rem;color:var(--clr-primary);"></i>
+      <h2 style="font-size:1.0625rem;font-weight:800;margin:.75rem 0 .25rem;">{{ title }}</h2>
+      <p class="text-sm text-muted">{{ desc }}</p>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block footer %}
+  {% if last_updated %}Contributions last updated {{ last_updated.strftime('%d %B %Y') }}.{% endif %}
+{% endblock %}

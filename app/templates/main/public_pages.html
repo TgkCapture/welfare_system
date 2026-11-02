@@ -1,0 +1,99 @@
+<!-- app/templates/main/public_pages.html -->
+{% extends 'base.html' %}
+{% block title %}Public Pages — {{ brand.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-globe"></i> Public pages</h1>
+    <p class="page-header__sub">What members see without an account</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.settings') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Settings
+    </a>
+  </div>
+</div>
+
+<div style="max-width:44rem;">
+  <div class="card" style="margin-bottom:1.25rem;">
+    <div class="card__header"><h2 class="card__title"><i class="fas fa-link"></i> Your group's page</h2></div>
+    <div class="card__body">
+      {% set home = url_for('group.landing', slug=slug, _external=True) %}
+      <div style="display:flex;gap:.5rem;">
+        <input type="text" class="form-control" value="{{ home }}" readonly aria-label="Group page link">
+        <button type="button" class="btn btn--primary btn--sm" data-copy="{{ home }}"><i class="fas fa-copy"></i> Copy</button>
+      </div>
+      <p class="form-hint">Links to the rules, who has paid, and members' own contributions (by name and PIN).
+        It is never listed by search engines.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.25rem;">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-lock"></i> Group code</h2>
+      <span class="badge {{ 'badge--success' if settings.access_code_enabled else 'badge--warning' }}">
+        {{ 'On' if settings.access_code_enabled else 'Off' }}</span>
+    </div>
+    <div class="card__body">
+      <p class="text-sm">Asked once before showing who has paid, so only people in your group chat can see the list.</p>
+      {% if settings.access_code_enabled %}
+      <div style="display:flex;gap:.75rem;align-items:center;margin:.75rem 0;">
+        <code style="font-size:1.5rem;letter-spacing:.2em;">{{ settings.access_code }}</code>
+        <button type="button" class="btn btn--outline btn--sm" data-copy="{{ settings.access_code }}">
+          <i class="fas fa-copy"></i> Copy</button>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+        <form method="POST" action="{{ url_for('main.public_pages') }}"
+              data-confirm="Make a new code? The current code will stop working.">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" name="action" value="new_code" class="btn btn--outline btn--sm">
+            <i class="fas fa-redo"></i> New code</button>
+        </form>
+        <form method="POST" action="{{ url_for('main.public_pages') }}" style="display:flex;gap:.5rem;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="text" name="code" class="form-control" maxlength="20" placeholder="Or choose one"
+                 style="width:10rem;text-transform:uppercase;" aria-label="New group code" autocomplete="off">
+          <button type="submit" name="action" value="set_code" class="btn btn--outline btn--sm">Set</button>
+        </form>
+      </div>
+      {% else %}
+      <p class="text-sm" style="color:var(--clr-warning);margin:.75rem 0;">
+        Off: anyone with the link can see who has paid.</p>
+      {% endif %}
+      <form method="POST" action="{{ url_for('main.public_pages') }}" style="margin-top:1rem;"
+            {% if settings.access_code_enabled %}data-confirm="Turn the code off? Anyone with the link will be able to see who has paid."{% endif %}>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" name="action" value="toggle_code"
+                class="btn btn--sm {{ 'btn--outline' if settings.access_code_enabled else 'btn--success' }}">
+          {{ 'Turn the code off' if settings.access_code_enabled else 'Turn the code on' }}</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header"><h2 class="card__title"><i class="fas fa-user-check"></i> Who has paid</h2></div>
+    <div class="card__body">
+      <p class="text-sm" style="margin-bottom:.75rem;">The list only ever shows members who have paid. Members
+        who haven't paid are never shown on any public page.</p>
+      <form method="POST" action="{{ url_for('main.public_pages') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% for field, label in (('public_paid_enabled', 'Show the "who has paid" page'),
+                                ('public_show_amounts', 'Show how much each member paid'),
+                                ('public_show_totals', 'Show how many paid and the month\'s total')) %}
+        <label class="check-label" style="margin-bottom:.5rem;">
+          <input type="checkbox" name="{{ field }}" value="1" {{ 'checked' if settings[field] }}> {{ label }}
+        </label>
+        {% endfor %}
+        <div class="form-group" style="margin-top:.75rem;max-width:16rem;">
+          <label class="form-label" for="public_months_back">Months that can be browsed</label>
+          <input type="number" id="public_months_back" name="public_months_back" class="form-control"
+                 min="1" max="120" value="{{ settings.public_months_back }}">
+          <p class="form-hint">Counting back from the latest month synced.</p>
+        </div>
+        <button type="submit" name="action" value="options" class="btn btn--primary"><i class="fas fa-save"></i> Save</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
