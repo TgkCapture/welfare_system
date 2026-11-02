@@ -5,12 +5,15 @@ Group settings (requires edit_settings).
 Each group has its own Google Sheet URL and report retention period,
 stored in its GroupSettings row.
 """
+import re
+
 from flask import render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
 
 from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.tenancy import current_group
+from app.services.branding import is_valid_color
 
 MAX_RETENTION_DAYS = 3650
 
@@ -29,6 +32,8 @@ class SettingsController:
         POST → validate and persist changes.
         """
         if request.method == 'POST':
+            if request.form.get('section') == 'branding':
+                return SettingsController._handle_branding_update()
             return SettingsController._handle_settings_update()
 
         return SettingsController._render_settings()
@@ -63,6 +68,38 @@ class SettingsController:
         return redirect(url_for('main.settings'))
 
     @staticmethod
+    def _handle_branding_update():
+        """How the group is named on its pages and reports."""
+        settings = current_group().settings
+        text = lambda name: ' '.join(request.form.get(name, '').split())
+        display_name, short_name = text('display_name'), text('short_name')
+        report_title, currency = text('report_title'), text('currency').upper()
+        color = request.form.get('primary_color', '').strip()
+
+        problems = []
+        if not display_name or len(display_name) > 150:
+            problems.append('The group name is needed (up to 150 characters).')
+        if len(short_name) > 30:
+            problems.append('The short name can be up to 30 characters.')
+        if len(report_title) > 200:
+            problems.append('The report title can be up to 200 characters.')
+        if not re.fullmatch(r'[A-Z]{3}', currency):
+            problems.append('The currency must be a three-letter code, such as MWK.')
+        if not is_valid_color(color):
+            problems.append('Choose a colour.')
+        if problems:
+            for problem in problems:
+                flash(problem, 'danger')
+            return redirect(url_for('main.settings'))
+
+        settings.display_name, settings.short_name = display_name, short_name or None
+        settings.report_title, settings.currency = report_title or None, currency
+        settings.primary_color = color.lower()
+        db.session.commit()
+        flash('Branding updated.', 'success')
+        return redirect(url_for('main.settings'))
+
+    @staticmethod
     def _render_settings():
         """Render the settings page with current values."""
         settings = current_group().settings
@@ -70,6 +107,7 @@ class SettingsController:
         return render_template(
             'main/settings.html',
             version=current_app.version,
+            settings=settings,
             sheet_url=settings.google_sheet_url or '',
             retention_days=settings.report_retention_days,
             default_retention_days=current_app.config.get('REPORT_RETENTION_DAYS', 7),

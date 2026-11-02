@@ -17,6 +17,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.auth.forms import LoginForm
 from app.controllers.report_controller import ReportController
+from app.services.branding import use_group_brand
 from app.extensions import db, limiter
 from app.models.group import Group
 from app.models.user import User
@@ -89,6 +90,7 @@ class AuthController:
         group = Group.query.filter_by(slug=slug, is_active=True).first()
         if group is None:
             abort(404)
+        use_group_brand(group)
 
         if current_user.is_authenticated:
             return redirect(url_for('main.dashboard'))

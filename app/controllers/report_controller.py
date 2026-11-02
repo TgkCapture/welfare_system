@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 
 from flask import (
-    current_app, flash, make_response, redirect,
+    current_app, flash, redirect,
     render_template, send_file, session, url_for,
 )
 from flask_login import current_user, login_required
@@ -15,7 +15,6 @@ from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.report import GeneratedReport, ReportAccessLog
 from app.services.image_generator import ImageGenerator
-from app.services.pdf_service import PDFGenerator
 from app.services.period_store import PeriodStore
 
 MONTH_NAMES = [
@@ -134,23 +133,6 @@ class ReportController:
             current_app.logger.error(f"Error generating paid-members image: {e}", exc_info=True)
             flash('Error generating paid members image.', 'error')
             return redirect(url_for('report.preview_specific', report_id=report.id))
-
-    @staticmethod
-    def download_welfare_rules_pdf():
-        """Generate and download the welfare rules PDF."""
-        try:
-            pdf_content = PDFGenerator.generate_welfare_rules_pdf()
-            response = make_response(pdf_content)
-            response.headers['Content-Type'] = 'application/pdf'
-            response.headers['Content-Disposition'] = (
-                'attachment; filename=mzugoss_welfare_rules.pdf'
-            )
-            return response
-
-        except Exception as e:
-            current_app.logger.error(f"Welfare rules PDF failed: {e}", exc_info=True)
-            flash('PDF generation unavailable. Use print-to-PDF instead.', 'warning')
-            return redirect(url_for('main.welfare_rules'))
 
     # ==================== PAID MEMBERS VIEW ====================
 

@@ -17,6 +17,7 @@ from app.models.ledger import SyncRun
 from app.models.member import Member, MemberAlias, normalise_name
 from app.models.tenancy import current_group
 from app.services import member_service
+from app.services.branding import use_group_brand
 from app.services.member_service import MemberError
 from app.services.standard_workbook import MONTHS
 
@@ -172,6 +173,7 @@ class MemberController:
                   if group else None)
         if member is None:
             abort(404)
+        use_group_brand(group)
 
         response = make_response(render_template(
             'public/member_history.html', group=group, member=member,
