@@ -631,6 +631,41 @@ Delivered (migration `0a94e0dbf35b`):
 
 ## Phase 5: UI and flow overhaul
 
+Delivered in steps: **5a** foundation (done), **5b** one dashboard, **5c**
+monthly cycle flow, **5d** setup checklist for new groups, **5e** logo upload
+and moving the remaining pages onto the components.
+
+Step 5a delivered:
+- Tailwind 3.4.17. The standalone CLI download (about 100 MB) was too slow
+  here, and Node is installed, so it is a dev dependency (`package.json`,
+  `npm run build:css`). The built `app/static/css/app.css` (about 38 KB) is
+  committed, so production never needs Node. `node_modules/` is git-ignored.
+- htmx 2.0.4 vendored in `static/vendor`.
+- `app/static/src/app.css`: tokens, plus the shared component classes
+  (`btn`, `card`, `page-header`, `stat-card`, `data-table`, form controls,
+  badges, flashes, modals, empty and error states) rebuilt on Tailwind, so
+  every existing page took on the new look without rewriting. The old
+  `--clr-*` variables are kept for inline styles.
+- `brand` follows each group's colour through `--brand-rgb`, which the
+  layouts set per request, so `bg-brand`, `text-brand` and the rest are on
+  brand.
+- Component macros (`templates/components/ui.html`): page_header, card,
+  stat, button, badge, status, empty_state, field (WTForms), copy_field,
+  flashes.
+- New `base.html`:
+  - A sidebar grouped by task (Contributions, Group, Platform), showing only
+    what the officer's permissions allow, with the active page highlighted
+    and the officer's name, role and log-out at the bottom.
+  - On small screens, a top bar opens it as a drawer.
+  - Visitors who aren't signed in get a slim header.
+- The public layout uses the same stylesheet.
+- Removed dead code: 16 per-page CSS files and 14 per-page JS files that no
+  template loaded, `base.css`, and the unused `main/dashboard.html`
+  (about 14,000 lines in all).
+- A test checks that every `static` file a template references exists.
+- Checked by rendering the main pages with sample data and screenshotting
+  them with headless Chrome.
+
 - [ ] Add Tailwind (standalone CLI, no Node build in production) and htmx.
 - [ ] Build a component library of Jinja macros: buttons, cards, tables,
       forms, flash messages, empty states and modals.

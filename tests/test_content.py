@@ -193,8 +193,8 @@ def test_branding_shows_on_pages(client, group, chair):
         'Mzuzu Old Students', 'ZMW', '#aa3300')
     page = client.get('/settings').data.decode()
     assert '<title>Settings — Mzuzu Old Students</title>' in page
-    assert 'topnav__logo-primary">MOS<' in page
-    assert '--clr-primary: #aa3300' in page
+    assert 'sidebar__name block">MOS<' in page
+    assert '--brand-rgb: 170 51 0;' in page
 
 
 @pytest.mark.parametrize('field,value', [
@@ -229,3 +229,17 @@ def test_public_pages_use_the_viewed_groups_brand(client, group, make_group):
     db.session.commit()
     page = client.get('/g/another/login').data.decode()
     assert 'Another Welfare' in page and 'Mzugoss' not in page
+
+
+# ==================== STATIC FILES ====================
+
+def test_every_static_file_a_template_uses_exists():
+    """url_for('static', filename=...) in templates must point at real files (app.css is built and committed)."""
+    pattern = re.compile(r"url_for\('static',\s*filename='([^']+)'\)")
+    missing = [
+        f'{path.relative_to(APP_DIR)}: {name}'
+        for path in (APP_DIR / 'templates').rglob('*.html')
+        for name in pattern.findall(path.read_text(encoding='utf-8'))
+        if not (APP_DIR / 'static' / name).is_file()
+    ]
+    assert missing == []
