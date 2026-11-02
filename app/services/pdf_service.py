@@ -23,6 +23,7 @@ import io
 import logging
 import os
 import re
+import uuid
 from datetime import datetime
 
 import pandas as pd
@@ -444,9 +445,10 @@ class PDFGenerator:
 
         timestamp  = datetime.now().strftime('%Y%m%d%H%M%S')
         month_safe = re.sub(r'[^A-Za-z0-9]+', '', str(data.get('month', ''))) or 'unknown'
+        # The random part keeps two reports made in the same second from sharing a file
         filename   = (
             f"contributions_report"
-            f"_{data.get('year', '')}_{month_safe}_{timestamp}.pdf"
+            f"_{data.get('year', '')}_{month_safe}_{timestamp}_{uuid.uuid4().hex[:6]}.pdf"
         )
         report_path = os.path.join(report_folder, filename)
 
