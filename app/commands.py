@@ -160,11 +160,15 @@ def init_commands(app) -> None:
                   help='A name-suggestions CSV with "yes" in the confirm column for pairs to merge.')
     @click.option('--drop-repeated-payouts', is_flag=True, default=False,
                   help="Drop payouts that repeat the previous year's (same member and amount).")
-    def convert_legacy_workbook(source, title, out_dir, merges_file, drop_repeated_payouts):
+    @click.option('--group', 'slug', default=None,
+                  help="Use this group's payout purposes in the workbook's dropdown.")
+    @click.option('--purpose', 'purposes', multiple=True,
+                  help="A payout purpose for the dropdown (repeatable); added to the group's.")
+    def convert_legacy_workbook(source, title, out_dir, merges_file, drop_repeated_payouts, slug, purposes):
         """Convert an old-layout workbook to the standard layout, with a review report."""
         import csv
 
-        from app.services.legacy_conversion import LegacyConverter
+        from app.services.legacy_conversion import UNSPECIFIED, LegacyConverter
         from app.services.workbook_template import write_workbook
 
         merges = {}
@@ -174,7 +178,20 @@ def init_commands(app) -> None:
                     if (row.get('confirm') or '').strip().lower() in ('yes', 'y', 'x', '1'):
                         merges[row['merge']] = row['keep']
 
-        conversion = LegacyConverter(source, title, merges=merges,
+        # Payout purposes are the group's own: there is no built-in list
+        purpose_names = list(purposes)
+        if slug:
+            from app.models.group import Group
+            from app.models.ledger import PayoutPurpose
+
+            group = Group.query.filter_by(slug=slug.strip().lower()).first()
+            if group is None:
+                click.secho(f'✗ No group with slug {slug!r}.', fg='red')
+                return
+            purpose_names = [p.name for p in PayoutPurpose.for_group(group.id).filter_by(is_active=True)
+                             .order_by(PayoutPurpose.name)] + purpose_names
+
+        conversion = LegacyConverter(source, title, merges=merges, purposes=purpose_names,
                                      drop_repeated_payouts=drop_repeated_payouts).convert()
 
         os.makedirs(out_dir, exist_ok=True)
@@ -182,7 +199,10 @@ def init_commands(app) -> None:
         workbook_path = os.path.join(out_dir, f'{stem}_standard.xlsx')
         write_workbook(conversion.spec).save(workbook_path)
 
-        warnings, mismatches = _verify_conversion(workbook_path, conversion.legacy_totals)
+        # Checked against the real purposes, so the "Unspecified" payouts show as warnings
+        warnings, mismatches = _verify_conversion(
+            workbook_path, conversion.legacy_totals,
+            [p for p in conversion.spec.purposes if p != UNSPECIFIED])
         review = conversion.review + _verification_section(merges, warnings, mismatches)
         review_path = os.path.join(out_dir, f'{stem}_review.md')
         with open(review_path, 'w', encoding='utf-8') as fh:
@@ -214,7 +234,6 @@ def init_commands(app) -> None:
         """Create a welfare group with default settings and preset roles."""
         from app.extensions import db
         from app.models.group import Group, GroupSettings
-        from app.models.ledger import PayoutPurpose
         from app.models.role import Role
 
         slug = slug.strip().lower()
@@ -230,7 +249,6 @@ def init_commands(app) -> None:
             group.settings = GroupSettings(display_name=name)
             db.session.add(group)
             Role.seed_presets(group)
-            PayoutPurpose.seed_defaults(group)
             db.session.commit()
             click.secho(f'✓ Group {name!r} created at /g/{slug}.', fg='green')
         except Exception as e:
@@ -277,7 +295,7 @@ def init_commands(app) -> None:
         )
 
 
-def _verify_conversion(workbook_path, legacy_totals):
+def _verify_conversion(workbook_path, legacy_totals, purposes):
     """Sync the converted workbook into a throwaway database and compare month totals.
 
     Returns (sync warnings, [(year, month, old total, converted total)]).
@@ -302,7 +320,7 @@ def _verify_conversion(workbook_path, legacy_totals):
         db.create_all()
         group = Group(name='Check', slug='check', settings=GroupSettings(display_name='Check'))
         db.session.add(group)
-        PayoutPurpose.seed_defaults(group)
+        db.session.add_all(PayoutPurpose(group=group, name=name) for name in purposes)
         db.session.commit()
         run = StandardSync.sync(group, workbook_path)
         stored = {(s.year, s.month): s.total_contributions for s in PeriodSummary.for_group(group.id)}

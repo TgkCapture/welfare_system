@@ -26,6 +26,16 @@ MEMBERS = [
 ]
 
 
+# Payout purposes are each group's own; these tests' group pays out for these
+PURPOSES = ['Funeral condolence', 'Wedding gift', 'Sick patient grant']
+
+
+@pytest.fixture(autouse=True)
+def purposes(app, group):
+    db.session.add_all(PayoutPurpose(group_id=group.id, name=name) for name in PURPOSES)
+    db.session.commit()
+
+
 def _book(tmp_path, members=MEMBERS, contributions=None, **kw):
     contributions = contributions if contributions is not None else {
         2025: [
@@ -247,11 +257,12 @@ def test_template_has_an_excess_column(app, group):
     assert "!C2:O" in wb['Summary']['C2'].value
 
 
-def test_member_missing_from_a_years_sheet_is_not_counted_but_warned(app, group, tmp_path):
+def test_member_missing_from_a_years_sheet_is_unpaid_with_a_warning(app, group, tmp_path):
     run = _sync(group, _book(tmp_path, contributions={2025: [('M001', 'Ann Banda', {'January': 1000})]}))
 
-    assert _month(group, 2025, 1) == {'Ann Banda': (1000, PAID)}
-    assert any('M002 Ben Phiri is a member in 2025 but has no row, so they are not counted' in m
+    # Paid nothing that year, but still a member
+    assert _month(group, 2025, 1) == {'Ann Banda': (1000, PAID), 'Ben Phiri': (0, UNPAID)}
+    assert any('M002 Ben Phiri is a member in 2025 but has no row, so they are counted as unpaid' in m
                for m in _messages(run))
 
 
@@ -454,9 +465,15 @@ def test_retired_purposes_leave_the_template_but_still_match(app, group, tmp_pat
     assert not any('purpose' in m.lower() for m in _messages(run))
 
 
+def test_new_groups_start_with_no_purposes(app, make_group):
+    assert PayoutPurpose.for_group(make_group(name='Another Welfare', slug='another').id).count() == 0
+
+
 def test_purposes_are_per_group_and_need_edit_settings(client, group, make_group, make_user, login):
     other = make_group(name='Another Welfare', slug='another')
-    theirs = PayoutPurpose.for_group(other.id).first()
+    theirs = PayoutPurpose(group_id=other.id, name='School fees')
+    db.session.add(theirs)
+    db.session.commit()
     make_user(email='t@example.com', role='Treasurer')
     make_user(email='chair@example.com')
 

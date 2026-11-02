@@ -229,7 +229,7 @@ Step 1e delivered:
 
 Delivered in steps: **2a** stored data and sync (done), **2b** standard
 workbook template, parser and sync checks (done), **2c** MGSS.xlsx conversion for
-review (done; awaiting the user's review), **2d** Members screen (merge, links, PINs), **2e** column mapping for
+review (done; awaiting the user's review), **2d** Members screen (merge, links, PINs) (done), **2e** column mapping for
 older layouts, with reports built from stored data.
 
 Step 2a delivered:
@@ -357,6 +357,42 @@ Step 2c, after the user's review:
   the Rates sheet.
 - Payouts must show what they were for and when: the treasurer fills these in
   on the Payouts sheet. Until then each sync lists them as warnings.
+
+Corrections from the user, made at the start of 2d:
+- **Payout purposes are each group's own.** New groups start with none; there
+  is no built-in list. The converter takes them from `--group <slug>` and/or
+  `--purpose` (plus "Unspecified" for old payouts). Existing groups keep the
+  three purposes the 2b migration gave them, which can be renamed or retired.
+- **A member missing from a year's sheet paid nothing that year.** They are
+  still a member: the converter gives them an empty row for any year between
+  two sheets they're on, and a sync counts a member with no row as unpaid,
+  with a warning (this reverses the 2c rule). MGSS: 11 sync warnings remain,
+  all about payouts.
+
+Step 2d delivered (Members screen, `manage_members`):
+- List with search by name, alias or Member ID. `?run=<id>` lists a sync's
+  new names, linked from the sync page ("Review new members").
+- Member page:
+  - The contribution history by year, marking unpaid months, months covered
+    by credit, excess and credit carried forward.
+  - Rename: the old spelling is kept as an alias for matching.
+  - Merge into another member, with likely matches suggested by the shared
+    name-matching rules (`app/services/name_matching.py`). Contributions,
+    credit, payouts and names move across, a month both records have is added
+    together, and the month's paid and unpaid counts are recounted. If both
+    records have Member IDs, the officer is told to remove the merged one from
+    the workbook.
+  - Remove an alias, retire or restore the member.
+  - Personal link: copy it or make a new one, which cancels the old.
+  - PIN: random 6 digits, shown once and not kept anywhere (no-store page),
+    stored only as a hash. A new PIN also unlocks a locked member.
+- Members with a Member ID are renamed or retired in the workbook too; the
+  screen reminds the officer, since a sync follows the workbook.
+- Public personal history at `/g/<slug>/m/<token>`, pulled forward from
+  Phase 4 so that copied links work. It shows only that member's months and
+  credit, sends noindex, no-store and no-referrer headers, and returns 404 for
+  a wrong token, another group, a retired member or a suspended group. The
+  name + PIN lookup page stays in Phase 4.
 
 ### Findings from the real Mzugoss workbook (MGSS.xlsx)
 
