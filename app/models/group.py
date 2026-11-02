@@ -84,6 +84,11 @@ class GroupSettings(db.Model):
     access_code_enabled = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
     access_code         = db.Column(db.String(20), nullable=True, default=lambda: new_access_code())
 
+    # ── Setup checklist ──────────────────────────────────────────────
+    # Steps that can't be worked out from the group's data, ticked when done
+    setup_marks     = db.Column(db.JSON, nullable=False, default=list)
+    setup_dismissed = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+
     updated_at = db.Column(
         db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow,
     )

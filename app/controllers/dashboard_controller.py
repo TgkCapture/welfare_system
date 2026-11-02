@@ -12,7 +12,7 @@ from flask_login import current_user, login_required
 
 from app.decorators.permissions import permission_required
 from app.models.tenancy import current_group
-from app.services import dashboard
+from app.services import dashboard, setup
 from app.services.file_cleanup import FileCleanupService
 
 
@@ -32,6 +32,7 @@ class DashboardController:
             'main/dashboard.html',
             version=current_app.version,
             public_url=url_for('group.landing', slug=group.slug, _external=True),
+            setup=setup.progress(group) if setup.show_on_dashboard(group) else None,
             **dashboard.overview(group, current_user),
         )
 

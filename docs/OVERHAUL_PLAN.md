@@ -714,6 +714,31 @@ Step 5c delivered (the monthly cycle: upload or sync, check, share):
   on login and logout with the report). The upload's flash messages are gone,
   since the Check step shows the same things.
 
+Step 5d delivered (setup checklist, migration `191c98a5790f`):
+- `/setup` (`app/services/setup.py`) walks a new group through seven steps:
+  branding, payout purposes, workbook and data source, first sync, welfare
+  rules, the members' page, and other officers.
+- Most steps tick themselves from the group's data:
+  - a purpose exists
+  - a sheet link, a sync or a synced month exists
+  - a month is synced
+  - a rule section exists
+  - there are two or more active officers
+
+  The two that can't be inferred are recorded in `setup_marks`: branding
+  ticks when the branding form is saved, and the members' page when an
+  officer opens its settings.
+- Each step links to where it's done, names the permission it needs, and
+  tells officers without it to ask someone whose role allows it. The next
+  step is highlighted, with a progress bar.
+- The dashboard shows a progress card ("Set up your group: 2 of 7 done", next
+  step, Continue) until setup is complete or an officer who manages officers
+  or settings hides it. It can be shown again from `/setup`, which is linked
+  from Settings.
+- New groups (including those created on the platform) start with the
+  checklist showing. Existing groups like Mzugoss are already running, so the
+  migration hides theirs.
+
 - [ ] Add Tailwind (standalone CLI, no Node build in production) and htmx.
 - [ ] Build a component library of Jinja macros: buttons, cards, tables,
       forms, flash messages, empty states and modals.

@@ -14,6 +14,7 @@ from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.group import new_access_code
 from app.models.tenancy import current_group
+from app.services import setup
 from app.services.branding import is_valid_color
 
 MAX_RETENTION_DAYS = 3650
@@ -97,6 +98,7 @@ class SettingsController:
         settings.report_title, settings.currency = report_title or None, currency
         settings.primary_color = color.lower()
         db.session.commit()
+        setup.mark(current_group(), 'branding')
         flash('Branding updated.', 'success')
         return redirect(url_for('main.settings'))
 
@@ -143,6 +145,7 @@ class SettingsController:
                   'success' if settings.access_code_enabled else 'warning')
         if action:
             return redirect(url_for('main.public_pages'))
+        setup.mark(group, 'public')     # seen: what members see and the code to share
 
         return render_template('main/public_pages.html', version=current_app.version, settings=settings,
                                slug=group.slug)

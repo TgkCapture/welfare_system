@@ -87,6 +87,10 @@ def test_existing_groups_get_an_access_code_that_is_on(migrated_legacy_db):
     assert len(code) == 6 and enabled and paid_enabled
 
 
+def test_existing_groups_start_with_the_setup_checklist_hidden(migrated_legacy_db):
+    assert _rows(migrated_legacy_db, 'SELECT setup_dismissed, setup_marks FROM group_settings') == [(1, '[]')]
+
+
 def test_seeds_mzugoss_welfare_rules(migrated_legacy_db):
     titles = [t for (t,) in _rows(migrated_legacy_db, 'SELECT title FROM rule_sections ORDER BY position')]
     assert titles[:3] == ['Quick summary', 'Who can receive support', 'Funeral support']

@@ -11,6 +11,22 @@
   {% if can('upload_data') %}{{ button('Upload or sync', href=url_for('main.upload_dashboard'), icon='file-arrow-up') }}{% endif %}
 {% endcall %}
 
+{% if setup %}
+<div class="card mb-6 border-brand/30">
+  <div class="flex flex-wrap items-center gap-4 p-5">
+    <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-brand-pale text-lg text-brand"><i class="fas fa-list-check"></i></span>
+    <div class="min-w-0 flex-1">
+      <h2 class="font-bold">Set up your group: {{ setup.done }} of {{ setup.total }} done</h2>
+      <div class="my-2 h-1.5 max-w-sm overflow-hidden rounded-full bg-slate-200">
+        <div class="h-full rounded-full bg-emerald-500" style="width: {{ (100 * setup.done / setup.total)|round|int }}%"></div>
+      </div>
+      {% if setup.next %}<p class="text-sm text-slate-600">Next: {{ setup.next.title }}</p>{% endif %}
+    </div>
+    {{ button('Continue setup', href=url_for('main.setup'), icon='arrow-right') }}
+  </div>
+</div>
+{% endif %}
+
 {% if not latest %}
   {% call card(class='mb-6') %}
     {% call empty_state('Nothing synced yet', 'Once a month of contributions is uploaded or synced from Google Sheets, '

@@ -12,11 +12,14 @@ from app.controllers.user_controller import UserController
 from app.controllers.role_controller import RoleController
 from app.controllers.workbook_controller import WorkbookController
 from app.controllers.member_controller import MemberController
+from app.controllers.setup_controller import SetupController
 
 main = Blueprint('main', __name__)
 
 # ==================== DASHBOARDS ====================
 main.route('/')(DashboardController.dashboard)
+main.route('/setup', endpoint='setup')(SetupController.checklist)
+main.route('/setup/toggle', methods=['POST'], endpoint='toggle_setup')(SetupController.toggle)
 # The old per-role dashboards now lead to the one dashboard
 main.route('/admin', endpoint='admin_dashboard')(DashboardController.old_dashboard)
 main.route('/clerk-dashboard', endpoint='clerk_dashboard')(DashboardController.old_dashboard)
