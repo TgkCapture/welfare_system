@@ -16,6 +16,8 @@ from app.models.tenancy import current_group
 from app.services.file_cleanup import FileCleanupService
 from app.services.group_storage import group_folder
 from app.controllers.report_controller import ReportController
+from app.services.pdf_service import PDFGenerator
+from app.services.period_store import PeriodStore
 
 
 class ReportManagement:
@@ -101,42 +103,57 @@ class ReportManagement:
     @staticmethod
     @permission_required('generate_reports')
     def regenerate_report(report_id):
-        """Copy an existing report file as a new record (generate_reports).
+        """Build the report again as a new record (generate_reports).
 
-        NOTE: This duplicates the PDF on disk — it does NOT re-parse
-        the source Excel file.  True regeneration requires storing the
-        raw contribution data per report, which is on the roadmap.
-        Until then the method is honestly named 'duplicate' in the UI.
+        The PDF is made afresh from the month's stored contributions, so it
+        reflects the latest sync. A month synced before contributions were
+        stored has nothing to rebuild from, so its PDF is copied instead.
         """
         report = GeneratedReport.get_for_group_or_404(report_id)
+        data = PeriodStore.report_data(report.group_id, report.year, report.month)
 
-        if not os.path.exists(report.file_path):
+        if data is None and not os.path.exists(report.file_path):
             flash('Source report file not found on disk.', 'error')
             return redirect(
                 url_for('report.preview_specific', report_id=report_id)
             )
 
         try:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            new_filename = f"copy_{timestamp}_{report.filename}"
-            new_filepath = os.path.join(group_folder('reports'), new_filename)
-
-            shutil.copy2(report.file_path, new_filepath)
+            if data is not None:
+                new_filepath = PDFGenerator.save_contribution_report(data, group_folder('reports'))
+                totals = {
+                    'total_contributions': data['total_contributions'],
+                    'contributors_count':  data['num_contributors'],
+                    'defaulters_count':    data['num_missing'],
+                    'money_dispensed':     data['money_dispensed'],
+                    'total_book_balance':  data['total_book_balance'],
+                }
+                message = (f'The {report.month}/{report.year} report was rebuilt from the latest '
+                           'synced contributions.')
+            else:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                new_filepath = os.path.join(group_folder('reports'), f"copy_{timestamp}_{report.filename}")
+                shutil.copy2(report.file_path, new_filepath)
+                totals = {
+                    'total_contributions': report.total_contributions,
+                    'contributors_count':  report.contributors_count,
+                    'defaulters_count':    report.defaulters_count,
+                    'money_dispensed':     report.money_dispensed,
+                    'total_book_balance':  report.total_book_balance,
+                }
+                message = (f'A copy of the {report.month}/{report.year} report has been created '
+                           '(its month has no stored contributions to rebuild from).')
 
             new_report = GeneratedReport(
                 group_id=report.group_id,
                 month=report.month,
                 year=report.year,
                 report_type=report.report_type,
-                filename=new_filename,
+                filename=os.path.basename(new_filepath),
                 file_path=new_filepath,
                 generated_by=current_user.id,
                 file_size=os.path.getsize(new_filepath),
-                total_contributions=report.total_contributions,
-                contributors_count=report.contributors_count,
-                defaulters_count=report.defaulters_count,
-                money_dispensed=report.money_dispensed,
-                total_book_balance=report.total_book_balance,
+                **totals,
             )
 
             db.session.add(new_report)
@@ -144,10 +161,7 @@ class ReportManagement:
 
             ReportController._log_access(new_report.id, 'regenerate')
 
-            flash(
-                f'A copy of the {report.month}/{report.year} report has been created.',
-                'success'
-            )
+            flash(message, 'success')
             return redirect(
                 url_for('report.preview_specific', report_id=new_report.id)
             )

@@ -27,6 +27,7 @@ from app.services.file_processor import FileProcessor
 from app.services.group_storage import group_folder
 from app.services.period_store import PeriodStore
 from app.services.standard_sync import StandardSync
+from app.services.sheet_mapping import SheetMapping
 from app.services.standard_workbook import StandardWorkbook
 
 MONTH_NAMES = [
@@ -94,9 +95,11 @@ class UploadController:
                 run = StandardSync.sync(group, filepath, user=current_user, source=source)
             else:
                 # Older layout: only the chosen month is read
-                parsed = ExcelParser.parse_excel(filepath, year=year, month=month)
+                mapping = SheetMapping.from_dict(group.settings.sheet_mapping)
+                parsed = ExcelParser.parse_excel(filepath, year=year, month=month, mapping=mapping)
                 run = UploadController._record_legacy_sync(
                     group, PeriodStore.sync(group, parsed, user=current_user, source=source), source,
+                    parsed.get('warnings', []),
                 )
 
             # --- 5. Generate the PDF from the stored month ---
@@ -157,12 +160,12 @@ class UploadController:
             return None
 
     @staticmethod
-    def _record_legacy_sync(group, result, source):
-        """Record an older-layout sync, turning repeated names into warnings."""
+    def _record_legacy_sync(group, result, source, warnings=()):
+        """Record an older-layout sync with the parser's warnings and any repeated names."""
         month_name = MONTH_NAMES[result['month'] - 1]
         run = SyncRun(
             group_id=group.id, synced_by=current_user.id, source=source, layout='legacy',
-            warnings=[
+            warnings=list(warnings) + [
                 {'where': f"{result['year']} sheet, {month_name}",
                  'message': f'{name} is listed more than once; the amounts were added together.'}
                 for name in sorted(set(result['repeated_names']))

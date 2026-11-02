@@ -74,7 +74,14 @@ class SettingsController:
             retention_days=settings.report_retention_days,
             default_retention_days=current_app.config.get('REPORT_RETENTION_DAYS', 7),
             max_retention_days=MAX_RETENTION_DAYS,
+            service_account_email=SettingsController._service_account_email(),
+            custom_layout=bool(settings.sheet_mapping),
         )
+
+    @staticmethod
+    def _service_account_email():
+        from app.services.google_sheets_service import GoogleSheetsService
+        return GoogleSheetsService().service_account_email()
 
     # ==================== STATUS HELPERS ====================
 

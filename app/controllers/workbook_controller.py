@@ -3,6 +3,7 @@
 The group's standard workbook: template download, sync history and warnings
 (upload_data), and the group's payout purposes (edit_settings).
 """
+import calendar
 from datetime import datetime
 
 from flask import current_app, flash, redirect, render_template, request, send_file, url_for
@@ -11,6 +12,10 @@ from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.ledger import PayoutPurpose, SyncRun, YearSummary
 from app.models.tenancy import current_group
+from app.services.excel_parser import ExcelParser
+from app.services.file_processor import FileProcessor
+from app.services.sheet_mapping import FINANCIALS, SHEET_MODES, SheetMapping
+from app.services.standard_workbook import StandardWorkbook
 from app.services.workbook_template import build_template
 
 PURPOSE_MAX_LENGTH = 80
@@ -59,6 +64,79 @@ class WorkbookController:
         """Everything one sync stored, and the warnings it raised."""
         run = SyncRun.get_for_group_or_404(run_id)
         return render_template('main/sync_run.html', version=current_app.version, run=run)
+
+    # ==================== LAYOUT (older workbooks) ====================
+
+    @staticmethod
+    @permission_required('edit_settings')
+    def layout():
+        """Where to find things in a workbook that isn't the standard layout.
+
+        POST with action=test reads a sample file with the submitted settings
+        (without saving them); action=save saves them; action=reset goes back
+        to reading the original Mzugoss layout automatically.
+        """
+        group = current_group()
+        mapping = SheetMapping.from_dict(group.settings.sheet_mapping)
+        preview = None
+        action = request.form.get('action')
+
+        if action == 'reset':
+            group.settings.sheet_mapping = None
+            db.session.commit()
+            flash('Layout settings cleared: workbooks are read automatically again.', 'success')
+            return redirect(url_for('main.workbook_layout'))
+
+        if action in ('test', 'save'):
+            mapping = SheetMapping.from_form(request.form)
+            problems = mapping.errors()
+            for problem in problems:
+                flash(problem, 'danger')
+            if not problems and action == 'save':
+                group.settings.sheet_mapping = None if mapping.is_automatic() else mapping.to_dict()
+                db.session.commit()
+                flash('Layout settings saved. They apply to the next upload or sync.', 'success')
+                return redirect(url_for('main.workbook_layout'))
+            if not problems and action == 'test':
+                preview = WorkbookController._preview(mapping)
+
+        return render_template(
+            'main/workbook_layout.html', version=current_app.version,
+            mapping=mapping, sheet_modes=SHEET_MODES, financials=FINANCIALS, preview=preview,
+            month_names=list(calendar.month_name)[1:], year=request.form.get('year', type=int) or datetime.now().year,
+            month=request.form.get('month', type=int) or datetime.now().month,
+        )
+
+    @staticmethod
+    def _preview(mapping):
+        """Read the uploaded sample with *mapping*; the file is deleted afterwards."""
+        year, month = request.form.get('year', type=int), request.form.get('month', type=int)
+        if not year or not month or not 1 <= month <= 12:
+            return {'error': 'Choose the year and month to read.'}
+        try:
+            path = FileProcessor._process_file_upload(request)
+        except ValueError as e:
+            return {'error': str(e)}
+        try:
+            if StandardWorkbook.is_standard(path):
+                return {'standard': True}
+            parsed = ExcelParser.parse_excel(path, year=year, month=month, mapping=mapping)
+            df = parsed['data']
+            return {
+                'sheet': parsed['sheet'], 'name_col': parsed['name_col'], 'month_col': parsed['month_col'],
+                'rows': [(r[parsed['name_col']], r[parsed['month_col']]) for _, r in df.head(15).iterrows()],
+                'row_count': len(df), 'total': parsed['total_contributions'],
+                'paid': parsed['num_contributors'], 'unpaid': parsed['num_missing'],
+                'money_dispensed': parsed['money_dispensed'], 'book_balance': parsed['total_book_balance'],
+                'warnings': parsed['warnings'],
+            }
+        except ValueError as e:
+            return {'error': str(e)}
+        except Exception as e:
+            current_app.logger.warning(f'Layout preview failed: {e}')
+            return {'error': "The file couldn't be read as a spreadsheet."}
+        finally:
+            FileProcessor.cleanup_file(path)
 
     # ==================== PAYOUT PURPOSES ====================
 
