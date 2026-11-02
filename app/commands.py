@@ -5,8 +5,9 @@ Flask CLI commands.
 Register with the app via ``init_commands(app)`` in the app factory.
 
 Available commands:
-  flask cleanup-files       — delete old files from upload / report folders
-  flask storage-status      — print current folder sizes
+  flask cleanup-files       — delete expired files (each group's retention period)
+  flask storage-status      — print storage per group
+  flask move-files-to-groups — move existing report files into group folders
   flask create-group        — create a welfare group with preset roles
   flask create-admin        — create a group's first officer (Chairperson)
   flask create-superadmin   — create a platform superadmin
@@ -25,46 +26,39 @@ def init_commands(app) -> None:
 
     @app.cli.command('cleanup-files')
     @click.option(
-        '--days', default=7, show_default=True,
-        help='Delete files older than this many days.',
+        '--group', 'slug', default=None,
+        help='Only clean this group (default: every group, plus logs).',
     )
     @click.option(
         '--dry-run', is_flag=True, default=False,
         help='Show what would be deleted without actually deleting.',
     )
-    def cleanup_files(days, dry_run):
-        """Clean up old files from upload and report folders."""
+    def cleanup_files(slug, dry_run):
+        """Delete expired files, using each group's retention period."""
+        from app.models.group import Group
         from app.services.file_cleanup import FileCleanupService
 
-        if dry_run:
-            click.echo(f'[DRY RUN] Would clean files older than {days} day(s).')
-            sizes = FileCleanupService.get_folder_sizes()
-            for folder, stats in sizes.get('folders', {}).items():
-                click.echo(
-                    f"  {folder}: {stats.get('file_count', 0)} files, "
-                    f"{stats.get('size_mb', 0):.2f} MB"
-                )
-            return
-
-        result = FileCleanupService.cleanup_old_files(days_to_keep=days)
-
-        if result.get('success'):
-            click.secho(
-                f"✓ Deleted {result['deleted_count']} file(s), "
-                f"freed {result['freed_space_mb']:.2f} MB.",
-                fg='green',
-            )
-            for folder, stats in result.get('folder_stats', {}).items():
-                if stats.get('deleted', 0):
-                    click.echo(
-                        f"  {folder}: {stats['deleted']} deleted, "
-                        f"{stats['freed_mb']:.2f} MB freed"
-                    )
-                if stats.get('errors'):
-                    for err in stats['errors']:
-                        click.secho(f"  warning: {err}", fg='yellow')
+        if slug:
+            group = Group.query.filter_by(slug=slug.strip().lower()).first()
+            if not group:
+                click.secho(f'✗ No group with slug {slug!r}.', fg='red')
+                return
+            sections = {group.slug: FileCleanupService.cleanup_group(group, dry_run=dry_run)}
         else:
-            click.secho(f"✗ Cleanup failed: {result.get('error')}", fg='red')
+            result = FileCleanupService.cleanup_all(dry_run=dry_run)
+            sections = {**result['groups'], '(platform)': result['platform']}
+
+        prefix = '[DRY RUN] Would delete' if dry_run else '✓ Deleted'
+        for name, result in sections.items():
+            click.secho(
+                f"{prefix} {result['deleted_count']} file(s), "
+                f"{result['freed_space_mb']:.2f} MB, "
+                f"{result['reports_archived']} report(s) archived — {name}",
+                fg='yellow' if dry_run else 'green',
+            )
+            for folder, stats in result['folder_stats'].items():
+                for err in stats.get('errors', []):
+                    click.secho(f"  warning ({folder}): {err}", fg='yellow')
 
     # ------------------------------------------------------------------
     # storage-status
@@ -72,32 +66,23 @@ def init_commands(app) -> None:
 
     @app.cli.command('storage-status')
     def storage_status():
-        """Show current storage usage for all monitored folders."""
+        """Show storage usage per group and for the whole platform."""
         from app.services.file_cleanup import FileCleanupService
 
-        sizes = FileCleanupService.get_folder_sizes()
-
-        if not sizes.get('success'):
-            click.secho(f"✗ Error: {sizes.get('error')}", fg='red')
-            return
+        storage = FileCleanupService.platform_storage()
 
         click.echo('=== Storage Status ===')
-        for folder, stats in sizes.get('folders', {}).items():
-            exists = stats.get('exists', False)
-            if exists:
-                click.echo(
-                    f"  {folder:10s}: {stats.get('size_mb', 0):7.2f} MB  "
-                    f"({stats.get('file_count', 0)} files)"
-                )
-            else:
-                click.secho(f"  {folder:10s}: [folder not found]", fg='yellow')
-
-        click.echo(f"  {'TOTAL':10s}: {sizes.get('total_size_mb', 0):7.2f} MB  "
-                   f"({sizes.get('total_files', 0)} files)")
+        for row in storage['groups']:
+            click.echo(
+                f"  {row['group'].slug:20s}: {row['total_size_mb']:7.2f} MB  "
+                f"({row['total_files']} files, reports kept {row['retention_days']} days)"
+            )
+        for name, stats in storage['other'].items():
+            click.echo(f"  {name:20s}: {stats['size_mb']:7.2f} MB  ({stats['file_count']} files)")
+        click.echo(f"  {'TOTAL':20s}: {storage['total_size_mb']:7.2f} MB")
         click.echo('======================')
 
         # Storage limit warnings
-        from app.services.file_cleanup import FileCleanupService
         limits = FileCleanupService.check_storage_limits()
         for item in limits.get('exceeded', []):
             click.secho(
@@ -110,6 +95,53 @@ def init_commands(app) -> None:
                 f"  ⚠  {item['folder']} at {item['percent_full']}% of limit",
                 fg='yellow',
             )
+
+    # ------------------------------------------------------------------
+    # move-files-to-groups
+    # ------------------------------------------------------------------
+
+    @app.cli.command('move-files-to-groups')
+    @click.option(
+        '--dry-run', is_flag=True, default=False,
+        help='Show what would be moved without moving anything.',
+    )
+    def move_files_to_groups(dry_run):
+        """Move report files into their group's folder (one-off, safe to re-run)."""
+        import os
+        import shutil
+
+        from app.extensions import db
+        from app.models.group import Group
+        from app.models.report import GeneratedReport
+        from app.services.group_storage import group_folder
+
+        groups = {g.id: g for g in Group.query}
+        moved = missing = in_place = 0
+        for report in GeneratedReport.query.order_by(GeneratedReport.id).all():  # platform-wide
+            target_dir = group_folder('reports', groups[report.group_id])
+            if not os.path.isfile(report.file_path):
+                missing += 1
+                continue
+            if os.path.dirname(os.path.abspath(report.file_path)) == os.path.abspath(target_dir):
+                in_place += 1
+                continue
+
+            target = os.path.join(target_dir, os.path.basename(report.file_path))
+            if os.path.exists(target):
+                target = os.path.join(target_dir, f'{report.id}_{os.path.basename(report.file_path)}')
+            click.echo(f'  {report.file_path} → {target}')
+            if not dry_run:
+                shutil.move(report.file_path, target)
+                report.file_path = target
+                db.session.commit()   # per file, so the DB never points at a moved file
+            moved += 1
+
+        verb = 'Would move' if dry_run else '✓ Moved'
+        click.secho(
+            f'{verb} {moved} file(s); {in_place} already in place; '
+            f'{missing} missing on disk (their reports keep their figures).',
+            fg='yellow' if dry_run else 'green',
+        )
 
     # ------------------------------------------------------------------
     # create-group

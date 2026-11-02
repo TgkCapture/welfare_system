@@ -137,7 +137,8 @@
 /* ── Inline form confirmation (data-confirm) ────────────────────────── */
 document.addEventListener('submit', (e) => {
   const form = e.target;
-  const msg  = form.dataset.confirm;
+  // The clicked button's message wins, so one form can confirm only some actions
+  const msg  = (e.submitter && e.submitter.dataset.confirm) || form.dataset.confirm;
   if (msg && !confirm(msg)) e.preventDefault();
 });
 

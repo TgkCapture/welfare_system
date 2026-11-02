@@ -58,13 +58,21 @@ def test_superadmin_is_sent_to_platform_and_kept_out_of_group_pages(client, make
     assert client.get('/').headers['Location'] == '/platform/'
     assert not _allowed(client.get('/upload-dashboard'))
     assert not _allowed(client.get('/admin/users'))
-    assert _allowed(client.get('/admin/cleanup'))
+    assert not _allowed(client.get('/admin/cleanup'))   # a group page; theirs is /platform/storage
+    assert _allowed(client.get('/platform/storage'))
 
 
 def test_officers_cannot_reach_platform_pages(client, as_officer):
     as_officer('Chairperson')
     assert not _allowed(client.get('/platform/'))
-    assert not _allowed(client.get('/admin/cleanup'))
+    assert not _allowed(client.get('/platform/storage'))
+
+
+@pytest.mark.parametrize('role,allowed', [('Treasurer', True), ('Secretary', False)])
+def test_group_storage_page_needs_manage_reports(client, as_officer, role, allowed):
+    as_officer(role)
+    assert _allowed(client.get('/admin/cleanup')) is allowed
+    assert _allowed(client.get('/admin/storage-status')) is allowed
 
 
 # ==================== OFFICER MANAGEMENT ====================
