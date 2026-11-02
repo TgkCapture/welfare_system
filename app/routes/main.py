@@ -11,6 +11,7 @@ from app.controllers.welfare_controller import WelfareController
 from app.controllers.user_controller import UserController
 from app.controllers.role_controller import RoleController
 from app.controllers.workbook_controller import WorkbookController
+from app.controllers.member_controller import MemberController
 
 main = Blueprint('main', __name__)
 
@@ -49,6 +50,17 @@ main.route('/admin/users/create',                   methods=['GET', 'POST'])(Use
 main.route('/admin/users/<int:user_id>/edit',        methods=['GET', 'POST'])(UserController.edit_user)
 main.route('/admin/users/<int:user_id>/delete',      methods=['POST'])(UserController.delete_user)
 main.route('/admin/users/<int:user_id>/toggle',      methods=['POST'])(UserController.toggle_user_active)
+
+# ==================== MEMBERS (manage_members) ====================
+main.route('/members')(MemberController.members)
+main.route('/members/<int:member_id>')(MemberController.member)
+main.route('/members/<int:member_id>/rename',   methods=['POST'])(MemberController.rename)
+main.route('/members/<int:member_id>/toggle',   methods=['POST'], endpoint='toggle_member')(MemberController.toggle)
+main.route('/members/<int:member_id>/merge',    methods=['POST'], endpoint='merge_member')(MemberController.merge)
+main.route('/members/<int:member_id>/aliases/<int:alias_id>/delete', methods=['POST'])(MemberController.remove_alias)
+main.route('/members/<int:member_id>/link',     methods=['POST'])(MemberController.regenerate_link)
+main.route('/members/<int:member_id>/pin',      methods=['POST'])(MemberController.set_pin)
+main.route('/members/<int:member_id>/pin/clear', methods=['POST'])(MemberController.clear_pin)
 
 # ==================== ROLES (manage_users) ====================
 main.route('/admin/roles')(RoleController.roles)

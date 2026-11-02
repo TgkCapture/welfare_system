@@ -14,7 +14,6 @@ from app.auth.forms import GroupCreateForm, GroupForm, RegisterForm
 from app.decorators.permissions import superadmin_required
 from app.extensions import db
 from app.models.group import Group, GroupSettings
-from app.models.ledger import PayoutPurpose
 from app.models.report import GeneratedReport
 from app.models.role import Role
 from app.models.user import User
@@ -64,7 +63,6 @@ class PlatformController:
                 group.settings = GroupSettings(display_name=group.name)
                 db.session.add(group)
                 presets = Role.seed_presets(group)
-                PayoutPurpose.seed_defaults(group)
                 db.session.add(User(
                     email=form.officer_email.data.strip(),
                     password=generate_password_hash(form.officer_password.data, method='scrypt'),

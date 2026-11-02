@@ -2,7 +2,8 @@
 """
 Money out, rates and balances.
 
-Payout purposes are configured per group in the app. Payouts and rates are
+Payout purposes are the group's own: each group lists why it pays money out
+(there is no fixed or default list). Payouts and rates are
 the stored read-model of the workbook's Payouts and Rates sheets: each sync
 replaces them. Yearly balances are calculated by the app, never typed, and
 kept next to what the sheet's own Summary said so the two can be compared.
@@ -12,9 +13,6 @@ from datetime import datetime
 
 from app.extensions import db
 from app.models.tenancy import TenantScoped
-
-DEFAULT_PAYOUT_PURPOSES = ['Funeral condolence', 'Wedding gift', 'Sick patient grant']
-
 
 class PayoutPurpose(TenantScoped, db.Model):
     __tablename__ = 'payout_purposes'
@@ -27,11 +25,6 @@ class PayoutPurpose(TenantScoped, db.Model):
     name       = db.Column(db.String(80), nullable=False)
     is_active  = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-
-    @classmethod
-    def seed_defaults(cls, group) -> None:
-        """Add the default purposes to *group* (uncommitted)."""
-        db.session.add_all(cls(group=group, name=name) for name in DEFAULT_PAYOUT_PURPOSES)
 
     group = db.relationship('Group')
 
