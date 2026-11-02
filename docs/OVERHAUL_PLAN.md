@@ -73,8 +73,8 @@ Everything later depends on this phase.
 ## Phase 1: Multi-tenancy, officers and permissions
 
 Delivered in steps: **1a** models and data migration (done), **1b** login
-and permissions (done), **1c** tenant scoping (done), **1d** management screens,
-**1e** per-group files and settings.
+and permissions (done), **1c** tenant scoping (done), **1d** management screens
+(done), **1e** per-group files and settings.
 
 Step 1a delivered:
 - `Group`, `GroupSettings`, `Role` (fixed permission list, preset roles),
@@ -134,6 +134,26 @@ Step 1c delivered:
   amounts) lives in Flask's signed, unencrypted cookie, which is near the
   ~4 KB cookie limit for a 50+ member group. Phase 2's stored sync results
   replace it.
+
+Step 1d delivered:
+- Platform screens (`/platform/groups/...`): a superadmin creates a group
+  together with its first Chairperson, renames it (the slug is fixed, since
+  sign-in links and storage folders use it), suspends or reactivates it, and
+  adds officers with any of its roles. Adding an officer is also how a group
+  that has locked itself out (no active manager) is rescued. Superadmins
+  still don't see a group's reports or data. The CLI commands remain.
+- Role editor (`/admin/roles`, needs `manage_users`): create, rename, edit
+  and delete the group's roles. An officer can only hand out permissions they
+  hold, and can only edit or delete roles within their own permissions.
+  Removing `manage_users` from the role of the group's last active managers
+  is blocked. A role still held by an officer can't be deleted.
+- Fixed: 12 POST forms (officer toggle and delete, report archive, restore,
+  delete, regenerate and cleanup, file cleanup) had no CSRF token, so they
+  failed with 400 in production. Tests run with CSRF off, so a new test
+  fails on any POST form without a token.
+- Deferred: the superadmin "act as group" support mode. The rescue path
+  above covers lock-outs. Viewing a group's data as a superadmin needs an
+  audit trail and is better designed with Phase 6 hardening.
 
 - [ ] New `Group` model: `id`, `name`, `slug`, `is_active`, `created_at`.
 - [ ] New `GroupSettings` model, one per group, holding:

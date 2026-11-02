@@ -81,6 +81,10 @@ flask create-group               # a welfare group, with preset roles
 flask create-admin --group <slug>   # the group's first officer (Chairperson)
 ```
 
+Only `create-superadmin` is required. After that, the superadmin can create
+groups and their first officers at `/platform/` in the browser. Officers who
+can manage officers edit their group's roles at `/admin/roles`.
+
 Upgrading an existing single-group install automatically creates a
 "Mzugoss" group (slug `mzugoss`) and moves existing users and reports into
 it: admins become Chairperson, clerks become Treasurer, and viewer
