@@ -519,6 +519,41 @@ Step 2e delivered (other layouts, reports from stored data):
 
 ## Phase 3: Group-configurable content
 
+Delivered:
+- **Welfare rules per group.** `rule_sections` (migration `3e07a023d4e8`) hold
+  ordered sections, each with a title, an optional subtitle and a body in a
+  small formatting syntax (`app/services/rules_markup.py`): lists, numbered
+  lists, notes, **bold** and *italic*. Everything is HTML-escaped first, so
+  officers can't put HTML on a public page.
+  - The rules page, the public page and the PDF are all drawn from this one
+    source. The two hard-coded copies (page and PDF) and the unused
+    `welfare_rules_pdf.html`, `welfare_rules.js` and `paid_members.js` are gone.
+  - Mzugoss is seeded with its old rules, the page and PDF wording merged
+    (9 sections).
+- Rules pages:
+  - Members: `/g/<slug>/rules` and `/rules.pdf` (noindex).
+  - Officers: `/welfare-rules`, with a copyable public link.
+  - Old shared `/welfare-rules` links go to the visitor's last group, or the
+    only group, or else the group finder.
+- Rules editor (`edit_rules`, e.g. Secretary): add, edit (with a formatting
+  guide and a preview), reorder and delete sections.
+- **Branding** (`app/services/branding.py`): templates get `brand`, which is
+  the officer's group, the group whose public page is shown, or the platform
+  name. It is used in:
+  - page titles, the header logo and the footer
+  - the brand colour (as `--clr-primary`)
+  - currency on every page, PDF and PNG
+  - the contribution report's title, the PNG title and download filenames
+    (`<slug>_welfare_rules.pdf`)
+  - the group login page and the personal history page
+
+  Officers edit it under Settings → Branding: name, short name, report
+  title, currency and colour.
+- A test parses the templates, scripts and Python string literals and fails
+  if a group name is hard-coded again.
+- Not done: the logo (`logo_path`) needs file uploads and serving; it moves to
+  Phase 5 with the UI work.
+
 - [ ] Welfare rules stored per group as sections in the DB (title, body in
       Markdown), edited by officers with `edit_rules`. The rules page and the
       rules PDF are both rendered from this one source.

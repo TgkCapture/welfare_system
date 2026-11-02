@@ -152,8 +152,8 @@ def init_commands(app) -> None:
 
     @app.cli.command('convert-legacy-workbook')
     @click.argument('source', type=click.Path(exists=True, dir_okay=False))
-    @click.option('--title', default='Mzugoss Class of 2018', show_default=True,
-                  help='Group name shown in the workbook.')
+    @click.option('--title', default=None,
+                  help="Group name shown in the workbook (default: the --group's name).")
     @click.option('--out-dir', default='conversion', show_default=True,
                   help='Folder for the workbook, review and name suggestions (git-ignored).')
     @click.option('--merges', 'merges_file', type=click.Path(exists=True, dir_okay=False),
@@ -190,6 +190,10 @@ def init_commands(app) -> None:
                 return
             purpose_names = [p.name for p in PayoutPurpose.for_group(group.id).filter_by(is_active=True)
                              .order_by(PayoutPurpose.name)] + purpose_names
+
+        if not title:
+            from app.services.branding import brand_for
+            title = brand_for(group).name if slug else 'Welfare group'
 
         conversion = LegacyConverter(source, title, merges=merges, purposes=purpose_names,
                                      drop_repeated_payouts=drop_repeated_payouts).convert()

@@ -82,10 +82,12 @@ def create_app(env: str = None, test_config: dict = None) -> Flask:
     # explicitly passing them from every controller.
     @app.context_processor
     def inject_globals():
+        from app.services.branding import current_brand
         return {
             'now':        datetime.now(),
             'csrf_token': generate_csrf,
             'version':    app.version,
+            'brand':      current_brand(),
         }
 
     @app.template_filter('intcomma')

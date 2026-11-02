@@ -17,6 +17,7 @@ import pytest
 from app.extensions import db
 from app.models.ledger import PayoutPurpose, SyncRun
 from app.models.member import Member, MemberAlias
+from app.models.rules import RuleSection
 from app.models.report import GeneratedReport
 from app.models.role import Role
 from app.models.user import User
@@ -24,7 +25,7 @@ from app.models.user import User
 _APP_DIR = pathlib.Path(__file__).resolve().parent.parent / 'app'
 _TENANT_MODELS = (r'(?:User|Role|GeneratedReport|ReportAccessLog'
                   r'|Member|MemberAlias|Contribution|PeriodSummary'
-                  r'|PayoutPurpose|Payout|Rate|YearSummary|SyncRun|MemberYear)')
+                  r'|PayoutPurpose|Payout|Rate|YearSummary|SyncRun|MemberYear|RuleSection)')
 _RAW_QUERY = re.compile(
     rf'\b{_TENANT_MODELS}\.query\b'
     rf'|db\.session\.get\(\s*{_TENANT_MODELS}\b'
@@ -65,7 +66,8 @@ def other_group_data(make_group, make_user, tmp_path):
     db.session.add_all([report, run, purpose, member])
     db.session.flush()
     alias = MemberAlias(group_id=other.id, member_id=member.id, normalised_name='theirs alias')
-    db.session.add(alias)
+    section = RuleSection(group_id=other.id, title='Their rule', body='theirs')
+    db.session.add_all([alias, section])
     db.session.commit()
     return {
         'report_id':  report.id,
@@ -76,6 +78,7 @@ def other_group_data(make_group, make_user, tmp_path):
         'purpose_id': purpose.id,
         'member_id':  member.id,
         'alias_id':   alias.id,
+        'section_id': section.id,
     }
 
 

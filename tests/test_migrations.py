@@ -81,6 +81,12 @@ def test_seeds_default_payout_purposes(migrated_legacy_db):
     ]
 
 
+def test_seeds_mzugoss_welfare_rules(migrated_legacy_db):
+    titles = [t for (t,) in _rows(migrated_legacy_db, 'SELECT title FROM rule_sections ORDER BY position')]
+    assert titles[:3] == ['Quick summary', 'Who can receive support', 'Funeral support']
+    assert len(titles) == 9
+
+
 def test_maps_users_to_group_roles_and_deactivates_viewers(migrated_legacy_db):
     users = _rows(migrated_legacy_db, """
         SELECT u.email, r.name, u.group_id IS NOT NULL, u.is_active, u.is_superadmin
