@@ -45,6 +45,7 @@
         </div>
 
         <form action="{{ url_for('main.upload') }}" method="POST" enctype="multipart/form-data" class="upload-form" id="uploadForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <!-- Input Method Toggle -->
             <div class="input-method-toggle">
                 <div class="toggle-header">

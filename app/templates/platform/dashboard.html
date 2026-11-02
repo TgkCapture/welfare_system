@@ -7,6 +7,11 @@
     <h1 class="page-header__title"><i class="fas fa-globe-africa"></i> Platform</h1>
     <p class="page-header__sub">Welfare groups on this platform</p>
   </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('platform.create_group') }}" class="btn btn--primary btn--sm">
+      <i class="fas fa-plus"></i> New group
+    </a>
+  </div>
 </div>
 
 <div class="card">
@@ -25,7 +30,7 @@
       <tbody>
         {% for row in groups %}
         <tr>
-          <td><strong>{{ row.group.name }}</strong></td>
+          <td><a href="{{ url_for('platform.group_detail', group_id=row.group.id) }}"><strong>{{ row.group.name }}</strong></a></td>
           <td><a href="{{ url_for('group.login', slug=row.group.slug) }}">/g/{{ row.group.slug }}/login</a></td>
           <td>{{ row.officers }}</td>
           <td>{{ row.reports }}</td>
@@ -39,13 +44,15 @@
       </tbody>
     </table>
     {% else %}
-    <p style="padding:1.5rem;">No groups yet.</p>
+    <div class="empty-state">
+      <i class="fas fa-layer-group"></i>
+      <h3>No groups yet</h3>
+      <p>Create the first welfare group and its Chairperson.</p>
+      <a href="{{ url_for('platform.create_group') }}" class="btn btn--primary btn--sm">
+        <i class="fas fa-plus"></i> New group
+      </a>
+    </div>
     {% endif %}
   </div>
 </div>
-
-<p class="form-hint" style="margin-top:1rem;">
-  Create groups and their first officer with <code>flask create-group</code> and
-  <code>flask create-admin --group &lt;slug&gt;</code>. Managing groups from this page arrives in a later step.
-</p>
 {% endblock %}

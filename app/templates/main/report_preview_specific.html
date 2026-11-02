@@ -96,6 +96,7 @@
 
       {% if current_user.has_permission('generate_reports') %}
       <form method="POST" action="{{ url_for('report.regenerate', report_id=report.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="download-card download-card--amber" style="width:100%;border:none;cursor:pointer;font:inherit;">
           <div class="download-card__icon"><i class="fas fa-redo"></i></div>
           <div>
@@ -110,6 +111,7 @@
       {% if current_user.has_permission('manage_reports') %}
       {% if report.is_archived %}
       <form method="POST" action="{{ url_for('report.restore', report_id=report.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="download-card download-card--success" style="width:100%;border:none;cursor:pointer;font:inherit;">
           <div class="download-card__icon"><i class="fas fa-undo"></i></div>
           <div>
@@ -121,6 +123,7 @@
       {% else %}
       <form method="POST" action="{{ url_for('report.archive', report_id=report.id) }}"
             data-confirm="Archive this report?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="download-card download-card--neutral" style="width:100%;border:none;cursor:pointer;font:inherit;">
           <div class="download-card__icon"><i class="fas fa-archive"></i></div>
           <div>

@@ -103,6 +103,7 @@
         <div class="more-menu">
           {% if current_user.has_permission('generate_reports') %}
           <form method="POST" action="{{ url_for('report.regenerate', report_id=r.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="more-menu__item">
               <i class="fas fa-redo"></i> Regenerate
             </button>
@@ -111,6 +112,7 @@
           {% if current_user.has_permission('manage_reports') %}
           {% if r.is_archived %}
           <form method="POST" action="{{ url_for('report.restore', report_id=r.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="more-menu__item">
               <i class="fas fa-undo"></i> Restore
             </button>
@@ -118,6 +120,7 @@
           {% else %}
           <form method="POST" action="{{ url_for('report.archive', report_id=r.id) }}"
                 data-confirm="Archive this report?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="more-menu__item">
               <i class="fas fa-archive"></i> Archive
             </button>
@@ -125,6 +128,7 @@
           {% endif %}
           <form method="POST" action="{{ url_for('report.delete', report_id=r.id) }}"
                 data-confirm="Permanently delete this report?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="more-menu__item more-menu__item--danger">
               <i class="fas fa-trash"></i> Delete
             </button>
@@ -147,6 +151,7 @@
     {% if current_user.is_superadmin %}
     <form method="POST" action="{{ url_for('report.cleanup') }}"
           data-confirm="Run report cleanup? Old files will be archived.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn--warning btn--sm">
         <i class="fas fa-broom"></i> Cleanup Old Reports
       </button>

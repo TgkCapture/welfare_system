@@ -115,7 +115,7 @@
         <p class="text-muted">Configure automatic cleanup settings and run manual cleanup operations.</p>
 
         <form id="cleanupForm" action="{{ url_for('main.cleanup_files') }}" method="POST">
-            {{ csrf_token() if csrf_token }}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             
             <!-- Days to Keep -->
             <div class="form-group">

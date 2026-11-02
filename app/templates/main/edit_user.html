@@ -92,6 +92,7 @@
     <div class="modal__footer">
       <button class="btn btn--outline" data-modal-close="delUserModal">Cancel</button>
       <form method="POST" action="{{ url_for('main.delete_user', user_id=user.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn--danger"><i class="fas fa-trash"></i> Delete</button>
       </form>
     </div>

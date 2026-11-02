@@ -12,6 +12,9 @@
     <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn--outline btn--sm">
       <i class="fas fa-arrow-left"></i> Dashboard
     </a>
+    <a href="{{ url_for('main.roles') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-user-tag"></i> Roles
+    </a>
     <a href="{{ url_for('main.create_user') }}" class="btn btn--primary btn--sm">
       <i class="fas fa-user-plus"></i> Add Officer
     </a>
@@ -84,6 +87,7 @@
               </a>
               <form method="POST" action="{{ url_for('main.toggle_user_active', user_id=u.id) }}"
                     data-confirm="{{ 'Deactivate' if u.is_active else 'Activate' }} {{ u.email }}?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit"
                         class="btn btn--sm {{ 'btn--warning' if u.is_active else 'btn--success' }}"
                         title="{{ 'Deactivate' if u.is_active else 'Activate' }}">
@@ -136,6 +140,7 @@
     <div class="modal__footer">
       <button class="btn btn--outline" data-modal-close="delModal{{ u.id }}">Cancel</button>
       <form method="POST" action="{{ url_for('main.delete_user', user_id=u.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn--danger">
           <i class="fas fa-trash"></i> Delete
         </button>
