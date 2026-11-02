@@ -133,8 +133,9 @@ class PeriodStore:
         rows = PeriodStore._rows(group_id, year, month)
         month_name = calendar.month_name[month]
         return {
+            # Amounts include credit used, so a month covered by credit shows as paid
             'data': pd.DataFrame(
-                [(c.member.display_name, c.amount) for c in rows],
+                [(c.member.display_name, c.credited if c.status != UNPAID else c.amount) for c in rows],
                 columns=[NAME_COL, month_name],
             ),
             'name_col':            NAME_COL,
@@ -152,9 +153,9 @@ class PeriodStore:
 
     @staticmethod
     def paid_members(group_id: int, year: int, month: int) -> list:
-        """Members who paid something in the month, in sheet order."""
+        """Members whose month is paid or part-paid (by money or credit), in sheet order."""
         return [
-            {'name': c.member.display_name, 'amount': c.amount,
+            {'name': c.member.display_name, 'amount': c.credited, 'credit': c.credit_used,
              'status': 'Partial' if c.status == PARTIAL else 'Paid'}
             for c in PeriodStore._rows(group_id, year, month)
             if c.status != UNPAID

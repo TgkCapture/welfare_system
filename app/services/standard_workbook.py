@@ -5,7 +5,9 @@ The standard contribution workbook: its layout, and a reader for it.
 Sheets (header in row 1, one record per row):
 
   Members              Member ID | Name | Phone | Joined (month) | Left (month) | Notes
-  Contributions YYYY   Member ID | Name | January … December   (payments only)
+  Contributions YYYY   Member ID | Name | January … December | Excess
+                       (money received; Excess is paid beyond the months and
+                       becomes credit for the next year's first months)
   Payouts              Date | Member ID | Name | Purpose | Amount | Approved by | Notes
   Rates                Effective from | Monthly amount
   Summary              Year | Opening balance | Contributions | Payouts | Closing balance | <purposes…>
@@ -37,7 +39,8 @@ CONTRIBUTIONS_PREFIX = 'Contributions '
 CONTRIBUTIONS_RE = re.compile(r'^\s*contributions\s+(\d{4})\s*$', re.I)
 
 MEMBER_HEADERS = ['Member ID', 'Name', 'Phone', 'Joined (month)', 'Left (month)', 'Notes']
-CONTRIBUTION_HEADERS = ['Member ID', 'Name'] + MONTHS
+EXCESS = 'Excess'
+CONTRIBUTION_HEADERS = ['Member ID', 'Name'] + MONTHS + [EXCESS]
 PAYOUT_HEADERS = ['Date', 'Member ID', 'Name', 'Purpose', 'Amount', 'Approved by', 'Notes']
 RATE_HEADERS = ['Effective from', 'Monthly amount']
 SUMMARY_HEADERS = ['Year', 'Opening balance', 'Contributions', 'Payouts', 'Closing balance']
@@ -68,6 +71,7 @@ class ContributionRow:
     code: str
     name: str
     amounts: dict          # month number → float, only for cells with a value
+    excess: float = 0.0    # paid beyond the months, carried into next year
 
 
 @dataclass
@@ -166,11 +170,12 @@ class StandardWorkbook:
                 value = _amount(get(month), data, f'{ws.title} row {row}, {month}')
                 if value is not None:
                     amounts[number] = value
+            excess = _amount(get(EXCESS), data, f'{ws.title} row {row}, {EXCESS}') or 0.0
             if not code and not name:
-                if amounts:
+                if amounts or excess:
                     data.warn(f'{ws.title} row {row}', 'Has payments but no Member ID, so it was skipped.')
                 continue
-            rows.append(ContributionRow(row=row, code=code, name=name, amounts=amounts))
+            rows.append(ContributionRow(row=row, code=code, name=name, amounts=amounts, excess=excess))
         data.contributions[year] = rows
 
     @staticmethod

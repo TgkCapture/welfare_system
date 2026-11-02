@@ -8,6 +8,8 @@ calculated monthly and yearly balances. A month nobody has paid yet is
 left alone, so blank future months don't turn everyone into a defaulter.
 
 Payment status uses the rate in force that month (paid / partial / unpaid).
+Money above the rate becomes the member's credit and covers their next
+months; so does the Excess column, from the start of the next year.
 Months before a member joined or after they left are not counted against
 them. Carry-overs are calculated: each year opens with the previous year's
 calculated closing balance. Only the first year's opening balance is read
@@ -19,6 +21,7 @@ Checks raise warnings, never errors, so a sync always stores what it can:
   - payouts with an unknown purpose or member, a future date, or a duplicate
   - payments outside a member's Joined / Left months
   - unknown or duplicate Member IDs, and members missing from a year's sheet
+    (who are not counted that year, as on the old sheets)
 """
 import calendar
 from collections import defaultdict
@@ -27,7 +30,8 @@ from datetime import date, datetime
 from app.extensions import db
 from app.models.ledger import Payout, PayoutPurpose, Rate, SyncRun, YearSummary
 from app.models.member import (
-    Contribution, Member, MemberAlias, PeriodSummary, normalise_name,
+    PAID, PARTIAL, UNPAID,
+    Contribution, Member, MemberAlias, MemberYear, PeriodSummary, normalise_name,
 )
 from app.services.period_store import status_for
 from app.services.standard_workbook import MEMBERS, PAYOUTS, SUMMARY, StandardWorkbook
@@ -159,15 +163,20 @@ class StandardSync:
         """Store every month with at least one payment; return those (year, month) pairs."""
         synced = set()
         self.year_totals = defaultdict(float)
+        self.excess_totals = defaultdict(float)
         self.month_totals = {}
-        for year, rows in sorted(self.data.contributions.items()):
+        self.credit = defaultdict(float)       # Member → credit carried forward
+        years = sorted(self.data.contributions)
+        MemberYear.for_group(self.group.id).filter(MemberYear.year.in_(years)).delete()
+
+        for year in years:
             sheet = f'Contributions {year}'
-            members = {}           # Member → (row number, {month: amount})
-            for row in rows:
+            members = {}           # Member → [row number, {month: amount}, excess]
+            for row in self.data.contributions[year]:
                 where = f'{sheet} row {row.row}'
                 member = self._member_for_row(row.code, row.name, where)
                 if member is None:
-                    if row.amounts:
+                    if row.amounts or row.excess:
                         self.data.warn(where, 'Could not tell which member this is, so it was skipped.')
                     continue
                 if member in members:
@@ -175,32 +184,49 @@ class StandardSync:
                                           'the amounts were added together.')
                     for month, amount in row.amounts.items():
                         members[member][1][month] = members[member][1].get(month, 0) + amount
+                    members[member][2] += row.excess
                 else:
-                    members[member] = (row.row, dict(row.amounts))
+                    members[member] = [row.row, dict(row.amounts), row.excess]
 
+            # No row means not on the list that year: not counted, but worth a look
             missing = [m for m in self.by_code.values() if m not in members
                        and any(m.is_member_in(year, mo) for mo in range(1, 13))]
             for member in missing:
                 self.data.warn(sheet, f'{member.code} {member.display_name} is a member in {year} '
-                                      'but has no row; they are counted as unpaid.')
-                members[member] = (None, {})
+                                      'but has no row, so they are not counted that year. '
+                                      'Add a row if they should be.')
 
+            credit_in = {member: self.credit[member] for member in members}
             for month in range(1, 13):
-                if not any(month in amounts for _, amounts in members.values()):
+                if not any(month in amounts for _, amounts, _ in members.values()):
                     continue      # not collected yet
                 self._store_month(year, month, members, sheet)
                 synced.add((year, month))
+
+            # Excess paid this year becomes credit for next year's first months
+            for member, (_, _, excess) in members.items():
+                self.credit[member] += excess
+                self.excess_totals[year] += excess
+                if credit_in[member] or excess or self.credit[member]:
+                    db.session.add(MemberYear(
+                        group_id=self.group.id, member_id=member.id, year=year,
+                        credit_in=credit_in[member], excess_paid=excess,
+                        credit_out=self.credit[member], synced_at=self.now,
+                    ))
+            self.year_totals[year] += self.excess_totals[year]
         return synced
 
     def _store_month(self, year, month, members, sheet):
+        """Store one month. With a known rate, money above it becomes credit for later months."""
         rate = self.rate_for(year, month)
         month_name = calendar.month_name[month]
         Contribution.for_group(self.group.id).filter_by(year=year, month=month).delete()
 
         total = paid = unpaid = 0
-        for member, (row, amounts) in members.items():
+        for member, (row, amounts, _) in members.items():
             amount = amounts.get(month)
-            if not member.is_member_in(year, month):
+            is_member = member.is_member_in(year, month)
+            if not is_member:
                 if amount:
                     self.data.warn(f'{sheet} row {row}, {month_name}',
                                    f'{member.display_name} paid {_money(amount)} outside their '
@@ -208,14 +234,26 @@ class StandardSync:
                 else:
                     continue    # not a member yet (or any more): not a defaulter
             amount = amount or 0.0
-            status = status_for(amount, rate)
+
+            credit_used = 0.0
+            if rate and is_member:
+                available = amount + self.credit[member]
+                covered = min(available, rate)
+                credit_used = max(0.0, covered - amount)
+                self.credit[member] = available - covered
+                status = PAID if covered >= rate - _TOLERANCE else PARTIAL if covered > 0 else UNPAID
+            else:
+                status = status_for(amount, rate)
+
             db.session.add(Contribution(group_id=self.group.id, member_id=member.id, year=year,
-                                        month=month, amount=amount, status=status, synced_at=self.now))
+                                        month=month, amount=amount, credit_used=credit_used,
+                                        status=status, synced_at=self.now))
             if amount > 0:
                 total += amount
-                paid += 1
-            else:
+            if status == UNPAID:
                 unpaid += 1
+            else:
+                paid += 1
 
         self.year_totals[year] += total
         self.month_totals[(year, month)] = (total, paid, unpaid)
@@ -296,6 +334,7 @@ class StandardSync:
             balance = (
                 openings[year]
                 + sum(t for (y, m), (t, _, _) in self.month_totals.items() if y == year and m <= month)
+                + (self.excess_totals[year] if month == 12 else 0.0)   # excess counted at year end
                 - sum(p.amount for p in self.payouts if p.year == year and p.paid_on <= month_end)
             )
             summary = PeriodSummary.for_group(self.group.id).filter_by(year=year, month=month).first()
