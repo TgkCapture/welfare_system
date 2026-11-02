@@ -16,7 +16,7 @@ from app.extensions import db
 from app.models.ledger import SyncRun
 from app.models.member import Member, normalise_name
 from app.models.report import GeneratedReport, ReportAccessLog
-from app.models.tenancy import current_group
+from app.models.tenancy import current_group, current_group_id
 from app.services import member_service
 from app.services.image_generator import ImageGenerator
 from app.services.period_store import PeriodStore
@@ -237,7 +237,7 @@ class ReportController:
                     month_val = None  # fallback
 
             report = GeneratedReport(
-                group_id=current_user.group_id,
+                group_id=current_group_id(),
                 month=month_val,          # ← always an int now
                 year=report_data.get('year'),
                 report_type='contributions',
@@ -332,7 +332,7 @@ class ReportController:
 
         Officers see their own group's reports; archived ones need manage_reports.
         """
-        if report.group_id != user.group_id or not user.has_permission('view_reports'):
+        if report.group_id != current_group_id() or not user.has_permission('view_reports'):
             return False
         return not report.is_archived or user.has_permission('manage_reports')
 
@@ -341,7 +341,7 @@ class ReportController:
         """Write an access-log entry — failures are silently swallowed."""
         try:
             log = ReportAccessLog(
-                group_id=current_user.group_id,
+                group_id=current_group_id(),
                 report_id=report_id,
                 user_id=current_user.id,
                 action=action,

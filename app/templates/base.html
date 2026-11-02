@@ -33,14 +33,15 @@
       {% endif %}
       <span class="min-w-0">
         <span class="sidebar__name block">{{ brand.short_name }}</span>
-        <span class="sidebar__tag block">{{ 'Platform' if current_user.is_superadmin else 'Welfare' }}</span>
+        <span class="sidebar__tag block">{{ 'Platform' if current_user.is_superadmin and not support else 'Welfare' }}</span>
       </span>
     </a>
 
     <nav class="sidebar__nav">
-      {% if current_user.is_superadmin %}
+      {% if current_user.is_superadmin and not support %}
         <div class="sidebar__section">Platform</div>
         {{ nav_link('platform.dashboard', 'layer-group', 'Groups', ('platform.group_detail', 'platform.create_group')) }}
+        {{ nav_link('platform.audit_log', 'clipboard-list', 'Audit log') }}
         {{ nav_link('platform.storage', 'hdd', 'Storage') }}
       {% else %}
         {{ nav_link('main.dashboard', 'gauge-high', 'Dashboard',
@@ -68,6 +69,7 @@
         {% if current_user.has_permission('manage_users') %}
           {{ nav_link('main.admin_users', 'users-gear', 'Officers',
                       ('main.create_user', 'main.edit_user', 'main.roles', 'main.create_role', 'main.edit_role')) }}
+          {{ nav_link('main.audit_log', 'clipboard-list', 'Audit log') }}
         {% endif %}
         {% if current_user.has_permission('manage_reports') %}
           {{ nav_link('main.cleanup_files', 'hdd', 'Storage') }}
@@ -111,6 +113,17 @@
     </div>
   </header>
 {% endif %}
+
+    {% if support %}
+    <div class="support-banner" role="status">
+      <span><i class="fas fa-life-ring"></i> <strong>Support session:</strong> {{ support.group.name }}, read-only,
+        until {{ support.ends_at.strftime('%H:%M') }} UTC. Pages you open are logged for the group.</span>
+      <form method="POST" action="{{ url_for('platform.end_support') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn--sm btn--warning"><i class="fas fa-xmark"></i> End session</button>
+      </form>
+    </div>
+    {% endif %}
 
     {# The one place page content goes, inside whichever shell is open #}
     <main id="main-content" class="page-container flex-1">

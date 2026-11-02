@@ -161,7 +161,7 @@ class PeriodSummary(TenantScoped, db.Model):
     money_dispensed     = db.Column(db.Float, nullable=True)
     book_balance        = db.Column(db.Float, nullable=True)
     source              = db.Column(db.String(20), nullable=False, default='upload')  # upload / google_sheets
-    synced_by           = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    synced_by           = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     synced_at           = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     def __repr__(self) -> str:

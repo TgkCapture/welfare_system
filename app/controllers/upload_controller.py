@@ -19,6 +19,7 @@ from app.extensions import db
 from app.models.ledger import SyncRun
 from app.models.member import PeriodSummary
 from app.models.tenancy import current_group
+from app.services import audit
 from app.services.excel_parser import ExcelParser
 from app.services.pdf_service import PDFGenerator
 from app.services.file_cleanup import FileCleanupService
@@ -113,6 +114,11 @@ class UploadController:
                     group, PeriodStore.sync(group, parsed, user=current_user, source=source), source,
                     parsed.get('warnings', []),
                 )
+
+            audit.record('sync.run', 'Synced the workbook from '
+                         + ('the Google Sheet' if source == 'google_sheets' else 'an uploaded file'),
+                         details={'sync_run_id': run.id, 'layout': run.layout,
+                                  'warnings': len(run.warnings or [])})
 
             # --- 5. Generate the PDF from the stored month ---
             data = PeriodStore.report_data(group.id, year, month)

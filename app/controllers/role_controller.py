@@ -15,7 +15,9 @@ from app.auth.forms import RoleForm
 from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.role import PERMISSIONS, Role
+from app.models.tenancy import current_group_id
 from app.models.user import User
+from app.services import audit
 
 
 class RoleController:
@@ -49,9 +51,11 @@ class RoleController:
         if form.validate_on_submit():
             perms = RoleController._submitted_permissions(form)
             try:
-                role = Role(group_id=current_user.group_id, name=form.name.data, permissions=perms)
+                role = Role(group_id=current_group_id(), name=form.name.data, permissions=perms)
                 db.session.add(role)
                 db.session.commit()
+                audit.record('role.create', f'Created the role {role.name}',
+                             details={'role_id': role.id, 'permissions': perms})
                 flash(f'Role {role.name} created.', 'success')
                 return redirect(url_for('main.roles'))
             except Exception as e:
@@ -85,9 +89,13 @@ class RoleController:
                 return redirect(url_for('main.edit_role', role_id=role.id))
 
             try:
+                before = {'name': role.name, 'permissions': sorted(role.permissions or [])}
                 role.name = form.name.data
                 role.permissions = perms
                 db.session.commit()
+                audit.record('role.edit', f'Changed the role {role.name}',
+                             details={'role_id': role.id, 'before': before,
+                                      'after': {'name': role.name, 'permissions': sorted(perms)}})
                 flash(f'Role {role.name} updated.', 'success')
                 return redirect(url_for('main.roles'))
             except Exception as e:
@@ -113,6 +121,7 @@ class RoleController:
             name = role.name
             db.session.delete(role)
             db.session.commit()
+            audit.record('role.delete', f'Deleted the role {name}', details={'role_id': role_id})
             flash(f'Role {name} deleted.', 'success')
         except Exception as e:
             db.session.rollback()

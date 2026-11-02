@@ -4,6 +4,7 @@ Main blueprint — covers everything that is not auth or report-specific.
 """
 from flask import Blueprint
 
+from app.controllers.audit_controller import AuditController
 from app.controllers.dashboard_controller import DashboardController
 from app.controllers.upload_controller import UploadController
 from app.controllers.settings_controller import SettingsController
@@ -33,6 +34,9 @@ main.route('/upload', methods=['POST'])(UploadController.upload)
 main.route('/workbook')(WorkbookController.workbook)
 main.route('/workbook/template', methods=['POST'])(WorkbookController.download_template)
 main.route('/syncs/<int:run_id>')(WorkbookController.sync_run)
+
+# ==================== AUDIT LOG (manage_users) ====================
+main.route('/audit', endpoint='audit_log')(AuditController.audit_log)
 
 # ==================== SETTINGS (edit_settings) ====================
 main.route('/settings', methods=['GET', 'POST'])(SettingsController.settings)

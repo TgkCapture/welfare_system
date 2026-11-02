@@ -12,6 +12,7 @@ from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.ledger import PayoutPurpose, SyncRun, YearSummary
 from app.models.tenancy import current_group
+from app.services import audit
 from app.services.excel_parser import ExcelParser
 from app.services.file_processor import FileProcessor
 from app.services.sheet_mapping import FINANCIALS, SHEET_MODES, SheetMapping
@@ -49,6 +50,7 @@ class WorkbookController:
         group = current_group()
         buffer = build_template(group, year)
         db.session.commit()   # keeps any Member IDs given to members for the template
+        audit.record('workbook.template', f'Downloaded the {year} workbook template', details={'year': year})
         return send_file(
             buffer,
             as_attachment=True,
@@ -84,6 +86,7 @@ class WorkbookController:
         if action == 'reset':
             group.settings.sheet_mapping = None
             db.session.commit()
+            audit.record('workbook.layout', 'Cleared the workbook layout settings (automatic reading)')
             flash('Layout settings cleared: workbooks are read automatically again.', 'success')
             return redirect(url_for('main.workbook_layout'))
 
@@ -95,6 +98,8 @@ class WorkbookController:
             if not problems and action == 'save':
                 group.settings.sheet_mapping = None if mapping.is_automatic() else mapping.to_dict()
                 db.session.commit()
+                audit.record('workbook.layout', 'Changed the workbook layout settings',
+                             details={'mapping': group.settings.sheet_mapping})
                 flash('Layout settings saved. They apply to the next upload or sync.', 'success')
                 return redirect(url_for('main.workbook_layout'))
             if not problems and action == 'test':
@@ -149,6 +154,7 @@ class WorkbookController:
             if name:
                 db.session.add(PayoutPurpose(group_id=current_group().id, name=name))
                 db.session.commit()
+                audit.record('workbook.purpose', f'Added the payout purpose {name}')
                 flash(f'Purpose {name} added.', 'success')
             return redirect(url_for('main.payout_purposes'))
 
@@ -165,8 +171,10 @@ class WorkbookController:
         purpose = PayoutPurpose.get_for_group_or_404(purpose_id)
         name = WorkbookController._purpose_name(exclude_id=purpose.id)
         if name:
+            old = purpose.name
             purpose.name = name
             db.session.commit()
+            audit.record('workbook.purpose', f'Renamed the payout purpose {old} to {name}')
             flash(f'Purpose renamed to {name}. Update existing Payouts rows to match.', 'success')
         return redirect(url_for('main.payout_purposes'))
 
@@ -177,6 +185,8 @@ class WorkbookController:
         purpose = PayoutPurpose.get_for_group_or_404(purpose_id)
         purpose.is_active = not purpose.is_active
         db.session.commit()
+        audit.record('workbook.purpose',
+                     f"{'Restored' if purpose.is_active else 'Retired'} the payout purpose {purpose.name}")
         flash(f"Purpose {purpose.name} {'restored' if purpose.is_active else 'retired'}.", 'success')
         return redirect(url_for('main.payout_purposes'))
 

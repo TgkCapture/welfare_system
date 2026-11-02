@@ -130,7 +130,7 @@ def upgrade():
     with op.batch_alter_table('users', schema=None) as batch_op:
         batch_op.add_column(sa.Column('group_id', sa.Integer(), nullable=True))
         batch_op.add_column(sa.Column('role_id', sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column('is_superadmin', sa.Boolean(), server_default=sa.text('0'), nullable=False))
+        batch_op.add_column(sa.Column('is_superadmin', sa.Boolean(), server_default=sa.false(), nullable=False))
         batch_op.drop_index(batch_op.f('ix_users_email'))
         batch_op.create_index(batch_op.f('ix_users_email'), ['email'], unique=False)
         batch_op.create_index(batch_op.f('ix_users_group_id'), ['group_id'], unique=False)

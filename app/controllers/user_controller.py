@@ -16,7 +16,9 @@ from app.auth.forms import RegisterForm, UserEditForm
 from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.role import Role
+from app.models.tenancy import current_group_id
 from app.models.user import User
+from app.services import audit
 
 
 class UserController:
@@ -57,11 +59,13 @@ class UserController:
                 new_user = User(
                     email=form.email.data.strip(),
                     password=generate_password_hash(form.password.data, method='scrypt'),
-                    group_id=current_user.group_id,
+                    group_id=current_group_id(),
                     role=role,
                 )
                 db.session.add(new_user)
                 db.session.commit()
+                audit.record('officer.create', f'Added the officer {new_user.email} as {role.name}',
+                             details={'user_id': new_user.id, 'role': role.name})
                 flash(f'Officer {new_user.email} created as {role.name}.', 'success')
                 return redirect(url_for('main.admin_users'))
 
@@ -106,10 +110,16 @@ class UserController:
                 return redirect(url_for('main.edit_user', user_id=user.id))
 
             try:
+                before = {'email': user.email, 'role': user.role_name, 'is_active': user.is_active}
                 user.email = form.email.data.strip()
                 user.role = role
                 user.is_active = form.is_active.data
                 db.session.commit()
+                after = {'email': user.email, 'role': user.role_name, 'is_active': user.is_active}
+                changed = {k: [before[k], after[k]] for k in before if before[k] != after[k]}
+                if changed:
+                    audit.record('officer.edit', f'Changed the officer {user.email}: ' + ', '.join(changed),
+                                 details={'user_id': user.id, 'changes': changed})
 
                 flash(f'Officer {user.email} updated successfully.', 'success')
                 return redirect(url_for('main.admin_users'))
@@ -146,6 +156,7 @@ class UserController:
             email = user.email
             db.session.delete(user)
             db.session.commit()
+            audit.record('officer.delete', f'Deleted the officer {email}', details={'user_id': user_id})
             flash(f'Officer {email} deleted successfully.', 'success')
 
         except Exception as e:
@@ -176,6 +187,8 @@ class UserController:
             db.session.commit()
 
             status = 'activated' if user.is_active else 'deactivated'
+            audit.record('officer.toggle', f'{status.capitalize()} the officer {user.email}',
+                         details={'user_id': user.id})
             flash(f'Officer {user.email} {status} successfully.', 'success')
 
         except Exception as e:

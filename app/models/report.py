@@ -25,8 +25,9 @@ class GeneratedReport(TenantScoped, db.Model):
     )
     filename     = db.Column(db.String(255), nullable=False)
     file_path    = db.Column(db.String(500), nullable=False)
+    # None once the officer's account is deleted; the report stays
     generated_by = db.Column(
-        db.Integer, db.ForeignKey('users.id'), nullable=False, index=True
+        db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True
     )
     generated_at = db.Column(
         db.DateTime, nullable=False, default=datetime.utcnow
@@ -113,8 +114,8 @@ class ReportAccessLog(TenantScoped, db.Model):
         nullable=False, index=True
     )
     user_id     = db.Column(
-        db.Integer, db.ForeignKey('users.id'),
-        nullable=False, index=True
+        db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'),
+        nullable=True, index=True
     )
     accessed_at = db.Column(
         db.DateTime, nullable=False, default=datetime.utcnow

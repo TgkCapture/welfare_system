@@ -4,7 +4,6 @@ Profile management extracted from AuthController.
 """
 import csv
 import io
-import json
 from datetime import datetime
 
 from flask import (
@@ -19,6 +18,7 @@ from app.auth.forms import ChangePasswordForm, ProfileForm
 from app.models.user import User
 from app.models.setting import Setting
 from app.models.report import GeneratedReport
+from app.services import audit
 
 
 class ProfileController:
@@ -32,7 +32,6 @@ class ProfileController:
         """Render the profile page with stats, activity and preference forms."""
         user = db.session.get(User, current_user.id)  # own account
         stats = ProfileController._get_user_statistics(user)
-        recent_activity = ProfileController._get_user_activity(user)
 
         notification_preferences = (
             Setting.get_value(f'user_{user.id}_notifications', 'true') == 'true'
@@ -48,7 +47,6 @@ class ProfileController:
             password_form=password_form,
             profile_form=profile_form,
             **stats,
-            recent_activity=recent_activity,
             notification_preferences=notification_preferences,
             theme_preference=theme_preference,
             version=current_app.version,
@@ -72,6 +70,9 @@ class ProfileController:
             flash('That email address is already in use.', 'danger')
             return redirect(url_for('auth.profile'))
 
+        if email != user.email:
+            audit.record('officer.profile', f'Changed their sign-in email from {user.email} to {email}',
+                         commit=False)
         user.email = email
 
         notification_preferences = request.form.get('notification_preferences') == 'on'
@@ -115,6 +116,7 @@ class ProfileController:
             return redirect(url_for('auth.profile'))
 
         user.password = generate_password_hash(new_password, method='scrypt')
+        audit.record('auth.password', 'Changed their password', commit=False)
         db.session.commit()
         flash('Password updated. Please log in again.', 'success')
         return redirect(url_for('auth.logout'))
@@ -124,18 +126,13 @@ class ProfileController:
     @staticmethod
     @login_required
     def activity_log():
-        """Render the full activity log for the current user."""
+        """The current officer's own entries in the audit log, newest first."""
         user = db.session.get(User, current_user.id)  # own account
-        activity_data = Setting.get_value(f'user_{user.id}_activity', '[]')
-
-        try:
-            activities = json.loads(activity_data)
-        except (json.JSONDecodeError, TypeError):
-            activities = ProfileController._get_user_activity(user)
+        page = audit.events(user_id=user.id, all_groups=True, page=request.args.get('page', 1, type=int))
 
         return render_template(
             'auth/activity_log.html',
-            activities=activities,
+            page=page, icons=audit.ICONS,
             user=user,
             now=datetime.now(),
             version=current_app.version,
@@ -206,7 +203,9 @@ class ProfileController:
         user = db.session.get(User, current_user.id)  # own account
 
         try:
-            # Log out AFTER the delete succeeds, not before
+            # Log out AFTER the delete succeeds, not before. The entry goes in
+            # the same commit; the database clears its link to the account.
+            audit.record('officer.delete', f'{user.email} deleted their own account', commit=False)
             db.session.delete(user)
             db.session.commit()
             logout_user()
@@ -235,23 +234,3 @@ class ProfileController:
             'reports_generated': reports_generated,
             'days_active': days_active,
         }
-
-    @staticmethod
-    def _get_user_activity(user):
-        """Build a minimal activity list from known timestamps."""
-        activities = []
-
-        if user.last_login:
-            activities.append({
-                'icon': 'sign-in-alt',
-                'description': 'Last login',
-                'timestamp': user.last_login.strftime('%B %d, %Y %I:%M %p'),
-            })
-
-        activities.append({
-            'icon': 'user-plus',
-            'description': 'Account created',
-            'timestamp': user.created_at.strftime('%B %d, %Y'),
-        })
-
-        return activities

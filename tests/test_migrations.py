@@ -115,6 +115,25 @@ def test_legacy_role_column_is_dropped(migrated_legacy_db):
     assert {'group_id', 'role_id', 'is_superadmin'} <= columns
 
 
+def test_upgrade_is_committed_cleanly(migrated_legacy_db):
+    """Batch mode rebuilds SQLite tables; a migration that isn't committed
+    leaves temporary tables behind and the old revision recorded."""
+    from alembic.script import ScriptDirectory
+
+    conn = migrated_legacy_db
+    head = ScriptDirectory(MIGRATIONS).get_current_head()
+    assert _rows(conn, 'SELECT version_num FROM alembic_version') == [(head,)]
+    assert _rows(conn, "SELECT name FROM sqlite_master WHERE name LIKE '_alembic_tmp%'") == []
+    assert _rows(conn, 'PRAGMA foreign_key_check') == []
+
+
+def test_records_keep_their_officer_link_until_the_officer_is_deleted(migrated_legacy_db):
+    for table, column in (('generated_reports', 'generated_by'), ('report_access_logs', 'user_id'),
+                          ('sync_runs', 'synced_by'), ('period_summaries', 'synced_by')):
+        links = {row[3]: row[6] for row in _rows(migrated_legacy_db, f'PRAGMA foreign_key_list({table})')}
+        assert links[column] == 'SET NULL', table
+
+
 def test_downgrade_restores_legacy_roles(migrated_legacy_db):
     from app.extensions import db
     migrated_legacy_db.close()

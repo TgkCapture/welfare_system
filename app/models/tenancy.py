@@ -8,7 +8,9 @@ Rows of other groups are reported as not found, never as forbidden, so
 their existence is not revealed.
 
 ``current_group_id()`` is the single place the current group is worked
-out. Superadmins have no group, so scoped queries return nothing for them.
+out. Superadmins have no group, so scoped queries return nothing for them,
+except during a support session (app/services/support.py), when the
+group being supported is the current group.
 """
 from flask import abort
 from flask_login import current_user
@@ -16,8 +18,11 @@ from sqlalchemy import false
 
 
 def current_group_id():
-    """Return the signed-in officer's group id, or None."""
+    """Return the signed-in officer's group id (or the supported group), or None."""
     if current_user and current_user.is_authenticated:
+        if current_user.is_superadmin:
+            from app.services import support
+            return support.active_group_id()
         return current_user.group_id
     return None
 

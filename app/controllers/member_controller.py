@@ -16,7 +16,7 @@ from app.models.group import Group
 from app.models.ledger import SyncRun
 from app.models.member import Member, MemberAlias, normalise_name
 from app.models.tenancy import current_group
-from app.services import member_service
+from app.services import audit, member_service
 from app.services.branding import use_group_brand
 from app.services.member_service import MemberError
 from app.services.standard_workbook import MONTHS
@@ -82,6 +82,8 @@ class MemberController:
         except MemberError as e:
             flash(str(e), 'danger')
         else:
+            audit.record('member.rename', f'Renamed the member {old} to {member.display_name}',
+                         details={'member_id': member.id})
             flash(f'{old} renamed to {member.display_name}. The old spelling is kept for matching.', 'success')
             MemberController._workbook_reminder(member, 'name')
         return redirect(url_for('main.member', member_id=member.id))
@@ -92,6 +94,8 @@ class MemberController:
         member = Member.get_for_group_or_404(member_id)
         member.is_active = not member.is_active
         db.session.commit()
+        audit.record('member.toggle', f"{'Restored' if member.is_active else 'Retired'} the member "
+                     f'{member.display_name}', details={'member_id': member.id})
         flash(f"{member.display_name} {'restored' if member.is_active else 'retired'}. "
               f"{'' if member.is_active else 'Their personal link no longer opens.'}", 'success')
         MemberController._workbook_reminder(member, 'Left month')
@@ -117,6 +121,8 @@ class MemberController:
             notes = member_service.merge(source, target)
         except MemberError as e:
             return MemberController._merge_answer(inline, source, error=str(e))
+        audit.record('member.merge', f'Merged the member {name} into {target.display_name}',
+                     details={'from_member_id': member_id, 'into_member_id': target.id})
         if inline:
             return render_template('main/_merge_result.html', name=name, target=target, notes=notes)
         flash(f'{name} merged into {target.display_name}. Their payments and names now belong to '
@@ -139,7 +145,10 @@ class MemberController:
         alias = MemberAlias.for_group().filter_by(id=alias_id, member_id=member.id).first()
         if alias is None:
             abort(404)
+        spelling = alias.normalised_name
         member_service.remove_alias(alias)
+        audit.record('member.alias', f'Removed the spelling "{spelling}" from {member.display_name}',
+                     details={'member_id': member.id})
         flash('Spelling removed. Sheet rows with it will no longer match this member.', 'success')
         return redirect(url_for('main.member', member_id=member.id))
 
@@ -148,6 +157,8 @@ class MemberController:
     def regenerate_link(member_id):
         member = Member.get_for_group_or_404(member_id)
         member_service.regenerate_link(member)
+        audit.record('member.link', f'Made a new personal link for {member.display_name}',
+                     details={'member_id': member.id})
         flash('New personal link made. The old link no longer works: share the new one.', 'success')
         return redirect(url_for('main.member', member_id=member.id))
 
@@ -157,6 +168,7 @@ class MemberController:
         """Make a new PIN and show it once (it isn't stored or sent anywhere else)."""
         member = Member.get_for_group_or_404(member_id)
         pin = member_service.new_pin(member)
+        audit.record('member.pin', f'Made a new PIN for {member.display_name}', details={'member_id': member.id})
         response = make_response(MemberController._render_member(member, new_pin=pin))
         response.headers['Cache-Control'] = 'no-store'
         return response
@@ -166,6 +178,7 @@ class MemberController:
     def clear_pin(member_id):
         member = Member.get_for_group_or_404(member_id)
         member_service.clear_pin(member)
+        audit.record('member.pin', f'Removed the PIN of {member.display_name}', details={'member_id': member.id})
         flash('PIN removed. The member can still use their personal link.', 'success')
         return redirect(url_for('main.member', member_id=member.id))
 

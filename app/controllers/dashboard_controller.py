@@ -12,7 +12,7 @@ from flask_login import current_user, login_required
 
 from app.decorators.permissions import permission_required
 from app.models.tenancy import current_group
-from app.services import dashboard, setup
+from app.services import audit, dashboard, setup, support
 from app.services.file_cleanup import FileCleanupService
 
 
@@ -25,7 +25,7 @@ class DashboardController:
     @login_required
     def dashboard():
         """One dashboard for every officer; each part shows if their role allows it."""
-        if current_user.is_superadmin:
+        if current_user.is_superadmin and not support.is_active():
             return redirect(url_for('platform.dashboard'))
         group = current_group()
         return render_template(
@@ -55,6 +55,9 @@ class DashboardController:
             dry_run = bool(request.form.get('dry_run'))
             cleanup_result = FileCleanupService.cleanup_group(group, dry_run=dry_run)
             verb = 'Would delete' if dry_run else 'Deleted'
+            if not dry_run:
+                audit.record('storage.cleanup', f"Cleaned up old files: {cleanup_result['deleted_count']} removed, "
+                             f"{cleanup_result['reports_archived']} reports archived")
             flash(
                 f"{verb} {cleanup_result['deleted_count']} file(s) and "
                 f"{'archive' if dry_run else 'archived'} {cleanup_result['reports_archived']} report(s).",

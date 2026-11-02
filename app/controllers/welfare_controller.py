@@ -19,6 +19,7 @@ from app.extensions import db
 from app.models.group import Group
 from app.models.rules import RuleSection
 from app.models.tenancy import current_group
+from app.services import audit
 from app.services.branding import brand_for, use_group_brand
 from app.services.pdf_service import PDFGenerator
 from app.services.rules_markup import parse
@@ -74,6 +75,8 @@ class WelfareController:
                 section = RuleSection(group_id=current_group().id, position=(last or 0) + 1, **fields)
                 db.session.add(section)
                 db.session.commit()
+                audit.record('rules.add', f'Added the rules section {section.title}',
+                             details={'section_id': section.id})
                 flash(f'Section {section.title} added.', 'success')
                 return redirect(url_for('main.edit_rule_section', section_id=section.id))
             return redirect(url_for('main.rules_editor'))
@@ -88,9 +91,13 @@ class WelfareController:
         if request.method == 'POST':
             fields = WelfareController._submitted()
             if fields:
+                before = {'title': section.title, 'subtitle': section.subtitle, 'body': section.body}
                 for key, value in fields.items():
                     setattr(section, key, value)
                 db.session.commit()
+                # The previous wording is kept so an unwanted edit can be put back
+                audit.record('rules.edit', f'Edited the rules section {section.title}',
+                             details={'section_id': section.id, 'before': before})
                 flash(f'Section {section.title} saved.', 'success')
                 return redirect(url_for('main.edit_rule_section', section_id=section.id))
         return render_template('main/rule_section_form.html', version=current_app.version,
@@ -101,8 +108,10 @@ class WelfareController:
     def delete_section(section_id):
         section = RuleSection.get_for_group_or_404(section_id)
         title = section.title
+        before = {'title': section.title, 'subtitle': section.subtitle, 'body': section.body}
         db.session.delete(section)
         db.session.commit()
+        audit.record('rules.delete', f'Deleted the rules section {title}', details={'before': before})
         flash(f'Section {title} deleted.', 'success')
         return redirect(url_for('main.rules_editor'))
 
@@ -119,6 +128,8 @@ class WelfareController:
             for position, s in enumerate(sections):
                 s.position = position
             db.session.commit()
+            direction = 'up' if request.form.get('direction') == 'up' else 'down'
+            audit.record('rules.move', f'Moved the rules section {section.title} {direction}')
         return redirect(url_for('main.rules_editor'))
 
     # ==================== HELPERS ====================

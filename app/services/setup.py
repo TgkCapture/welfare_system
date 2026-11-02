@@ -75,7 +75,15 @@ def progress(group) -> dict:
 
 
 def mark(group, key: str) -> None:
-    """Tick a step that can't be worked out from the data."""
+    """Tick a step that can't be worked out from the data.
+
+    Not during a platform support session: looking at a screen for the
+    group is not the group's officers having seen it.
+    """
+    from app.services import support
+
+    if support.is_active():
+        return
     settings = group.settings
     if settings is not None and key not in (settings.setup_marks or []):
         settings.setup_marks = list(settings.setup_marks or []) + [key]

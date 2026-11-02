@@ -24,6 +24,7 @@ from wtforms.validators import (
 from app.models.group import Group
 from app.models.role import Role
 from app.models.user import User
+from app.models.tenancy import current_group_id
 
 
 # ---------------------------------------------------------------------------
@@ -84,7 +85,7 @@ class RegisterForm(FlaskForm):
 
     def validate_email(self, field):
         """Reject emails already registered in the target group."""
-        group_id = self.group_id if self.group_id is not None else current_user.group_id
+        group_id = self.group_id if self.group_id is not None else current_group_id()
         if User.email_taken(field.data.strip(), group_id):
             raise ValidationError('That email address is already registered.')
 
@@ -107,7 +108,7 @@ class UserEditForm(FlaskForm):
 
     def validate_email(self, field):
         # Unique within the edited user's group; a user may keep their own email
-        group_id = self.user.group_id if self.user else current_user.group_id
+        group_id = self.user.group_id if self.user else current_group_id()
         exclude_id = self.user.id if self.user else None
         if User.email_taken(field.data, group_id, exclude_id=exclude_id):
             raise ValidationError('That email address is already in use.')

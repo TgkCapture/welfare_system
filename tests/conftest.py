@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from flask.testing import FlaskClient
 from werkzeug.security import generate_password_hash
@@ -24,10 +26,15 @@ class FreshContextClient(FlaskClient):
         return response
 
 
+# Set TEST_DATABASE_URL (e.g. postgresql+psycopg://...) to run the suite on
+# another database. Every table in it is dropped after each test.
+TEST_DATABASE_URL = os.environ.get('TEST_DATABASE_URL', 'sqlite://')
+
+
 @pytest.fixture
 def app(tmp_path):
     app = create_app('testing', {
-        'SQLALCHEMY_DATABASE_URI': 'sqlite://',
+        'SQLALCHEMY_DATABASE_URI': TEST_DATABASE_URL,
         'UPLOAD_FOLDER': str(tmp_path / 'uploads'),
         'REPORT_FOLDER': str(tmp_path / 'reports'),
         'LOGS_FOLDER':   str(tmp_path / 'logs'),

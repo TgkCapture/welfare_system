@@ -80,6 +80,10 @@ def create_app(env: str = None, test_config: dict = None) -> Flask:
     # ── Template globals ──────────────────────────────────────────────
     # Make csrf_token() and now available in every template without
     # explicitly passing them from every controller.
+    # ── Platform support sessions (read-only, logged) ─────────────────
+    from app.services import support
+    app.before_request(support.guard)
+
     @app.context_processor
     def inject_globals():
         from app.services.branding import current_brand
@@ -88,6 +92,7 @@ def create_app(env: str = None, test_config: dict = None) -> Flask:
             'csrf_token': generate_csrf,
             'version':    app.version,
             'brand':      current_brand(),
+            'support':    support.info(),
         }
 
     @app.template_filter('intcomma')

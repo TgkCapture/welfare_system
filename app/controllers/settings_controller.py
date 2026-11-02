@@ -14,7 +14,7 @@ from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.group import new_access_code
 from app.models.tenancy import current_group
-from app.services import logo, setup
+from app.services import audit, logo, setup
 from app.services.branding import is_valid_color
 
 MAX_RETENTION_DAYS = 3650
@@ -61,11 +61,9 @@ class SettingsController:
         settings.report_retention_days = int(retention) if retention else None
         db.session.commit()
 
-        current_app.logger.info(
-            f"Settings updated by {current_user.email} (group {settings.group_id}): "
-            f"google_sheet_url={'[set]' if sheet_url else '[cleared]'}, "
-            f"report_retention_days={retention or 'default'}"
-        )
+        audit.record('settings.data_source', 'Changed the Google Sheet and report retention',
+                     details={'google_sheet_url': sheet_url or None,
+                              'report_retention_days': int(retention) if retention else None})
         flash('Settings updated successfully.', 'success')
         return redirect(url_for('main.settings'))
 
@@ -107,8 +105,16 @@ class SettingsController:
             elif request.form.get('remove_logo'):
                 logo.remove(group)
         except logo.LogoError as e:
+            audit.record('settings.branding', 'Changed the branding (the new logo was refused)',
+                         details={'display_name': display_name, 'color': color.lower()})
             flash(f'Branding saved, but the logo was not: {e}', 'warning')
             return redirect(url_for('main.settings'))
+        logo_note = (' and uploaded a new logo' if upload and upload.filename
+                     else ' and removed the logo' if request.form.get('remove_logo') else '')
+        audit.record('settings.branding', f'Changed the branding{logo_note}',
+                     details={'display_name': display_name, 'short_name': short_name or None,
+                              'report_title': report_title or None, 'currency': currency,
+                              'color': color.lower()})
         setup.mark(group, 'branding')
         flash('Branding updated.', 'success')
         return redirect(url_for('main.settings'))
@@ -133,10 +139,16 @@ class SettingsController:
                 settings.public_show_totals = bool(request.form.get('public_show_totals'))
                 settings.public_months_back = int(months)
                 db.session.commit()
+                audit.record('settings.public', 'Changed what the public pages show',
+                             details={'paid_list': settings.public_paid_enabled,
+                                      'amounts': settings.public_show_amounts,
+                                      'totals': settings.public_show_totals,
+                                      'months_back': settings.public_months_back})
                 flash('Public page options saved.', 'success')
         elif action == 'new_code':
             settings.access_code, settings.access_code_enabled = new_access_code(), True
             db.session.commit()
+            audit.record('settings.access_code', 'Made a new group access code')
             flash('New group code made. Share it in the group: the old code no longer works.', 'success')
         elif action == 'set_code':
             code = ''.join(request.form.get('code', '').split()).upper()
@@ -145,12 +157,15 @@ class SettingsController:
             else:
                 settings.access_code, settings.access_code_enabled = code, True
                 db.session.commit()
+                audit.record('settings.access_code', 'Changed the group access code')
                 flash('Group code changed. Share it in the group: the old code no longer works.', 'success')
         elif action == 'toggle_code':
             settings.access_code_enabled = not settings.access_code_enabled
             if settings.access_code_enabled and not settings.access_code:
                 settings.access_code = new_access_code()
             db.session.commit()
+            audit.record('settings.access_code', 'Turned the group access code '
+                         + ('on' if settings.access_code_enabled else 'off'))
             flash('Group code turned ' + ('on.' if settings.access_code_enabled
                                           else 'off: anyone with the link can see who has paid.'),
                   'success' if settings.access_code_enabled else 'warning')

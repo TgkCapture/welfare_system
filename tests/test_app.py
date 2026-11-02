@@ -1,10 +1,11 @@
 import os
 
 from app.models.report import GeneratedReport
+from tests.conftest import TEST_DATABASE_URL
 
 
 def test_testing_config_ignores_instance_config(app):
-    assert app.config['SQLALCHEMY_DATABASE_URI'] == 'sqlite://'
+    assert app.config['SQLALCHEMY_DATABASE_URI'] == TEST_DATABASE_URL
 
 
 def test_health_check(client):

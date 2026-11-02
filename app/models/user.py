@@ -66,7 +66,13 @@ class User(TenantScoped, UserMixin, db.Model):
 
     @property
     def permissions(self) -> frozenset:
-        if self.is_superadmin or self.role is None:
+        if self.is_superadmin:
+            # In a support session a superadmin can open every screen of the
+            # group, read-only (app/services/support.py refuses form posts)
+            from app.models.role import PERMISSIONS
+            from app.services import support
+            return frozenset(PERMISSIONS) if support.is_active() else frozenset()
+        if self.role is None:
             return frozenset()
         return frozenset(self.role.permissions or ())
 

@@ -16,6 +16,7 @@ from sqlalchemy import func
 
 from app.decorators.permissions import permission_required
 from app.models.report import GeneratedReport, ReportAccessLog
+from app.models.tenancy import current_group_id
 from app.controllers.report_controller import ReportController
 
 
@@ -89,7 +90,7 @@ class ReportAPI:
     def api_report_statistics():
         """GET /api/reports/stats — aggregate statistics for the current group."""
         try:
-            stats = ReportAPI._build_statistics(current_user.group_id)
+            stats = ReportAPI._build_statistics(current_group_id())
             return jsonify(stats)
         except Exception as e:
             current_app.logger.error(f"Error building report statistics: {e}")

@@ -287,6 +287,11 @@
     border-radius: .25rem; font-size: .85em; font-family: monospace;
   }
 
+  /* ── base.html: platform support session banner ── */
+  .support-banner {
+    @apply flex flex-wrap items-center justify-between gap-3 border-b border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 sm:px-6;
+  }
+
   /* ── activity_log.html ── */
   .timeline { display:flex; flex-direction:column; gap:0; }
   .timeline__item {

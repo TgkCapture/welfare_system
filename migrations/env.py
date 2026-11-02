@@ -97,6 +97,14 @@ def run_migrations_online():
     connectable = get_engine()
 
     with connectable.connect() as connection:
+        if connection.dialect.name == 'sqlite':
+            # Batch mode rebuilds SQLite tables (copy, drop, rename); with
+            # foreign keys enforced, dropping a table would touch the rows
+            # pointing at it. Must be set before the transaction starts, and
+            # committed: otherwise SQLAlchemy's implicit transaction makes
+            # Alembic skip its own commit and the migration is rolled back.
+            connection.exec_driver_sql('PRAGMA foreign_keys=OFF')
+            connection.commit()
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),

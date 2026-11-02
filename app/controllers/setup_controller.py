@@ -8,7 +8,7 @@ from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.models.tenancy import current_group
-from app.services import setup
+from app.services import audit, setup, support
 
 
 class SetupController:
@@ -16,7 +16,7 @@ class SetupController:
     @staticmethod
     @login_required
     def checklist():
-        if current_user.is_superadmin:
+        if current_user.is_superadmin and not support.is_active():
             return redirect(url_for('platform.dashboard'))
         group = current_group()
         return render_template('main/setup.html', version=current_app.version, **setup.progress(group),
@@ -31,6 +31,8 @@ class SetupController:
         settings = current_group().settings
         settings.setup_dismissed = request.form.get('action') == 'hide'
         db.session.commit()
+        audit.record('settings.setup', 'Hid the setup checklist' if settings.setup_dismissed
+                     else 'Showed the setup checklist again')
         if settings.setup_dismissed:
             flash('Setup checklist hidden. You can always find it under Settings.', 'info')
             return redirect(url_for('main.dashboard'))

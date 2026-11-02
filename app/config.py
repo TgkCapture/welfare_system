@@ -4,9 +4,9 @@ Application configuration.
 
 Three environments are provided:
 
-  DevelopmentConfig  — SQLite, debug on, relaxed security
+  DevelopmentConfig  — SQLite (or DATABASE_URL), debug on, relaxed security
   TestingConfig      — in-memory SQLite, CSRF/login disabled
-  ProductionConfig   — requires env vars, strict security
+  ProductionConfig   — requires env vars (Postgres recommended), strict security
 
 Select via the FLASK_ENV environment variable (handled in create_app).
 
@@ -17,6 +17,19 @@ import os
 from datetime import timedelta
 
 
+def database_url(default=''):
+    """Return DATABASE_URL, pointed at the psycopg 3 driver for Postgres.
+
+    Hosts often hand out ``postgres://`` or ``postgresql://`` URLs, which
+    SQLAlchemy would read as the older psycopg2 driver.
+    """
+    url = os.environ.get('DATABASE_URL', default)
+    for prefix in ('postgres://', 'postgresql://'):
+        if url.startswith(prefix):
+            return 'postgresql+psycopg://' + url[len(prefix):]
+    return url
+
+
 class BaseConfig:
     """Shared settings inherited by all environments."""
 
@@ -25,6 +38,9 @@ class BaseConfig:
 
     # ── SQLAlchemy ────────────────────────────────────────────────────
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Replace connections the database server has closed (Postgres restarts,
+    # idle timeouts) instead of failing the next request
+    SQLALCHEMY_ENGINE_OPTIONS = {'pool_pre_ping': True}
 
     # ── Session ───────────────────────────────────────────────────────
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
@@ -68,6 +84,10 @@ class BaseConfig:
     # Access code and PIN attempts on a group's public pages, per IP
     PUBLIC_LOOKUP_RATE_LIMIT = os.environ.get('PUBLIC_LOOKUP_RATE_LIMIT', '10 per minute;30 per hour')
 
+    # ── Platform support sessions ─────────────────────────────────────
+    # How long a superadmin's read-only look at a group lasts
+    SUPPORT_SESSION_MINUTES = int(os.environ.get('SUPPORT_SESSION_MINUTES', 60))
+
     # ── Month names (convenience) ─────────────────────────────────────
     MONTH_NAMES = [
         'January', 'February', 'March', 'April',
@@ -89,8 +109,7 @@ class DevelopmentConfig(BaseConfig):
 
     DEBUG = True
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        'DATABASE_URL',
+    SQLALCHEMY_DATABASE_URI = database_url(
         f"sqlite:///{os.path.join(BaseConfig._base_dir, 'instance', 'welfare_dev.db')}",
     )
 
@@ -135,7 +154,7 @@ class ProductionConfig(BaseConfig):
 
     # Plain assignment — missing DATABASE_URL is caught at runtime in
     # init_app(), not at class-definition / import time.
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', '')
+    SQLALCHEMY_DATABASE_URI = database_url()
 
     SESSION_COOKIE_SECURE = True   # only transmit cookie over HTTPS
 

@@ -1,6 +1,7 @@
 <!-- app/templates/platform/group_detail.html -->
 {% extends 'base.html' %}
 {% from 'platform/_field.html' import field %}
+{% from 'components/_audit.html' import audit_timeline %}
 {% block title %}{{ group.name }} — Platform{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -91,6 +92,44 @@
         {{ field(form.name, 'tag', hint='The slug stays ' ~ group.slug ~ ' so sign-in links keep working.') }}
         <button type="submit" class="btn btn--primary"><i class="fas fa-save"></i> Save</button>
       </form>
+    </div>
+  </div>
+</div>
+
+<div class="grid gap-5 md:grid-cols-2 mt-5">
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-life-ring"></i> Support session</h2>
+    </div>
+    <div class="card__body">
+      <p class="form-hint mt-0">
+        See this group's screens as its officers do, to help with a problem. The session is
+        <strong>read-only</strong>, lasts {{ support_minutes }} minutes, and the reason and every page you open
+        go in the group's audit log, where its officers can see them.
+      </p>
+      <form method="POST" action="{{ url_for('platform.start_support', group_id=group.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label class="form-label" for="reason"><i class="fas fa-comment"></i> Why do you need to look?</label>
+          <input id="reason" name="reason" class="form-control" required minlength="5" maxlength="200"
+                 placeholder="e.g. Treasurer reports the March sync shows the wrong total">
+        </div>
+        <button type="submit" class="btn btn--primary"><i class="fas fa-eye"></i> Open support session</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-clipboard-list"></i> Recent activity</h2>
+      <a href="{{ url_for('platform.audit_log', group=group.id) }}" class="btn btn--outline btn--sm">Full log</a>
+    </div>
+    <div class="card__body">
+      {% if events %}
+        {{ audit_timeline(events, icons) }}
+      {% else %}
+        <p class="text-muted m-0">Nothing recorded yet.</p>
+      {% endif %}
     </div>
   </div>
 </div>

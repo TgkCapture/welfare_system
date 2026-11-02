@@ -25,7 +25,7 @@ from app.models.user import User
 _APP_DIR = pathlib.Path(__file__).resolve().parent.parent / 'app'
 _TENANT_MODELS = (r'(?:User|Role|GeneratedReport|ReportAccessLog'
                   r'|Member|MemberAlias|Contribution|PeriodSummary'
-                  r'|PayoutPurpose|Payout|Rate|YearSummary|SyncRun|MemberYear|RuleSection)')
+                  r'|PayoutPurpose|Payout|Rate|YearSummary|SyncRun|MemberYear|RuleSection|AuditEvent)')
 _RAW_QUERY = re.compile(
     rf'\b{_TENANT_MODELS}\.query\b'
     rf'|db\.session\.get\(\s*{_TENANT_MODELS}\b'

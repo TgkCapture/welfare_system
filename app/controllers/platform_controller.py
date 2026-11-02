@@ -17,6 +17,7 @@ from app.models.group import Group, GroupSettings
 from app.models.report import GeneratedReport
 from app.models.role import Role
 from app.models.user import User
+from app.services import audit, support
 from app.services.file_cleanup import FileCleanupService
 
 
@@ -70,6 +71,8 @@ class PlatformController:
                     role=presets['Chairperson'],
                 ))
                 db.session.commit()
+                audit.record('group.create', f'Platform created the group, with {form.officer_email.data.strip()} '
+                             'as its first Chairperson', group_id=group.id)
                 flash(f'Group {group.name} created. Its officers sign in at /g/{group.slug}/login.',
                       'success')
                 return redirect(url_for('platform.group_detail', group_id=group.id))
@@ -91,8 +94,11 @@ class PlatformController:
 
         if form.validate_on_submit():
             try:
+                old = group.name
                 group.name = form.name.data.strip()
                 db.session.commit()
+                audit.record('group.rename', f'Platform renamed the group from {old} to {group.name}',
+                             group_id=group.id)
                 flash('Group renamed.', 'success')
                 return redirect(url_for('platform.group_detail', group_id=group.id))
             except Exception as e:
@@ -106,6 +112,8 @@ class PlatformController:
             form=form,
             officer_form=PlatformController._officer_form(group),
             officers=User.for_group(group.id).order_by(User.created_at).all(),
+            events=audit.events(group.id, all_groups=True, page=1).items[:10], icons=audit.ICONS,
+            support_minutes=current_app.config.get('SUPPORT_SESSION_MINUTES', 60),
         )
 
     @staticmethod
@@ -117,6 +125,7 @@ class PlatformController:
             group.is_active = not group.is_active
             db.session.commit()
             status = 'reactivated' if group.is_active else 'suspended'
+            audit.record('group.toggle', f'Platform {status} the group', group_id=group.id)
             flash(f'Group {group.name} {status}.', 'success')
         except Exception as e:
             db.session.rollback()
@@ -146,6 +155,8 @@ class PlatformController:
                 )
                 db.session.add(user)
                 db.session.commit()
+                audit.record('officer.create', f'Platform added the officer {user.email} as {role.name}',
+                             group_id=group.id, details={'user_id': user.id, 'role': role.name})
                 flash(f'Officer {user.email} added as {role.name}.', 'success')
             except Exception as e:
                 db.session.rollback()
@@ -166,9 +177,51 @@ class PlatformController:
         """Storage per group; POST runs (or previews) cleanup for every group."""
         result = None
         if request.method == 'POST':
-            result = FileCleanupService.cleanup_all(dry_run=bool(request.form.get('dry_run')))
+            dry_run = bool(request.form.get('dry_run'))
+            result = FileCleanupService.cleanup_all(dry_run=dry_run)
+            if not dry_run:
+                audit.record('storage.cleanup', 'Platform cleaned up old files for every group',
+                             details={k: v for k, v in result.items() if isinstance(v, (int, float, str))})
         return render_template('platform/storage.html', result=result,
                                storage=FileCleanupService.platform_storage())
+
+    # ==================== SUPPORT SESSIONS ====================
+
+    @staticmethod
+    @superadmin_required
+    def start_support(group_id):
+        """Open a read-only, logged look at a group's screens (see app/services/support.py)."""
+        group = PlatformController._group(group_id)
+        reason = ' '.join(request.form.get('reason', '').split())
+        if not 5 <= len(reason) <= 200:
+            flash('Say why you need to look (5 to 200 characters): the group will see it.', 'danger')
+            return redirect(url_for('platform.group_detail', group_id=group.id))
+        support.end()          # one group at a time
+        support.start(group, reason)
+        flash(f'Support session opened for {group.name}. It is read-only and the group can see '
+              'what you open.', 'info')
+        return redirect(url_for('main.dashboard'))
+
+    @staticmethod
+    @superadmin_required
+    def end_support():
+        group_id = support.end()
+        flash('Support session ended.', 'info')
+        if group_id:
+            return redirect(url_for('platform.group_detail', group_id=group_id))
+        return redirect(url_for('platform.dashboard'))
+
+    # ==================== AUDIT LOG ====================
+
+    @staticmethod
+    @superadmin_required
+    def audit_log():
+        """Every group's audit log, plus platform-wide events; ?group= and ?area= narrow it."""
+        group_id = request.args.get('group', type=int)
+        area = request.args.get('area') if request.args.get('area') in audit.AREAS else None
+        page = audit.events(group_id, area=area, all_groups=True, page=request.args.get('page', 1, type=int))
+        return render_template('platform/audit.html', page=page, icons=audit.ICONS, areas=audit.AREAS,
+                               area=area, group_id=group_id, groups=Group.query.order_by(Group.name).all())
 
     # ==================== PRIVATE HELPERS ====================
 

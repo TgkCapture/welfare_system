@@ -787,9 +787,61 @@ Step 5e delivered (logo and the remaining pages):
 
 ## Phase 6: Hardening and release
 
-- [ ] Use a Postgres-ready config. Check the migrations on SQLite and Postgres.
-- [ ] Add audit log entries for settings, mapping, rules, role and member
+Steps: **6a** Postgres readiness, the audit log and platform support
+sessions; **6b** rate limits and a scheduler safe with several workers;
+**6c** Docker, the Mzugoss runbook and 3.0.0.
+
+Step 6a delivered (Postgres, audit log, support sessions):
+- Postgres:
+  - `psycopg[binary]` 3 is the driver. `DATABASE_URL` values starting
+    `postgres://` or `postgresql://` are pointed at it (`database_url()` in
+    `app/config.py`), and connections are checked before use (`pool_pre_ping`).
+  - Every migration now runs on Postgres 18, up from empty, down to base and
+    up again, with no difference between the migrated schema and the models.
+    One fix was needed: `users.is_superadmin` had an integer default, which
+    Postgres refuses for a boolean. A test now checks every boolean default.
+  - `TEST_DATABASE_URL` runs the whole suite on another database; it passes
+    on Postgres as well as SQLite.
+  - Deleting an officer who had made reports or synced data failed on
+    Postgres. Reports, report access records, syncs and period summaries now
+    keep the record and clear the link (`ON DELETE SET NULL`, migration
+    `5b7e2d9c4a10`).
+  - SQLite now enforces foreign keys, as Postgres does, so development
+    catches the same broken links. Migrations turn enforcement off while
+    they rebuild SQLite tables (`migrations/env.py`); a test checks that
+    every migration is committed with no temporary tables left behind.
+- Audit log (`AuditEvent`, `app/services/audit.py`, migration `1c2392acf221`):
+  - Recorded with who, when, the IP address and a plain summary: sign-ins
+    (and failed ones), password and email changes, settings (data source,
+    branding and logo, public pages, access code), workbook layout and
+    template downloads, payout purposes, syncs, rules (the previous wording
+    is kept so an edit can be undone), members (rename, retire, merge,
+    spellings, links and PINs), officers, roles, reports and storage cleanup,
+    and platform actions on a group.
+  - Secrets are never written: not the access code, a PIN or a password.
+  - The officer's email is copied onto each entry, so entries still read
+    correctly after the account is deleted. Entries are never edited.
+  - Officers with `manage_users` read their group's log at `/audit`, filtered
+    by area. Each officer's **Your activity** page (from their profile) now
+    shows their own entries; it used to be built from two timestamps.
+    Superadmins read every group's log at `/platform/audit`.
+- Platform support sessions (`app/services/support.py`), deferred from
+  Phase 1:
+  - Started from the group's platform page, with a reason the group will see.
+  - The superadmin sees the group's screens as an officer with every
+    permission would, under a banner, for `SUPPORT_SESSION_MINUTES` (60).
+  - **Read-only**: every form post is refused, and looking doesn't tick
+    setup checklist steps.
+  - The start (with the reason), every page opened and the end (ended,
+    logged out or ran out) go in the group's audit log, marked
+    *Platform support*.
+  - Reports and the reports API now check the current group rather than the
+    officer's own, so they work in a support session.
+
+- [x] Use a Postgres-ready config. Check the migrations on SQLite and Postgres.
+- [x] Add audit log entries for settings, mapping, rules, role and member
       changes, PIN resets and link regeneration.
+- [x] Superadmin support mode ("act as group"), with an audit trail.
 - [ ] Rate limiting on all login and public lookup endpoints.
 - [ ] Make the scheduler safe with multiple workers (a lock, or move it to a CLI cron job).
 - [ ] Docker setup (an old `dockerize` branch exists and is worth reviewing).

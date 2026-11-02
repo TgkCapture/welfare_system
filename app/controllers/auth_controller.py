@@ -17,6 +17,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.auth.forms import LoginForm
 from app.controllers.report_controller import ReportController
+from app.services import audit, support
 from app.services.branding import use_group_brand
 from app.extensions import db, limiter
 from app.models.group import Group
@@ -100,7 +101,7 @@ class AuthController:
 
         if form.validate_on_submit():
             user = User.for_group(group.id).filter_by(email=form.email.data.strip()).first()
-            if AuthController._complete_login(user, form):
+            if AuthController._complete_login(user, form, group_id=group.id):
                 response = redirect(next_url or url_for('main.dashboard'))
                 response.set_cookie(
                     LAST_GROUP_COOKIE, group.slug, max_age=LAST_GROUP_MAX_AGE,
@@ -147,6 +148,7 @@ class AuthController:
     def logout():
         """Log the current user out and return them to their own login page."""
         group, is_superadmin = current_user.group, current_user.is_superadmin
+        support.end()
         ReportController.clear_session_report()
         logout_user()
         flash('You have been logged out.', 'info')
@@ -160,18 +162,27 @@ class AuthController:
     # ==================== PRIVATE HELPERS ====================
 
     @staticmethod
-    def _complete_login(user, form) -> bool:
-        """Check credentials and log *user* in. Flashes and returns False on failure."""
+    def _complete_login(user, form, group_id=None) -> bool:
+        """Check credentials and log *user* in. Flashes and returns False on failure.
+
+        Every attempt goes in the audit log of *group_id* (None for the
+        platform login).
+        """
         password_ok = check_password_hash(
             user.password if user else _DUMMY_HASH, form.password.data,
         )
 
         # Single generic message prevents user enumeration
+        email = form.email.data.strip()
         if not user or not password_ok:
+            audit.record('auth.failed', f'Failed sign-in as {email}', group_id=group_id, actor=email,
+                         user_id=user.id if user else None)
             flash('Invalid email or password.', 'danger')
             return False
 
         if not user.is_active:
+            audit.record('auth.failed', f'Sign-in refused: {email} is deactivated', group_id=group_id,
+                         actor=email, user_id=user.id)
             flash(
                 'Your account has been deactivated. '
                 'Please contact an officer of your group.',
@@ -189,5 +200,6 @@ class AuthController:
             remember=form.remember.data,
             duration=timedelta(seconds=SESSION_TIMEOUT)
         )
+        audit.record('auth.login', f'{user.email} signed in', group_id=group_id)
         flash('Logged in successfully!', 'success')
         return True

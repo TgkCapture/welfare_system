@@ -13,6 +13,7 @@ from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.report import GeneratedReport, ReportAccessLog
 from app.models.tenancy import current_group
+from app.services import audit
 from app.services.file_cleanup import FileCleanupService
 from app.services.group_storage import group_folder
 from app.controllers.report_controller import ReportController
@@ -35,6 +36,8 @@ class ReportManagement:
             report.is_archived = True
             report.archived_at = datetime.utcnow()
             db.session.commit()
+            audit.record('report.archive', f'Archived the {report.month}/{report.year} report',
+                         details={'report_id': report.id})
 
             flash(
                 f'Report {report.month}/{report.year} has been archived.',
@@ -57,6 +60,8 @@ class ReportManagement:
             report.is_archived = False
             report.archived_at = None
             db.session.commit()
+            audit.record('report.restore', f'Restored the {report.month}/{report.year} report',
+                         details={'report_id': report.id})
 
             flash(
                 f'Report {report.month}/{report.year} has been restored.',
@@ -86,6 +91,8 @@ class ReportManagement:
             ReportAccessLog.for_group().filter_by(report_id=report_id).delete()
             db.session.delete(report)
             db.session.commit()
+            audit.record('report.delete', f'Deleted the {report.month}/{report.year} report',
+                         details={'report_id': report_id})
 
             flash(
                 f'Report {report.month}/{report.year} has been permanently deleted.',
@@ -160,6 +167,8 @@ class ReportManagement:
             db.session.commit()
 
             ReportController._log_access(new_report.id, 'regenerate')
+            audit.record('report.regenerate', f'Rebuilt the {report.month}/{report.year} report',
+                         details={'report_id': new_report.id, 'from_report_id': report.id})
 
             flash(message, 'success')
             return redirect(
@@ -180,6 +189,8 @@ class ReportManagement:
         """Delete the group's expired files and archive their reports (manage_reports)."""
         try:
             result = FileCleanupService.cleanup_group(current_group())
+            audit.record('storage.cleanup', f'Cleaned up old report files: {result["deleted_count"]} removed, '
+                         f'{result["reports_archived"]} reports archived')
             flash(
                 f'Cleanup complete: '
                 f'{result["deleted_count"]} files removed, '

@@ -85,7 +85,7 @@ class SyncRun(TenantScoped, db.Model):
 
     id        = db.Column(db.Integer, primary_key=True)
     group_id  = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=False, index=True)
-    synced_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    synced_by = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     synced_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     source    = db.Column(db.String(20), nullable=False, default='upload')    # upload / google_sheets
     layout    = db.Column(db.String(20), nullable=False, default='standard')  # standard / legacy

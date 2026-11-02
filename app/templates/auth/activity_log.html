@@ -1,26 +1,17 @@
-<!-- app/templates/auth/activity_log.html -->
+<!-- app/templates/auth/activity_log.html — the officer's own entries in the audit log -->
 {% extends 'base.html' %}
-{% block title %}Activity Log — {{ brand.name }}{% endblock %}
+{% from 'components/ui.html' import page_header, button, empty_state %}
+{% from 'components/_audit.html' import audit_timeline, audit_pager %}
+{% block title %}Your activity — {{ brand.name }}{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="page-header__text">
-    <h1 class="page-header__title"><i class="fas fa-history"></i> Activity Log</h1>
-    <p class="page-header__sub">Your account activity history</p>
-  </div>
-  <div class="page-header__actions">
-    <a href="{{ url_for('auth.profile') }}" class="btn btn--outline btn--sm">
-      <i class="fas fa-arrow-left"></i> Profile
-    </a>
-  </div>
-</div>
+{% call page_header('Your activity', icon='history', sub='Everything you have changed or signed in to, newest first') %}
+  {{ button('Profile', href=url_for('auth.profile'), icon='arrow-left', variant='outline', size='sm') }}
+{% endcall %}
 
-<!-- User summary -->
 <div class="card mb-5">
   <div class="card__body flex items-center gap-5 flex-wrap">
-    <span class="avatar w-12 h-12 text-xl shrink-0">
-      {{ user.email[0]|upper }}
-    </span>
+    <span class="avatar w-12 h-12 text-xl shrink-0">{{ user.email[0]|upper }}</span>
     <div class="flex-1">
       <div class="font-bold">{{ user.email }}</div>
       <div class="flex gap-2.5 flex-wrap mt-1">
@@ -35,56 +26,21 @@
         {% endif %}
       </div>
     </div>
-    <div class="flex gap-6 text-center">
-      <div>
-        <div class="text-2xl font-extrabold text-brand">{{ activities|length }}</div>
-        <div class="text-xs text-muted">Activities</div>
-      </div>
-      <div>
-        <div class="text-2xl font-extrabold text-brand">
-          {{ (now - user.created_at).days + 1 }}
-        </div>
-        <div class="text-xs text-muted">Days Active</div>
-      </div>
+    <div class="text-center">
+      <div class="text-2xl font-extrabold text-brand">{{ page.total }}</div>
+      <div class="text-xs text-muted">Entries</div>
     </div>
   </div>
 </div>
 
-<!-- Timeline -->
 <div class="card">
-  <div class="card__header">
-    <h2 class="card__title"><i class="fas fa-stream"></i> Timeline</h2>
-    <span class="badge badge--neutral">{{ activities|length }} events</span>
-  </div>
   <div class="card__body px-6 py-5">
-    {% if activities %}
-    <div class="timeline">
-      {% for activity in activities %}
-      <div class="timeline__item">
-        <div class="timeline__marker">
-          <div class="timeline__icon">
-            <i class="fas fa-{{ activity.icon }}"></i>
-          </div>
-        </div>
-        <div class="timeline__content">
-          <div class="timeline__header">
-            <span class="timeline__desc">{{ activity.description }}</span>
-            <span class="timeline__time">
-              <i class="fas fa-clock"></i> {{ activity.timestamp }}
-            </span>
-          </div>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
+    {% if page.items %}
+      {{ audit_timeline(page.items, icons, show_actor=False) }}
+      {{ audit_pager(page, 'auth.activity_log') }}
     {% else %}
-    <div class="empty-state">
-      <i class="fas fa-history"></i>
-      <h3>No activity yet</h3>
-      <p>Your activity will appear here as you use the system.</p>
-    </div>
+      {{ empty_state('No activity yet', 'Your sign-ins and changes will appear here.', icon='history') }}
     {% endif %}
   </div>
 </div>
-
 {% endblock %}
