@@ -1,0 +1,65 @@
+# app/services/branding.py
+"""
+How a group presents itself: its name in page titles and headers, its
+report title, currency and colour. Built from GroupSettings, with platform
+defaults when there is no group (superadmins, the login finder).
+
+Templates get it as ``brand``: the signed-in officer's group, or the group
+whose public page is being shown (set with ``use_group_brand``).
+"""
+import re
+from dataclasses import dataclass
+
+from flask import g
+
+from app.models.tenancy import current_group
+
+PLATFORM_NAME = 'Welfare System'
+DEFAULT_COLOR = '#1d4ed8'
+_HEX = re.compile(r'^#[0-9a-fA-F]{6}$')
+
+
+@dataclass(frozen=True)
+class Brand:
+    name: str                   # full name, e.g. in page titles
+    short_name: str             # for the header logo
+    report_title: str           # heading of contribution reports
+    currency: str
+    color: str
+    slug: str = None
+
+    @property
+    def file_prefix(self) -> str:
+        """A safe start for download filenames."""
+        return self.slug or 'welfare'
+
+
+PLATFORM = Brand(PLATFORM_NAME, 'Welfare', 'Monthly contributions report', 'MWK', DEFAULT_COLOR)
+
+
+def is_valid_color(value: str) -> bool:
+    return bool(_HEX.match(value or ''))
+
+
+def brand_for(group) -> Brand:
+    if group is None:
+        return PLATFORM
+    s = group.settings
+    name = (s.display_name if s and s.display_name else group.name)
+    return Brand(
+        name=name,
+        short_name=(s.short_name if s and s.short_name else name),
+        report_title=(s.report_title if s and s.report_title else f'{name} — monthly contributions report'),
+        currency=(s.currency if s and s.currency else 'MWK'),
+        color=(s.primary_color if s and is_valid_color(s.primary_color) else DEFAULT_COLOR),
+        slug=group.slug,
+    )
+
+
+def use_group_brand(group) -> None:
+    """Show *group*'s branding on this request's public page."""
+    g.brand_group = group
+
+
+def current_brand() -> Brand:
+    return brand_for(g.get('brand_group') or current_group())

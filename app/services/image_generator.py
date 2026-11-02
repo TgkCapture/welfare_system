@@ -122,7 +122,7 @@ class ImageGenerator:
                 )
                 cell = s_table._cells[(i, 1)]
                 cell.set_facecolor(_WHITE)
-                if 'MWK' in value:
+                if value.startswith(data.get('currency', 'MWK') + ' '):
                     cell.set_text_props(fontweight='bold', color=_BLUE)
                 elif value.replace(',', '').isdigit():
                     cell.set_text_props(fontweight='bold', color='#059669')
@@ -135,7 +135,7 @@ class ImageGenerator:
             member_rows = []
             for _, row in paid_df.iterrows():
                 try:
-                    amt = f"MWK {float(row[month_col]):,.2f}"
+                    amt = f"{data.get('currency', 'MWK')} {float(row[month_col]):,.2f}"
                 except (ValueError, TypeError):
                     amt = str(row[month_col])
                 member_rows.append([str(row[name_col]), amt])
@@ -172,7 +172,7 @@ class ImageGenerator:
 
             # ── Title & save ──────────────────────────────────────────
             fig.suptitle(
-                f"Paid Members — {data.get('month', '')} {data.get('year', '')}",
+                f"{data.get('group_name', '')} paid members — {data.get('month', '')} {data.get('year', '')}".strip(),
                 fontsize=13, fontweight='bold',
                 color=_SLATE_800, y=0.99,
             )
@@ -235,13 +235,13 @@ class ImageGenerator:
                 w = bar.get_width()
                 ax.text(
                     w * 1.01, bar.get_y() + bar.get_height() / 2,
-                    f'MWK {val:,.0f}',
+                    f"{data.get('currency', 'MWK')} {val:,.0f}",
                     va='center', fontsize=8, fontweight='bold',
                 )
 
             ax.xaxis.grid(True, linestyle='--', alpha=0.5)
             ax.set_axisbelow(True)
-            ax.set_xlabel('Contribution (MWK)', fontweight='bold')
+            ax.set_xlabel(f"Contribution ({data.get('currency', 'MWK')})", fontweight='bold')
             ax.set_title(
                 f"Top {n} Contributors — "
                 f"{data.get('month', '')} {data.get('year', '')}",
@@ -291,9 +291,10 @@ class ImageGenerator:
     @staticmethod
     def _build_summary_rows(data: dict) -> list:
         """Build the [[label, value], …] list for the summary table."""
+        cur = data.get('currency', 'MWK')
         rows = [
             ['Report Period:', f"{data.get('month', 'N/A')} {data.get('year', 'N/A')}"],
-            ['Total Contributions:', f"MWK {float(data.get('total_contributions', 0)):,.2f}"],
+            ['Total Contributions:', f"{cur} {float(data.get('total_contributions', 0)):,.2f}"],
             ['Contributors:',        str(int(data.get('num_contributors', 0)))],
             ['Defaulters:',          str(int(data.get('num_missing', 0)))],
         ]
@@ -301,14 +302,14 @@ class ImageGenerator:
         dispensed = data.get('money_dispensed')
         if dispensed is not None:
             try:
-                rows.append(['Money Dispensed:', f"MWK {float(dispensed):,.2f}"])
+                rows.append(['Money Dispensed:', f"{cur} {float(dispensed):,.2f}"])
             except (ValueError, TypeError):
                 rows.append(['Money Dispensed:', str(dispensed)])
 
         balance = data.get('total_book_balance')
         if balance is not None:
             try:
-                rows.append(['Total Book Balance:', f"MWK {float(balance):,.2f}"])
+                rows.append(['Total Book Balance:', f"{cur} {float(balance):,.2f}"])
             except (ValueError, TypeError):
                 rows.append(['Total Book Balance:', str(balance)])
 

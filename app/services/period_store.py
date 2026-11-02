@@ -14,6 +14,8 @@ from datetime import datetime
 import pandas as pd
 
 from app.extensions import db
+from app.models.group import Group
+from app.services.branding import brand_for
 from app.models.member import (
     PAID, PARTIAL, UNPAID,
     Contribution, Member, MemberAlias, PeriodSummary, normalise_name, tidy_name,
@@ -132,6 +134,7 @@ class PeriodStore:
 
         rows = PeriodStore._rows(group_id, year, month)
         month_name = calendar.month_name[month]
+        brand = brand_for(db.session.get(Group, group_id))
         return {
             # Amounts include credit used, so a month covered by credit shows as paid
             'data': pd.DataFrame(
@@ -149,6 +152,10 @@ class PeriodStore:
             'money_dispensed':     summary.money_dispensed,
             'total_book_balance':  summary.book_balance,
             'synced_at':           summary.synced_at,
+            # How the group presents itself on its reports
+            'group_name':          brand.name,
+            'report_title':        brand.report_title,
+            'currency':            brand.currency,
         }
 
     @staticmethod
