@@ -154,6 +154,7 @@ def init_commands(app) -> None:
         """Create a welfare group with default settings and preset roles."""
         from app.extensions import db
         from app.models.group import Group, GroupSettings
+        from app.models.ledger import PayoutPurpose
         from app.models.role import Role
 
         slug = slug.strip().lower()
@@ -169,6 +170,7 @@ def init_commands(app) -> None:
             group.settings = GroupSettings(display_name=name)
             db.session.add(group)
             Role.seed_presets(group)
+            PayoutPurpose.seed_defaults(group)
             db.session.commit()
             click.secho(f'✓ Group {name!r} created at /g/{slug}.', fg='green')
         except Exception as e:

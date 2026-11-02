@@ -228,7 +228,7 @@ Step 1e delivered:
 ## Phase 2: Standard workbook, configurable parsing and stored data
 
 Delivered in steps: **2a** stored data and sync (done), **2b** standard
-workbook template, parser and sync checks, **2c** MGSS.xlsx conversion for
+workbook template, parser and sync checks (done), **2c** MGSS.xlsx conversion for
 review, **2d** Members screen (merge, links, PINs), **2e** column mapping for
 older layouts, with reports built from stored data.
 
@@ -254,6 +254,50 @@ Step 2a delivered:
 - Tried on the real MGSS.xlsx (in memory): all 48 months sync, giving 66
   members, no name listed twice in a month, and one likely respelling pair
   for the merge screen.
+
+Step 2b delivered:
+- New tables (migration `80433ad3f5cf`): `payout_purposes` (per group; every
+  group starts with Funeral condolence, Wedding gift and Sick patient grant),
+  `payouts`, `rates`, `year_summaries` (calculated balances beside the sheet's
+  own figures) and `sync_runs` (each sync, its warnings and what it stored).
+  Members gain a workbook Member ID, phone, and joined/left months.
+- Template (`app/services/workbook_template.py`, Workbook page → Download):
+  it has Read me, Members, Contributions YYYY, Payouts, Rates, Summary and a
+  hidden Lists sheet.
+  - It comes pre-filled with the group's members (any member without one is
+    given the next free ID, M001 and so on), rates, purposes, and the previous
+    year's calculated closing balance as the opening balance.
+  - Dropdowns limit Member IDs and purposes to known values.
+  - Name lookups and the Summary use `VLOOKUP` and `SUMIFS`, not array
+    formulas, so they work in any Excel and in Google Sheets.
+  - Not yet checked in a spreadsheet app: the tests confirm the formulas are
+    written, not that they calculate.
+- Reader (`standard_workbook.py`): columns are found by header, in any order.
+  A missing sheet or header is an error. Anything else unusable becomes a
+  warning naming the sheet, row and column.
+- Sync (`standard_sync.py`):
+  - One upload stores every year. Months nobody has paid yet are skipped, so
+    blank future months don't create defaulters.
+  - Status uses the rate in force that month (paid / partial / unpaid).
+  - Months before Joined or after Left aren't counted against a member.
+  - Carry-overs are calculated from the first year's opening balance. Monthly
+    money dispensed and book balance come from dated payouts.
+  - Members match by Member ID, then by name or alias. A renamed member keeps
+    the old spelling as an alias.
+- Checks (warnings, the sync still stores what it can):
+  - Summary figures against the calculation, including each opening balance
+    against the previous closing
+  - payouts with an unknown purpose or member, a future or missing date, or a
+    repeat (same member, amount and date)
+  - payments outside Joined / Left
+  - unknown or duplicate Member IDs
+  - members with no row in a year's sheet, who are counted as unpaid
+- Upload detects the layout. The older layout still reads only the chosen
+  month, and is recorded as a sync too. The Workbook page shows the template
+  download, yearly balances and recent syncs, and each sync has a page
+  listing its warnings. Payout purposes are managed under Settings.
+- Google Sheets syncs now export the whole spreadsheet (every tab), falling
+  back to the single year sheet if the export fails.
 
 ### Findings from the real Mzugoss workbook (MGSS.xlsx)
 

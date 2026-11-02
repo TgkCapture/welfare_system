@@ -10,6 +10,7 @@ from app.controllers.settings_controller import SettingsController
 from app.controllers.welfare_controller import WelfareController
 from app.controllers.user_controller import UserController
 from app.controllers.role_controller import RoleController
+from app.controllers.workbook_controller import WorkbookController
 
 main = Blueprint('main', __name__)
 
@@ -23,8 +24,16 @@ main.route('/viewer-dashboard')(DashboardController.viewer_dashboard)
 main.route('/upload-dashboard')(UploadController.upload_dashboard)
 main.route('/upload', methods=['POST'])(UploadController.upload)
 
-# ==================== SETTINGS (admin only) ====================
+# ==================== WORKBOOK & SYNCS (upload_data) ====================
+main.route('/workbook')(WorkbookController.workbook)
+main.route('/workbook/template', methods=['POST'])(WorkbookController.download_template)
+main.route('/syncs/<int:run_id>')(WorkbookController.sync_run)
+
+# ==================== SETTINGS (edit_settings) ====================
 main.route('/settings', methods=['GET', 'POST'])(SettingsController.settings)
+main.route('/settings/payout-purposes', methods=['GET', 'POST'])(WorkbookController.payout_purposes)
+main.route('/settings/payout-purposes/<int:purpose_id>/rename', methods=['POST'])(WorkbookController.rename_payout_purpose)
+main.route('/settings/payout-purposes/<int:purpose_id>/toggle', methods=['POST'])(WorkbookController.toggle_payout_purpose)
 
 # ==================== WELFARE RULES (public) ====================
 main.route('/welfare-rules')(WelfareController.welfare_rules)
