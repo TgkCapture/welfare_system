@@ -59,6 +59,9 @@ class GroupSettings(db.Model):
     # ── Data source ──────────────────────────────────────────────────
     google_sheet_url = db.Column(db.String(500), nullable=True)
     upload_enabled   = db.Column(db.Boolean, nullable=False, default=True)
+    # Where things are in a workbook that isn't the standard layout (SheetMapping);
+    # None reads the original Mzugoss layout automatically
+    sheet_mapping    = db.Column(db.JSON, nullable=True)
 
     # ── Storage ──────────────────────────────────────────────────────
     report_retention_days = db.Column(db.Integer, nullable=True)  # None → app default
