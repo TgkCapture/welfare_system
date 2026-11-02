@@ -22,6 +22,15 @@ def current_group_id():
     return None
 
 
+def current_group():
+    """Return the signed-in officer's Group, or None."""
+    from app.extensions import db
+    from app.models.group import Group
+
+    group_id = current_group_id()
+    return db.session.get(Group, group_id) if group_id is not None else None
+
+
 class TenantScoped:
     """Mixin for models with a ``group_id`` column."""
 

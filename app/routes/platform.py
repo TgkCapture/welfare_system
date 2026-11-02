@@ -20,3 +20,6 @@ platform.route('/groups/new', methods=['GET', 'POST'], endpoint='create_group')(
 platform.route('/groups/<int:group_id>', methods=['GET', 'POST'], endpoint='group_detail')(PlatformController.group_detail)
 platform.route('/groups/<int:group_id>/toggle', methods=['POST'], endpoint='toggle_group')(PlatformController.toggle_group)
 platform.route('/groups/<int:group_id>/officers', methods=['POST'], endpoint='add_officer')(PlatformController.add_officer)
+
+# ==================== STORAGE ====================
+platform.route('/storage', methods=['GET', 'POST'], endpoint='storage')(PlatformController.storage)
