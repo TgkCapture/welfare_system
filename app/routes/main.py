@@ -34,6 +34,7 @@ main.route('/syncs/<int:run_id>')(WorkbookController.sync_run)
 main.route('/settings', methods=['GET', 'POST'])(SettingsController.settings)
 main.route('/settings/payout-purposes', methods=['GET', 'POST'])(WorkbookController.payout_purposes)
 main.route('/settings/workbook-layout', methods=['GET', 'POST'], endpoint='workbook_layout')(WorkbookController.layout)
+main.route('/settings/public', methods=['GET', 'POST'], endpoint='public_pages')(SettingsController.public_pages)
 main.route('/settings/payout-purposes/<int:purpose_id>/rename', methods=['POST'])(WorkbookController.rename_payout_purpose)
 main.route('/settings/payout-purposes/<int:purpose_id>/toggle', methods=['POST'])(WorkbookController.toggle_payout_purpose)
 
