@@ -21,7 +21,7 @@
 </div>
 
 {% if run %}
-<div class="card" style="margin-bottom:1.25rem;">
+<div class="card mb-5">
   <div class="card__body text-sm">
     These names didn't match anyone, so they were added as new members. If one is a different
     spelling of an existing member, open it and merge it into them.
@@ -29,7 +29,7 @@
 </div>
 {% endif %}
 
-<form method="GET" action="{{ url_for('main.members') }}" style="display:flex;gap:.75rem;margin-bottom:1.25rem;max-width:32rem;">
+<form class="flex gap-3 mb-5 max-w-lg" method="GET" action="{{ url_for('main.members') }}">
   <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Search by name or Member ID"
          aria-label="Search members">
   <button type="submit" class="btn btn--primary"><i class="fas fa-search"></i></button>

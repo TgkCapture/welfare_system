@@ -739,6 +739,30 @@ Step 5d delivered (setup checklist, migration `191c98a5790f`):
   checklist showing. Existing groups like Mzugoss are already running, so the
   migration hides theirs.
 
+Step 5e delivered (logo and the remaining pages):
+- Group logo (`app/services/logo.py`), uploaded under Settings → Branding:
+  - Pillow opens it and checks it: PNG, JPEG, WebP or GIF, under 2 MB, up
+    to 25 megapixels. SVG is refused, because it can carry scripts.
+  - It is turned upright, shrunk to 256 px and saved again as PNG, so only
+    the pixels are kept.
+  - It is stored in `BRANDING_FOLDER/<slug>/` (`instance/branding`,
+    git-ignored), apart from uploads and reports, which expire. It gets a new
+    file name each time and the old file is removed.
+  - It is served at `/g/<slug>/logo.png` with a week's caching (the URL
+    carries the file name), and shown in the sidebar, the public header, the
+    group login page and at the top of both PDFs. It can be removed. Logos are
+    per group.
+- No per-page CSS is left:
+  - The seven remaining `<style>` blocks (settings, profile, activity log,
+    reports list, report page, paid members, sign-in pages) moved into
+    `app.css`, and `auth/_auth_styles.html` was deleted.
+  - The rules section styles and the public layout's header styles moved too.
+  - Every fixed inline `style=""` in the templates became Tailwind classes
+    (193 of them). Only computed widths (progress bars)
+    stay inline.
+- A test fails if a template gains a `<style>` block (other than the
+  per-request brand colour) or a fixed inline style.
+
 - [ ] Add Tailwind (standalone CLI, no Node build in production) and htmx.
 - [ ] Build a component library of Jinja macros: buttons, cards, tables,
       forms, flash messages, empty states and modals.

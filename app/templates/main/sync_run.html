@@ -20,7 +20,7 @@
   </div>
 </div>
 
-<div class="card" style="margin-bottom:1.25rem;">
+<div class="card mb-5">
   <div class="card__header">
     <h2 class="card__title"><i class="fas fa-database"></i> Stored</h2>
   </div>
@@ -37,9 +37,9 @@
     {% endif %}
     {% set new_members = run.details.new_members %}
     {% if new_members %}
-      <p style="margin-top:.75rem;"><strong>{{ new_members|length }} new member(s):</strong> {{ new_members|join(', ') }}</p>
+      <p class="mt-3"><strong>{{ new_members|length }} new member(s):</strong> {{ new_members|join(', ') }}</p>
       {% if current_user.has_permission('manage_members') %}
-      <p style="margin-top:.5rem;">
+      <p class="mt-2">
         <a href="{{ url_for('main.members', run=run.id) }}" class="btn btn--outline btn--sm">
           <i class="fas fa-object-group"></i> Review new members
         </a>
@@ -62,18 +62,18 @@
       <tbody>
         {% for w in run.warnings %}
         <tr>
-          <td class="text-sm" style="white-space:nowrap;">{{ w.where }}</td>
+          <td class="text-sm whitespace-nowrap">{{ w.where }}</td>
           <td class="text-sm">{{ w.message }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     {% else %}
-    <p style="padding:1.25rem;" class="text-sm">The workbook passed every check.</p>
+    <p class="text-sm p-5">The workbook passed every check.</p>
     {% endif %}
   </div>
 </div>
-<p class="form-hint" style="margin-top:1rem;">
+<p class="form-hint mt-4">
   Warnings don't stop a sync: everything usable was stored. Fix the workbook and sync again to clear them.
 </p>
 {% endblock %}

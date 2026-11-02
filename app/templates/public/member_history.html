@@ -4,11 +4,11 @@
 {% block title %}My contributions — {{ brand.name }}{% endblock %}
 
 {% block content %}
-<h1 class="page-header__title" style="margin-bottom:.25rem;">{{ member.display_name }}</h1>
-<p class="text-sm text-muted" style="margin-bottom:1.25rem;">Your contributions, month by month.</p>
+<h1 class="page-header__title mb-1">{{ member.display_name }}</h1>
+<p class="text-sm text-muted mb-5">Your contributions, month by month.</p>
 
 {% if history and history[0].credit_out %}
-<div class="card" style="margin-bottom:1rem;">
+<div class="card mb-4">
   <div class="card__body text-sm">
     You have <strong>{{ '{:,.0f}'.format(history[0].credit_out) }}</strong> in credit, which covers your
     first months of {{ history[0].year + 1 }}.
@@ -18,7 +18,7 @@
 
 <div class="card">{{ history_table(history, months) }}</div>
 
-<p class="form-hint" style="margin-top:1rem;">
+<p class="form-hint mt-4">
   This page is private to you: don't share it. If something looks wrong, contact your group's treasurer.
 </p>
 {% endblock %}

@@ -27,6 +27,8 @@ class Brand:
     currency: str
     color: str
     slug: str = None
+    logo: str = None            # the logo's file name, which changes when it is replaced
+    logo_file: str = None       # its path on disk, for PDFs
 
     @property
     def file_prefix(self) -> str:
@@ -59,8 +61,10 @@ def is_valid_color(value: str) -> bool:
 def brand_for(group) -> Brand:
     if group is None:
         return PLATFORM
+    from app.services import logo
     s = group.settings
     name = (s.display_name if s and s.display_name else group.name)
+    logo_file = logo.path_for(group)
     return Brand(
         name=name,
         short_name=(s.short_name if s and s.short_name else name),
@@ -68,6 +72,8 @@ def brand_for(group) -> Brand:
         currency=(s.currency if s and s.currency else 'MWK'),
         color=(s.primary_color if s and is_valid_color(s.primary_color) else DEFAULT_COLOR),
         slug=group.slug,
+        logo=s.logo_path if logo_file else None,
+        logo_file=logo_file,
     )
 
 

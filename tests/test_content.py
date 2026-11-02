@@ -243,3 +243,21 @@ def test_every_static_file_a_template_uses_exists():
         if not (APP_DIR / 'static' / name).is_file()
     ]
     assert missing == []
+
+
+def test_pages_use_the_shared_stylesheet():
+    """Styles live in app.css (and components/ui.html), not in templates.
+
+    The only <style> allowed sets the brand colour per request, and inline
+    styles are only for values computed on the page (e.g. a bar's width).
+    """
+    found = []
+    for path in (APP_DIR / 'templates').rglob('*.html'):
+        text = path.read_text(encoding='utf-8')
+        for block in re.findall(r'<style>(.*?)</style>', text, re.S):
+            if not block.strip().startswith(':root { --brand-rgb'):
+                found.append(f'{path.relative_to(APP_DIR)}: <style> block')
+        for value in re.findall(r'\sstyle="([^"]*)"', text):
+            if '{{' not in value:
+                found.append(f'{path.relative_to(APP_DIR)}: style="{value}"')
+    assert found == []

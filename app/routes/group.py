@@ -25,3 +25,4 @@ group.route('/check', methods=['GET', 'POST'], endpoint='check')(PublicControlle
 group.route('/m/<token>', endpoint='member_history')(MemberController.public_history)
 group.route('/rules', endpoint='rules')(WelfareController.public_rules)
 group.route('/rules.pdf', endpoint='rules_pdf')(WelfareController.public_rules_pdf)
+group.route('/logo.png', endpoint='logo')(PublicController.logo)

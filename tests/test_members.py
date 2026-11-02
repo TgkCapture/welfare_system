@@ -2,6 +2,8 @@
 The Members screen (rename, merge, retire, personal link, PIN) and the
 public personal history page.
 """
+import re
+
 import pandas as pd
 import pytest
 from werkzeug.security import check_password_hash
@@ -167,7 +169,7 @@ def test_pin_is_shown_once_and_stored_hashed(client, group, officer):
 
     response = client.post(f'/members/{ann.id}/pin')
 
-    pin = response.data.decode().split('letter-spacing:.3em;">')[1][:6]
+    pin = re.search(r'<code[^>]*>(\d{6})</code>', response.data.decode()).group(1)
     assert pin.isdigit() and response.headers['Cache-Control'] == 'no-store'
     ann = db.session.get(Member, ann.id)
     assert ann.pin_hash != pin and check_password_hash(ann.pin_hash, pin)

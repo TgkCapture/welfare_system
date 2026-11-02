@@ -25,7 +25,7 @@
 </div>
 
 {% if result %}
-<div class="card" style="margin-bottom:1.25rem;">
+<div class="card mb-5">
   <div class="card__body">
     <strong>{{ 'Preview: would delete' if result.dry_run else 'Deleted' }}</strong>
     {{ result.deleted_count }} file(s) ({{ result.freed_space_mb }} MB) and
@@ -66,7 +66,7 @@
   </div>
 </div>
 
-<p class="form-hint" style="margin-top:1rem;">
+<p class="form-hint mt-4">
   "Unassigned" files sit directly in the upload or report folder, from before each group had its own
   folder. Run <code>flask move-files-to-groups</code> once to move existing reports into their group's folder.
 </p>

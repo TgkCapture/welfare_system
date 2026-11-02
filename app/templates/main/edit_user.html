@@ -16,11 +16,11 @@
   </div>
 </div>
 
-<div style="max-width:36rem;">
+<div class="max-w-xl">
   <div class="card">
     <div class="card__header">
       <h2 class="card__title">
-        <span class="avatar" style="width:2rem;height:2rem;font-size:.75rem;">
+        <span class="avatar w-8 h-8 text-xs">
           {{ user.email[0]|upper }}
         </span>
         {{ user.email }}
@@ -56,20 +56,19 @@
         <div class="form-group">
           <label class="check-label">
             {{ form.is_active() }}
-            <i class="fas fa-toggle-on" style="color:var(--clr-primary);font-size:.875rem;"></i>
+            <i class="fas fa-toggle-on text-brand text-sm"></i>
             Account active
           </label>
         </div>
 
-        <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1.5rem;">
+        <div class="flex gap-3 flex-wrap mt-6">
           <button type="submit" class="btn btn--primary">
             <i class="fas fa-save"></i> Save changes
           </button>
           <a href="{{ url_for('main.admin_users') }}"
              class="btn btn--outline">Cancel</a>
           {% if user.id != current_user.id %}
-          <button type="button" class="btn btn--danger" data-modal-open="delUserModal"
-                  style="margin-left:auto;">
+          <button type="button" class="btn btn--danger ml-auto" data-modal-open="delUserModal">
             <i class="fas fa-trash"></i> Delete officer
           </button>
           {% endif %}

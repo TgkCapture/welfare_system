@@ -49,7 +49,7 @@
     </div>
 
     <!-- Stats -->
-    <div class="card" style="margin-top:1.25rem;">
+    <div class="card mt-5">
       <div class="card__header">
         <h2 class="card__title"><i class="fas fa-chart-bar"></i> Activity Stats</h2>
       </div>
@@ -130,7 +130,7 @@
     </div>
 
     <!-- Update profile -->
-    <div class="card" style="margin-top:1.25rem;">
+    <div class="card mt-5">
       <div class="card__header">
         <h2 class="card__title"><i class="fas fa-user-edit"></i> Update Profile</h2>
       </div>
@@ -152,7 +152,7 @@
             <label class="check-label">
               <input type="checkbox" name="notification_preferences"
                      {{ 'checked' if notification_preferences else '' }}>
-              <i class="fas fa-bell" style="color:var(--clr-primary);font-size:.875rem;"></i>
+              <i class="fas fa-bell text-brand text-sm"></i>
               Email notifications
             </label>
           </div>
@@ -174,7 +174,7 @@
     </div>
 
     <!-- Account actions -->
-    <div class="card" style="margin-top:1.25rem;">
+    <div class="card mt-5">
       <div class="card__header">
         <h2 class="card__title"><i class="fas fa-cog"></i> Account Actions</h2>
       </div>
@@ -228,7 +228,7 @@
       </button>
     </div>
     <div class="modal__body">
-      <p style="margin-bottom:.75rem;">
+      <p class="mb-3">
         This will <strong>permanently delete</strong> your account and all associated data.
         This action cannot be undone.
       </p>
@@ -251,64 +251,6 @@
 </div>
 {% endif %}
 
-<style>
-.profile-layout {
-  display: grid;
-  grid-template-columns: 18rem 1fr;
-  gap: 1.25rem;
-  align-items: start;
-}
-.profile-avatar {
-  text-align: center; margin-bottom: 1.25rem;
-}
-.profile-avatar__circle {
-  width: 4rem; height: 4rem;
-  background: var(--clr-primary); color: #fff;
-  border-radius: var(--r-full);
-  display: grid; place-items: center;
-  font-size: 1.75rem; font-weight: 800;
-  margin: 0 auto .625rem;
-}
-.detail-list { display: grid; gap: .5rem; }
-.detail-list dt {
-  font-size: .75rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: .05em;
-  color: var(--txt-muted);
-  display: flex; align-items: center; gap: .375rem;
-  margin-top: .75rem;
-}
-.detail-list dt:first-child { margin-top: 0; }
-.detail-list dd { font-size: .9375rem; color: var(--txt-primary); }
-.profile-stats { display: flex; gap: 1.5rem; }
-.profile-stat__val { font-size: 1.75rem; font-weight: 800; color: var(--clr-primary); }
-.profile-stat__lbl { font-size: .8125rem; color: var(--txt-muted); }
-.action-list { display: flex; flex-direction: column; gap: .25rem; }
-.action-row {
-  display: flex; align-items: center; gap: .875rem;
-  padding: .875rem 1rem;
-  border-radius: var(--r-lg);
-  color: var(--txt-secondary);
-  transition: background var(--t), color var(--t);
-  width: 100%; text-align: left;
-}
-.action-row:hover { background: var(--clr-slate-50); color: var(--txt-primary); }
-.action-row i:first-child {
-  width: 2rem; height: 2rem;
-  background: var(--clr-primary-pale); color: var(--clr-primary);
-  border-radius: var(--r-md);
-  display: grid; place-items: center; flex-shrink: 0;
-}
-.action-row--danger i:first-child { background: var(--clr-danger-pale); color: var(--clr-danger); }
-.action-row--danger:hover { color: var(--clr-danger); }
-.action-row__title { font-weight: 600; font-size: .9rem; }
-.action-row__sub   { font-size: .8125rem; color: var(--txt-muted); }
-.action-row__arrow { margin-left: auto; font-size: .75rem; color: var(--txt-muted); }
-.action-row--btn   { border: none; background: none; cursor: pointer; font: inherit; }
-
-@media (max-width: 900px) {
-  .profile-layout { grid-template-columns: 1fr; }
-}
-</style>
 {% endblock %}
 
 {% block extra_js %}

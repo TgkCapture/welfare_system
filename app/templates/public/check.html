@@ -3,10 +3,10 @@
 {% block title %}My contributions — {{ brand.name }}{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width:26rem;margin:2rem auto;">
+<div class="card max-w-md mx-auto my-8">
   <div class="card__body">
-    <h1 style="font-size:1.25rem;font-weight:800;margin-bottom:.5rem;"><i class="fas fa-calendar-check"></i> My contributions</h1>
-    <p class="text-sm text-muted" style="margin-bottom:1rem;">
+    <h1 class="text-xl font-extrabold mb-2"><i class="fas fa-calendar-check"></i> My contributions</h1>
+    <p class="text-sm text-muted mb-4">
       Enter your name as the group records it and the PIN your treasurer gave you.
     </p>
     {% if failed %}
@@ -28,9 +28,9 @@
         <input type="password" id="pin" name="pin" class="form-control" maxlength="12" required
                inputmode="numeric" autocomplete="off">
       </div>
-      <button type="submit" class="btn btn--primary" style="width:100%;">Show my contributions</button>
+      <button type="submit" class="btn btn--primary w-full">Show my contributions</button>
     </form>
-    <p class="form-hint" style="margin-top:1rem;">
+    <p class="form-hint mt-4">
       No PIN? Ask your treasurer for one, or for your personal link.
     </p>
   </div>

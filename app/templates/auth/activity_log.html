@@ -16,14 +16,14 @@
 </div>
 
 <!-- User summary -->
-<div class="card" style="margin-bottom:1.25rem;">
-  <div class="card__body" style="display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;">
-    <span class="avatar" style="width:3rem;height:3rem;font-size:1.25rem;flex-shrink:0;">
+<div class="card mb-5">
+  <div class="card__body flex items-center gap-5 flex-wrap">
+    <span class="avatar w-12 h-12 text-xl shrink-0">
       {{ user.email[0]|upper }}
     </span>
-    <div style="flex:1;">
-      <div style="font-weight:700;">{{ user.email }}</div>
-      <div style="display:flex;gap:.625rem;flex-wrap:wrap;margin-top:.25rem;">
+    <div class="flex-1">
+      <div class="font-bold">{{ user.email }}</div>
+      <div class="flex gap-2.5 flex-wrap mt-1">
         <span class="role-badge role-badge--{{ user.badge_class }}">{{ user.role_name }}</span>
         <span class="text-sm text-muted">
           <i class="fas fa-calendar-plus"></i> Member since {{ user.created_at.strftime('%B %Y') }}
@@ -35,13 +35,13 @@
         {% endif %}
       </div>
     </div>
-    <div style="display:flex;gap:1.5rem;text-align:center;">
+    <div class="flex gap-6 text-center">
       <div>
-        <div style="font-size:1.5rem;font-weight:800;color:var(--clr-primary);">{{ activities|length }}</div>
+        <div class="text-2xl font-extrabold text-brand">{{ activities|length }}</div>
         <div class="text-xs text-muted">Activities</div>
       </div>
       <div>
-        <div style="font-size:1.5rem;font-weight:800;color:var(--clr-primary);">
+        <div class="text-2xl font-extrabold text-brand">
           {{ (now - user.created_at).days + 1 }}
         </div>
         <div class="text-xs text-muted">Days Active</div>
@@ -56,7 +56,7 @@
     <h2 class="card__title"><i class="fas fa-stream"></i> Timeline</h2>
     <span class="badge badge--neutral">{{ activities|length }} events</span>
   </div>
-  <div class="card__body" style="padding:1.25rem 1.5rem;">
+  <div class="card__body px-6 py-5">
     {% if activities %}
     <div class="timeline">
       {% for activity in activities %}
@@ -87,44 +87,4 @@
   </div>
 </div>
 
-<style>
-.timeline { display:flex; flex-direction:column; gap:0; }
-.timeline__item {
-  display:flex; gap:1rem;
-  position:relative;
-}
-.timeline__item:not(:last-child)::after {
-  content:'';
-  position:absolute;
-  left:1rem; top:2.5rem; bottom:0;
-  width:2px;
-  background:var(--border);
-  transform:translateX(-50%);
-}
-.timeline__marker {
-  display:flex; flex-direction:column; align-items:center;
-  flex-shrink:0; padding-top:.25rem;
-}
-.timeline__icon {
-  width:2rem; height:2rem;
-  background:var(--clr-primary-pale); color:var(--clr-primary);
-  border-radius:var(--r-full);
-  display:grid; place-items:center;
-  font-size:.8125rem;
-  border:2px solid var(--bg-card);
-  box-shadow:0 0 0 2px var(--clr-primary-pale);
-  z-index:1; position:relative;
-}
-.timeline__content {
-  flex:1; padding-bottom:1.25rem;
-}
-.timeline__header {
-  display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap;
-}
-.timeline__desc { font-size:.9rem; font-weight:600; color:var(--txt-primary); }
-.timeline__time {
-  display:flex; align-items:center; gap:.3rem;
-  font-size:.8125rem; color:var(--txt-muted); white-space:nowrap;
-}
-</style>
 {% endblock %}

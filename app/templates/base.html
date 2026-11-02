@@ -26,7 +26,11 @@
 <div class="app-shell">
   <aside class="sidebar" id="sidebar" aria-label="Main navigation">
     <a href="{{ url_for('main.dashboard') }}" class="sidebar__brand">
-      <span class="sidebar__logo"><i class="fas fa-hands-helping"></i></span>
+      {% if brand.logo %}
+        <img src="{{ url_for('group.logo', slug=brand.slug, v=brand.logo) }}" alt="" class="h-9 w-9 shrink-0 rounded-lg object-contain">
+      {% else %}
+        <span class="sidebar__logo"><i class="fas fa-hands-helping"></i></span>
+      {% endif %}
       <span class="min-w-0">
         <span class="sidebar__name block">{{ brand.short_name }}</span>
         <span class="sidebar__tag block">{{ 'Platform' if current_user.is_superadmin else 'Welfare' }}</span>

@@ -34,7 +34,7 @@
         <tr>
           <td><strong>{{ role.name }}</strong></td>
           <td>
-            <div style="display:flex;gap:.25rem;flex-wrap:wrap;">
+            <div class="flex gap-1 flex-wrap">
               {% for code, label in permissions.items() if role.has(code) %}
                 <span class="badge badge--primary" title="{{ label }}">{{ label }}</span>
               {% else %}
@@ -45,7 +45,7 @@
           <td>{{ holders[role.id] }}</td>
           <td>
             {% if current_user.can_grant(role) %}
-            <div style="display:flex;gap:.375rem;">
+            <div class="flex gap-1.5">
               <a href="{{ url_for('main.edit_role', role_id=role.id) }}"
                  class="btn btn--outline btn--sm" title="Edit">
                 <i class="fas fa-edit"></i>
@@ -71,7 +71,7 @@
   </div>
 </div>
 
-<p class="form-hint" style="margin-top:1rem;">
+<p class="form-hint mt-4">
   You can only give a role permissions you hold yourself. A role that is still held by an officer
   can't be deleted, so move its officers to another role first.
 </p>

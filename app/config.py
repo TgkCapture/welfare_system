@@ -38,6 +38,8 @@ class BaseConfig:
     UPLOAD_FOLDER = os.path.join(_base_dir, 'uploads')
     REPORT_FOLDER = os.path.join(_base_dir, 'reports')
     LOGS_FOLDER   = os.path.join(_base_dir, 'logs')
+    # Group logos: kept apart from uploads and reports, which expire
+    BRANDING_FOLDER = os.path.join(_base_dir, 'instance', 'branding')
 
     ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv'}
 
@@ -76,7 +78,7 @@ class BaseConfig:
     @staticmethod
     def init_app(app):
         """Create required directories on first run."""
-        for key in ('UPLOAD_FOLDER', 'REPORT_FOLDER', 'LOGS_FOLDER'):
+        for key in ('UPLOAD_FOLDER', 'REPORT_FOLDER', 'LOGS_FOLDER', 'BRANDING_FOLDER'):
             path = app.config.get(key)
             if path:
                 os.makedirs(path, exist_ok=True)
@@ -119,6 +121,7 @@ class TestingConfig(BaseConfig):
     UPLOAD_FOLDER = '/tmp/welfare_test_uploads'
     REPORT_FOLDER = '/tmp/welfare_test_reports'
     LOGS_FOLDER   = '/tmp/welfare_test_logs'
+    BRANDING_FOLDER = '/tmp/welfare_test_branding'
 
     ENABLE_AUTO_CLEANUP = False   # never start the scheduler in tests
     RATELIMIT_ENABLED   = False   # tests that check limits turn it back on

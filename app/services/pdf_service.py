@@ -35,6 +35,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import (
+    Image,
     PageBreak,
     Paragraph,
     SimpleDocTemplate,
@@ -221,7 +222,7 @@ class PDFGenerator:
             )
 
             s     = _Styles.get()
-            story = [
+            story = PDFGenerator._logo(brand.logo_file) + [
                 Paragraph(f'{escape(brand.name)} — welfare rules', s['title']),
                 Paragraph(f"Printed {datetime.now().strftime('%d %B %Y')}", s['body']),
                 Spacer(1, 16),
@@ -289,7 +290,7 @@ class PDFGenerator:
             )
 
             s     = _Styles.get()
-            story = []
+            story = PDFGenerator._logo(data.get('logo_file'))
 
             # ── Title ──────────────────────────────────────────────────
             story.append(Paragraph(
@@ -364,6 +365,24 @@ class PDFGenerator:
     # ------------------------------------------------------------------
     # Private section builders
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _logo(path) -> list:
+        """The group's logo, centred above the title, if it has one."""
+        if not path or not os.path.isfile(path):
+            return []
+        try:
+            from PIL import Image as PILImage
+            with PILImage.open(path) as img:
+                width, height = img.size
+            size = 0.9 * inch
+            scale = size / max(width, height)
+            logo = Image(path, width=width * scale, height=height * scale)
+            logo.hAlign = 'CENTER'
+            return [logo, Spacer(1, 8)]
+        except Exception as e:
+            logger.warning(f'Could not add the logo to a PDF: {e}')
+            return []
 
     @staticmethod
     def _summary_section(data: dict, s: dict) -> list:

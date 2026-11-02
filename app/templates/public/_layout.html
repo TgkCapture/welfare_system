@@ -11,26 +11,16 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   <style>:root { --brand-rgb: {{ brand.rgb }}; --brand-dark-rgb: {{ brand.dark_rgb }}; }</style>
-  <style>
-    .public-header { background: var(--clr-primary); color: #fff; }
-    .public-header__inner { max-width: 52rem; margin: 0 auto; padding: .875rem 1rem;
-                            display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
-    .public-header__name { font-weight: 800; color: #fff; text-decoration: none; }
-    .public-nav { display: flex; gap: .25rem; flex-wrap: wrap; }
-    .public-nav a { color: #fff; text-decoration: none; font-size: .875rem; padding: .375rem .625rem;
-                    border-radius: var(--r-md); opacity: .85; }
-    .public-nav a:hover, .public-nav a.is-active { opacity: 1; background: rgba(255,255,255,.15); }
-    .public-main { max-width: 52rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
-    .public-footer { max-width: 52rem; margin: 0 auto; padding: 0 1rem 2rem; font-size: .8125rem; color: var(--txt-muted); }
-    @media print { .public-header, .no-print { display: none !important; } }
-  </style>
   {% block head %}{% endblock %}
 </head>
 <body>
   {% set ep = request.endpoint %}
   <header class="public-header no-print">
     <div class="public-header__inner">
-      <a href="{{ url_for('group.landing', slug=group.slug) }}" class="public-header__name">{{ brand.name }}</a>
+      <a href="{{ url_for('group.landing', slug=group.slug) }}" class="public-header__name flex items-center gap-2.5">
+        {% if brand.logo %}<img src="{{ url_for('group.logo', slug=group.slug, v=brand.logo) }}" alt=""
+                                class="h-8 w-8 rounded-md bg-white object-contain p-0.5">{% endif %}
+        {{ brand.name }}</a>
       <nav class="public-nav" aria-label="Group pages">
         <a href="{{ url_for('group.rules', slug=group.slug) }}" class="{{ 'is-active' if ep == 'group.rules' }}">Rules</a>
         {% if group.settings.public_paid_enabled %}

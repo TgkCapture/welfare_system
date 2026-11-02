@@ -15,7 +15,7 @@
       <tr>
         <td><strong>{{ y.year }}</strong></td>
         {% for cell in y.months %}
-        <td class="text-sm" style="white-space:nowrap;">
+        <td class="text-sm whitespace-nowrap">
           {% if cell is none %}
             <span class="text-muted">·</span>
           {% elif cell.status == 'unpaid' %}
@@ -38,10 +38,10 @@
     </tbody>
   </table>
 </div>
-<p class="form-hint" style="padding:0 1rem 1rem;">
+<p class="form-hint px-4 pb-4">
   * covered by credit from an earlier overpayment. · not counted (before joining, after leaving, or not yet collected).
 </p>
 {% else %}
-<p style="padding:1.25rem;" class="text-sm text-muted">No contributions recorded yet.</p>
+<p class="text-sm text-muted p-5">No contributions recorded yet.</p>
 {% endif %}
 {% endmacro %}

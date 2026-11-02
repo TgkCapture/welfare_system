@@ -33,32 +33,3 @@
 </div>
 {% endmacro %}
 
-{% macro rules_styles() %}
-<style>
-.rules-sections { display: flex; flex-direction: column; gap: 1.25rem; }
-.rule-section {
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: var(--r-xl); overflow: hidden;
-}
-.rule-section__header {
-  padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); background: var(--clr-slate-50);
-  border-left: 4px solid var(--clr-primary);
-}
-.rule-section__title { font-size: 1.0625rem; font-weight: 800; }
-.rule-section__sub   { font-size: .875rem; color: var(--txt-muted); margin-top: .125rem; }
-.rule-section__body  { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: .75rem; }
-.rule-text { font-size: .9375rem; }
-.rule-list { padding-left: 1.25rem; display: flex; flex-direction: column; gap: .375rem; font-size: .9375rem; }
-.rule-list:not(.rule-list--numbered) { list-style: disc; }
-.rule-list--numbered { list-style: decimal; }
-.rule-note {
-  display: flex; gap: .625rem; align-items: flex-start;
-  padding: .625rem .875rem; background: var(--clr-slate-50); border-radius: var(--r-md);
-  font-size: .875rem; color: var(--txt-secondary); border-left: 3px solid var(--clr-primary);
-}
-.rule-note i { margin-top: .2rem; color: var(--clr-primary); }
-@media print {
-  .sidebar, .topbar, .site-footer, .page-header__actions, .no-print { display: none !important; }
-}
-</style>
-{% endmacro %}

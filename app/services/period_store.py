@@ -156,6 +156,7 @@ class PeriodStore:
             'group_name':          brand.name,
             'report_title':        brand.report_title,
             'currency':            brand.currency,
+            'logo_file':           brand.logo_file,
         }
 
     @staticmethod

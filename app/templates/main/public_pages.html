@@ -15,12 +15,12 @@
   </div>
 </div>
 
-<div style="max-width:44rem;">
-  <div class="card" style="margin-bottom:1.25rem;">
+<div class="max-w-3xl">
+  <div class="card mb-5">
     <div class="card__header"><h2 class="card__title"><i class="fas fa-link"></i> Your group's page</h2></div>
     <div class="card__body">
       {% set home = url_for('group.landing', slug=slug, _external=True) %}
-      <div style="display:flex;gap:.5rem;">
+      <div class="flex gap-2">
         <input type="text" class="form-control" value="{{ home }}" readonly aria-label="Group page link">
         <button type="button" class="btn btn--primary btn--sm" data-copy="{{ home }}"><i class="fas fa-copy"></i> Copy</button>
       </div>
@@ -29,7 +29,7 @@
     </div>
   </div>
 
-  <div class="card" style="margin-bottom:1.25rem;">
+  <div class="card mb-5">
     <div class="card__header">
       <h2 class="card__title"><i class="fas fa-lock"></i> Group code</h2>
       <span class="badge {{ 'badge--success' if settings.access_code_enabled else 'badge--warning' }}">
@@ -38,30 +38,29 @@
     <div class="card__body">
       <p class="text-sm">Asked once before showing who has paid, so only people in your group chat can see the list.</p>
       {% if settings.access_code_enabled %}
-      <div style="display:flex;gap:.75rem;align-items:center;margin:.75rem 0;">
-        <code style="font-size:1.5rem;letter-spacing:.2em;">{{ settings.access_code }}</code>
+      <div class="flex gap-3 items-center my-3">
+        <code class="text-2xl tracking-[.2em]">{{ settings.access_code }}</code>
         <button type="button" class="btn btn--outline btn--sm" data-copy="{{ settings.access_code }}">
           <i class="fas fa-copy"></i> Copy</button>
       </div>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+      <div class="flex gap-2 flex-wrap">
         <form method="POST" action="{{ url_for('main.public_pages') }}"
               data-confirm="Make a new code? The current code will stop working.">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" name="action" value="new_code" class="btn btn--outline btn--sm">
             <i class="fas fa-redo"></i> New code</button>
         </form>
-        <form method="POST" action="{{ url_for('main.public_pages') }}" style="display:flex;gap:.5rem;">
+        <form class="flex gap-2" method="POST" action="{{ url_for('main.public_pages') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="text" name="code" class="form-control" maxlength="20" placeholder="Or choose one"
-                 style="width:10rem;text-transform:uppercase;" aria-label="New group code" autocomplete="off">
+          <input type="text" name="code" class="form-control w-40 uppercase" maxlength="20" placeholder="Or choose one" aria-label="New group code" autocomplete="off">
           <button type="submit" name="action" value="set_code" class="btn btn--outline btn--sm">Set</button>
         </form>
       </div>
       {% else %}
-      <p class="text-sm" style="color:var(--clr-warning);margin:.75rem 0;">
+      <p class="text-sm text-amber-600 my-3">
         Off: anyone with the link can see who has paid.</p>
       {% endif %}
-      <form method="POST" action="{{ url_for('main.public_pages') }}" style="margin-top:1rem;"
+      <form class="mt-4" method="POST" action="{{ url_for('main.public_pages') }}"
             {% if settings.access_code_enabled %}data-confirm="Turn the code off? Anyone with the link will be able to see who has paid."{% endif %}>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" name="action" value="toggle_code"
@@ -74,18 +73,18 @@
   <div class="card">
     <div class="card__header"><h2 class="card__title"><i class="fas fa-user-check"></i> Who has paid</h2></div>
     <div class="card__body">
-      <p class="text-sm" style="margin-bottom:.75rem;">The list only ever shows members who have paid. Members
+      <p class="text-sm mb-3">The list only ever shows members who have paid. Members
         who haven't paid are never shown on any public page.</p>
       <form method="POST" action="{{ url_for('main.public_pages') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% for field, label in (('public_paid_enabled', 'Show the "who has paid" page'),
                                 ('public_show_amounts', 'Show how much each member paid'),
                                 ('public_show_totals', 'Show how many paid and the month\'s total')) %}
-        <label class="check-label" style="margin-bottom:.5rem;">
+        <label class="check-label mb-2">
           <input type="checkbox" name="{{ field }}" value="1" {{ 'checked' if settings[field] }}> {{ label }}
         </label>
         {% endfor %}
-        <div class="form-group" style="margin-top:.75rem;max-width:16rem;">
+        <div class="form-group mt-3 max-w-64">
           <label class="form-label" for="public_months_back">Months that can be browsed</label>
           <input type="number" id="public_months_back" name="public_months_back" class="form-control"
                  min="1" max="120" value="{{ settings.public_months_back }}">

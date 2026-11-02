@@ -15,7 +15,7 @@
   </div>
 </div>
 
-<div style="display:grid;gap:1.25rem;grid-template-columns:repeat(auto-fit,minmax(20rem,1fr));">
+<div class="grid gap-5 md:grid-cols-2">
   <div class="card">
     <div class="card__header">
       <h2 class="card__title"><i class="fas fa-download"></i> Standard template</h2>
@@ -26,13 +26,12 @@
         calculates itself. It comes filled in with your members, rates and payout purposes,
         and dropdowns keep Member IDs and purposes consistent.
       </p>
-      <form method="POST" action="{{ url_for('main.download_template') }}"
-            style="display:flex;gap:.75rem;align-items:flex-end;margin-top:1rem;">
+      <form class="flex gap-3 items-end mt-4" method="POST" action="{{ url_for('main.download_template') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="form-group" style="margin:0;">
+        <div class="form-group m-0">
           <label class="form-label" for="year">Year</label>
           <input type="number" id="year" name="year" value="{{ year }}" min="2000" max="{{ year + 1 }}"
-                 class="form-control" style="width:7rem;">
+                 class="form-control w-28">
         </div>
         <button type="submit" class="btn btn--primary"><i class="fas fa-file-excel"></i> Download</button>
       </form>
@@ -75,7 +74,7 @@
         </tbody>
       </table>
       {% else %}
-      <p style="padding:1.25rem;" class="text-sm text-muted">
+      <p class="text-sm text-muted p-5">
         Balances are calculated when a workbook in the standard layout is synced.
       </p>
       {% endif %}
@@ -83,7 +82,7 @@
   </div>
 </div>
 
-<div class="card" style="margin-top:1.25rem;">
+<div class="card mt-5">
   <div class="card__header">
     <h2 class="card__title"><i class="fas fa-history"></i> Recent syncs</h2>
   </div>
@@ -113,7 +112,7 @@
       </tbody>
     </table>
     {% else %}
-    <p style="padding:1.25rem;" class="text-sm text-muted">No syncs yet.</p>
+    <p class="text-sm text-muted p-5">No syncs yet.</p>
     {% endif %}
   </div>
 </div>

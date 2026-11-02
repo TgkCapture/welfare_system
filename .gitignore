@@ -28,3 +28,6 @@ conversion/
 # Front-end build tooling (the built CSS is committed)
 node_modules/
 tools/
+
+# Group logos uploaded by officers
+instance/branding/

@@ -56,18 +56,18 @@
       </tbody>
     </table>
     {% else %}
-    <p style="padding:1.5rem;">This group has no officers. Add one below.</p>
+    <p class="p-6">This group has no officers. Add one below.</p>
     {% endif %}
   </div>
 </div>
 
-<div style="display:grid;gap:1.25rem;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr));margin-top:1.25rem;">
+<div class="grid gap-5 md:grid-cols-2 mt-5">
   <div class="card">
     <div class="card__header">
       <h2 class="card__title"><i class="fas fa-user-plus"></i> Add officer</h2>
     </div>
     <div class="card__body">
-      <p class="form-hint" style="margin-top:0;">
+      <p class="form-hint mt-0">
         For a new group's extra officers, or when a group has lost access to every officer who can manage officers.
       </p>
       <form method="POST" action="{{ url_for('platform.add_officer', group_id=group.id) }}" novalidate>

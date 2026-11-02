@@ -3,14 +3,13 @@
 {% block title %}Who has paid — {{ brand.name }}{% endblock %}
 
 {% block content %}
-<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem;">
+<div class="flex justify-between items-end gap-4 flex-wrap mb-5">
   <div>
     <h1 class="page-header__title">Who has paid</h1>
     {% if period %}<p class="text-muted">{{ month_name }} {{ period[0] }}</p>{% endif %}
   </div>
   {% if months|length > 1 %}
-  <form method="GET" action="{{ url_for('group.paid', slug=group.slug) }}" class="no-print"
-        style="display:flex;gap:.5rem;">
+  <form method="GET" action="{{ url_for('group.paid', slug=group.slug) }}" class="no-print flex gap-2">
     <select name="period" class="form-control" aria-label="Month" onchange="this.form.submit()">
       {% for y, m in months %}
       <option value="{{ y }}-{{ m }}" {{ 'selected' if (y, m) == period }}>{{ ['', 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m] }} {{ y }}</option>
@@ -25,8 +24,8 @@
   <div class="card"><div class="card__body text-muted">No contributions have been published yet.</div></div>
 {% else %}
   {% if settings.public_show_totals %}
-  <div class="card" style="margin-bottom:1rem;">
-    <div class="card__body" style="display:flex;gap:2rem;flex-wrap:wrap;">
+  <div class="card mb-4">
+    <div class="card__body flex gap-8 flex-wrap">
       <div><div class="stat-card__value">{{ paid.members|length }}</div><div class="text-sm text-muted">members paid</div></div>
       <div><div class="stat-card__value">{{ brand.currency }} {{ '{:,.0f}'.format(paid.total) }}</div>
            <div class="text-sm text-muted">received this month</div></div>
@@ -43,18 +42,18 @@
           {% for m in paid.members %}
           <tr>
             <td class="text-muted">{{ loop.index }}</td>
-            <td>{{ m.name }} <i class="fas fa-check-circle" style="color:var(--clr-success);" aria-label="paid"></i></td>
+            <td>{{ m.name }} <i class="fas fa-check-circle text-emerald-500" aria-label="paid"></i></td>
             {% if settings.public_show_amounts %}<td>{{ brand.currency }} {{ '{:,.0f}'.format(m.amount) }}</td>{% endif %}
           </tr>
           {% endfor %}
         </tbody>
       </table>
       {% else %}
-      <p style="padding:1.25rem;" class="text-muted">No payments have been recorded for this month yet.</p>
+      <p class="text-muted p-5">No payments have been recorded for this month yet.</p>
       {% endif %}
     </div>
   </div>
-  <p class="form-hint" style="margin-top:1rem;">
+  <p class="form-hint mt-4">
     Not on the list but you've paid? It may not be recorded yet. Check
     <a href="{{ url_for('group.check', slug=group.slug) }}">your own contributions</a> or ask your treasurer.
   </p>

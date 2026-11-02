@@ -15,7 +15,7 @@
   </div>
 </div>
 
-<div class="card" style="margin-bottom:1.25rem;">
+<div class="card mb-5">
   <div class="table-wrap">
     {% if sections %}
     <table class="data-table">
@@ -24,7 +24,7 @@
         {% for s in sections %}
         <tr>
           <td>
-            <div style="display:flex;gap:.25rem;">
+            <div class="flex gap-1">
               {% for direction, icon in (('up', 'arrow-up'), ('down', 'arrow-down')) %}
               <form method="POST" action="{{ url_for('main.move_rule_section', section_id=s.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -44,7 +44,7 @@
           </td>
           <td class="text-sm text-muted">{{ s.updated_at.strftime('%d %b %Y') }}</td>
           <td>
-            <div style="display:flex;gap:.375rem;">
+            <div class="flex gap-1.5">
               <a href="{{ url_for('main.edit_rule_section', section_id=s.id) }}" class="btn btn--outline btn--sm" title="Edit">
                 <i class="fas fa-edit"></i>
               </a>
@@ -60,12 +60,12 @@
       </tbody>
     </table>
     {% else %}
-    <p style="padding:1.25rem;" class="text-sm text-muted">No sections yet. Add the first one below.</p>
+    <p class="text-sm text-muted p-5">No sections yet. Add the first one below.</p>
     {% endif %}
   </div>
 </div>
 
-<div class="card" style="max-width:40rem;">
+<div class="card max-w-2xl">
   <div class="card__header"><h2 class="card__title"><i class="fas fa-plus"></i> Add a section</h2></div>
   <div class="card__body">
     <form method="POST" action="{{ url_for('main.rules_editor') }}">

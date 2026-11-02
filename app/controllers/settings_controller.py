@@ -14,7 +14,7 @@ from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.group import new_access_code
 from app.models.tenancy import current_group
-from app.services import setup
+from app.services import logo, setup
 from app.services.branding import is_valid_color
 
 MAX_RETENTION_DAYS = 3650
@@ -98,7 +98,18 @@ class SettingsController:
         settings.report_title, settings.currency = report_title or None, currency
         settings.primary_color = color.lower()
         db.session.commit()
-        setup.mark(current_group(), 'branding')
+
+        group = current_group()
+        upload = request.files.get('logo')
+        try:
+            if upload and upload.filename:
+                logo.save(group, upload)
+            elif request.form.get('remove_logo'):
+                logo.remove(group)
+        except logo.LogoError as e:
+            flash(f'Branding saved, but the logo was not: {e}', 'warning')
+            return redirect(url_for('main.settings'))
+        setup.mark(group, 'branding')
         flash('Branding updated.', 'success')
         return redirect(url_for('main.settings'))
 

@@ -14,10 +14,10 @@
   </div>
 </div>
 
-<div style="max-width:40rem;">
+<div class="max-w-2xl">
 
   <!-- Google Sheets -->
-  <div class="card" style="margin-bottom:1.25rem;">
+  <div class="card mb-5">
     <div class="card__header">
       <h2 class="card__title"><i class="fas fa-database"></i> Data source and storage</h2>
       {% if sheet_url %}
@@ -68,7 +68,7 @@
           </p>
         </div>
 
-        <div style="display:flex;gap:.75rem;align-items:center;">
+        <div class="flex gap-3 items-center">
           <button type="submit" class="btn btn--primary">
             <i class="fas fa-save"></i> Save Settings
           </button>
@@ -83,36 +83,55 @@
   </div>
 
   <!-- Branding -->
-  <div class="card" style="margin-bottom:1.25rem;">
+  <div class="card mb-5">
     <div class="card__header">
       <h2 class="card__title"><i class="fas fa-palette"></i> Branding</h2>
     </div>
     <div class="card__body">
-      <form method="POST" action="{{ url_for('main.settings') }}" novalidate>
+      <form method="POST" action="{{ url_for('main.settings') }}" enctype="multipart/form-data" novalidate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="section" value="branding">
+        <div class="form-group">
+          <span class="form-label">Logo</span>
+          <div class="flex flex-wrap items-center gap-4">
+            {% if brand.logo %}
+              <img src="{{ url_for('group.logo', slug=brand.slug, v=brand.logo) }}" alt="Current logo"
+                   class="h-16 w-16 rounded-lg border border-slate-200 bg-white object-contain p-1">
+            {% else %}
+              <span class="grid h-16 w-16 place-items-center rounded-lg bg-brand text-xl text-white"><i class="fas fa-hands-helping"></i></span>
+            {% endif %}
+            <div class="min-w-0 flex-1">
+              <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/gif" class="form-control"
+                     aria-label="Logo image">
+              {% if brand.logo %}
+              <label class="check-label mt-2"><input type="checkbox" name="remove_logo" value="1"> Remove the logo</label>
+              {% endif %}
+            </div>
+          </div>
+          <p class="form-hint">PNG, JPEG, WebP or GIF, under 2 MB. Shown in the menu, on members' pages and on reports.</p>
+        </div>
         <div class="form-group">
           <label class="form-label" for="display_name">Group name</label>
           <input type="text" id="display_name" name="display_name" class="form-control" maxlength="150"
                  value="{{ settings.display_name }}">
           <p class="form-hint">Shown in page titles, on reports and on members' pages.</p>
         </div>
-        <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
-          <div class="form-group" style="flex:2;min-width:12rem;">
+        <div class="flex gap-3 flex-wrap">
+          <div class="form-group flex-[2] min-w-48">
             <label class="form-label" for="short_name">Short name (optional)</label>
             <input type="text" id="short_name" name="short_name" class="form-control" maxlength="30"
                    value="{{ settings.short_name or '' }}" placeholder="{{ settings.display_name }}">
             <p class="form-hint">For the page header.</p>
           </div>
-          <div class="form-group" style="flex:1;min-width:6rem;">
+          <div class="form-group flex-1 min-w-24">
             <label class="form-label" for="currency">Currency</label>
             <input type="text" id="currency" name="currency" class="form-control" maxlength="3"
                    value="{{ settings.currency }}">
           </div>
-          <div class="form-group" style="flex:1;min-width:6rem;">
+          <div class="form-group flex-1 min-w-24">
             <label class="form-label" for="primary_color">Colour</label>
-            <input type="color" id="primary_color" name="primary_color" class="form-control"
-                   value="{{ brand.color }}" style="height:2.5rem;padding:.2rem;">
+            <input type="color" id="primary_color" name="primary_color" class="form-control h-10 p-0.5"
+                   value="{{ brand.color }}">
           </div>
         </div>
         <div class="form-group">
@@ -126,44 +145,44 @@
   </div>
 
   <!-- Payout purposes -->
-  <div class="card" style="margin-bottom:1.25rem;">
-    <div class="card__body" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+  <div class="card mb-5">
+    <div class="card__body flex justify-between items-center gap-4">
       <div>
         <strong><i class="fas fa-hand-holding-heart"></i> Payout purposes</strong>
-        <p class="form-hint" style="margin:0;">The reasons your group pays money out, e.g. funeral condolence.</p>
+        <p class="form-hint m-0">The reasons your group pays money out, e.g. funeral condolence.</p>
       </div>
       <a href="{{ url_for('main.payout_purposes') }}" class="btn btn--outline btn--sm">Manage</a>
     </div>
   </div>
 
   <!-- Setup checklist -->
-  <div class="card" style="margin-bottom:1.25rem;">
-    <div class="card__body" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+  <div class="card mb-5">
+    <div class="card__body flex justify-between items-center gap-4">
       <div>
         <strong><i class="fas fa-list-check"></i> Setup checklist</strong>
-        <p class="form-hint" style="margin:0;">The steps to get your group running, and which are done.</p>
+        <p class="form-hint m-0">The steps to get your group running, and which are done.</p>
       </div>
       <a href="{{ url_for('main.setup') }}" class="btn btn--outline btn--sm">Open</a>
     </div>
   </div>
 
   <!-- Public pages -->
-  <div class="card" style="margin-bottom:1.25rem;">
-    <div class="card__body" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+  <div class="card mb-5">
+    <div class="card__body flex justify-between items-center gap-4">
       <div>
         <strong><i class="fas fa-globe"></i> Public pages</strong>
-        <p class="form-hint" style="margin:0;">What members see without an account, and the group code.</p>
+        <p class="form-hint m-0">What members see without an account, and the group code.</p>
       </div>
       <a href="{{ url_for('main.public_pages') }}" class="btn btn--outline btn--sm">Manage</a>
     </div>
   </div>
 
   <!-- Workbook layout -->
-  <div class="card" style="margin-bottom:1.25rem;">
-    <div class="card__body" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+  <div class="card mb-5">
+    <div class="card__body flex justify-between items-center gap-4">
       <div>
         <strong><i class="fas fa-table"></i> Workbook layout</strong>
-        <p class="form-hint" style="margin:0;">
+        <p class="form-hint m-0">
           {{ 'Custom settings for reading your workbook.' if custom_layout else 'Worked out automatically.' }}
           Only needed for workbooks not made from the standard template.
         </p>
@@ -211,37 +230,4 @@
 
 </div>
 
-<style>
-.setup-steps { display: flex; flex-direction: column; gap: 1.25rem; padding: 0; }
-.setup-step  { display: flex; align-items: flex-start; gap: .875rem; }
-.setup-step__num {
-  width: 1.75rem; height: 1.75rem;
-  background: var(--clr-primary); color: #fff;
-  border-radius: var(--r-full);
-  display: grid; place-items: center;
-  font-size: .8125rem; font-weight: 800; flex-shrink: 0;
-}
-.setup-step__icon {
-  width: 2.25rem; height: 2.25rem;
-  background: var(--clr-primary-pale); color: var(--clr-primary);
-  border-radius: var(--r-md);
-  display: grid; place-items: center;
-  font-size: .9rem; flex-shrink: 0;
-}
-.setup-step__title { font-weight: 700; font-size: .9375rem; margin-bottom: .2rem; }
-.info-note {
-  display: flex; align-items: flex-start; gap: .75rem;
-  padding: 1rem; border-radius: var(--r-lg);
-  background: var(--clr-warning-pale);
-  border: 1px solid #fcd34d;
-  color: #92400e;
-  margin-top: 1.5rem;
-  font-size: .875rem;
-}
-.info-note i { flex-shrink: 0; margin-top: .125rem; }
-code {
-  background: rgba(0,0,0,.08); padding: .1rem .35rem;
-  border-radius: .25rem; font-size: .85em; font-family: monospace;
-}
-</style>
 {% endblock %}

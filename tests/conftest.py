@@ -31,6 +31,7 @@ def app(tmp_path):
         'UPLOAD_FOLDER': str(tmp_path / 'uploads'),
         'REPORT_FOLDER': str(tmp_path / 'reports'),
         'LOGS_FOLDER':   str(tmp_path / 'logs'),
+        'BRANDING_FOLDER': str(tmp_path / 'branding'),
     })
     app.test_client_class = FreshContextClient
     with app.app_context():

@@ -39,7 +39,7 @@
   <div class="stat-card">
     <div class="stat-card__icon stat-card__icon--green"><i class="fas fa-money-bill-wave"></i></div>
     <div>
-      <div class="stat-card__value" style="font-size:1.25rem;">{{ brand.currency }} {{ "%.2f"|format(report.total_contributions) }}</div>
+      <div class="stat-card__value text-xl">{{ brand.currency }} {{ "%.2f"|format(report.total_contributions) }}</div>
       <div class="stat-card__label">Total Contributions</div>
     </div>
   </div>
@@ -61,7 +61,7 @@
   <div class="stat-card">
     <div class="stat-card__icon stat-card__icon--cyan"><i class="fas fa-hand-holding-usd"></i></div>
     <div>
-      <div class="stat-card__value" style="font-size:1.25rem;">{{ brand.currency }} {{ "%.2f"|format(report.money_dispensed) }}</div>
+      <div class="stat-card__value text-xl">{{ brand.currency }} {{ "%.2f"|format(report.money_dispensed) }}</div>
       <div class="stat-card__label">Money Dispensed</div>
     </div>
   </div>
@@ -70,7 +70,7 @@
   <div class="stat-card">
     <div class="stat-card__icon stat-card__icon--purple"><i class="fas fa-book"></i></div>
     <div>
-      <div class="stat-card__value" style="font-size:1.25rem;">{{ brand.currency }} {{ "%.2f"|format(report.total_book_balance) }}</div>
+      <div class="stat-card__value text-xl">{{ brand.currency }} {{ "%.2f"|format(report.total_book_balance) }}</div>
       <div class="stat-card__label">Book Balance</div>
     </div>
   </div>
@@ -78,7 +78,7 @@
 </div>
 
 <!-- Actions -->
-<div class="card" style="margin-bottom:1.25rem;">
+<div class="card mb-5">
   <div class="card__header">
     <h2 class="card__title"><i class="fas fa-download"></i> Actions</h2>
   </div>
@@ -107,7 +107,7 @@
       {% if current_user.has_permission('generate_reports') %}
       <form method="POST" action="{{ url_for('report.regenerate', report_id=report.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="download-card download-card--amber" style="width:100%;border:none;cursor:pointer;font:inherit;">
+        <button type="submit" class="download-card download-card--amber w-full border-0 cursor-pointer [font:inherit]">
           <div class="download-card__icon"><i class="fas fa-redo"></i></div>
           <div>
             <div class="download-card__title">Regenerate</div>
@@ -122,7 +122,7 @@
       {% if report.is_archived %}
       <form method="POST" action="{{ url_for('report.restore', report_id=report.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="download-card download-card--success" style="width:100%;border:none;cursor:pointer;font:inherit;">
+        <button type="submit" class="download-card download-card--success w-full border-0 cursor-pointer [font:inherit]">
           <div class="download-card__icon"><i class="fas fa-undo"></i></div>
           <div>
             <div class="download-card__title">Restore</div>
@@ -134,7 +134,7 @@
       <form method="POST" action="{{ url_for('report.archive', report_id=report.id) }}"
             data-confirm="Archive this report?">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="download-card download-card--neutral" style="width:100%;border:none;cursor:pointer;font:inherit;">
+        <button type="submit" class="download-card download-card--neutral w-full border-0 cursor-pointer [font:inherit]">
           <div class="download-card__icon"><i class="fas fa-archive"></i></div>
           <div>
             <div class="download-card__title">Archive</div>
@@ -176,49 +176,4 @@
   </div>
 </div>
 
-<style>
-.status-alert {
-  display: flex; align-items: center; gap: .875rem;
-  padding: 1rem 1.25rem;
-  border-radius: var(--r-xl);
-  margin-bottom: 1.5rem;
-  font-size: .9375rem;
-}
-.status-alert i { font-size: 1.375rem; flex-shrink: 0; }
-.status-alert--ok   { background: var(--clr-success-pale); border: 1px solid #6ee7b7; color: #065f46; }
-.status-alert--warn { background: var(--clr-warning-pale); border: 1px solid #fcd34d; color: #92400e; }
-
-.download-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem,1fr)); gap: 1rem; }
-.download-card {
-  display: flex; align-items: center; gap: .875rem;
-  padding: 1.125rem; border-radius: var(--r-xl);
-  border: 2px solid transparent;
-  transition: transform var(--t), box-shadow var(--t);
-  text-decoration: none; color: inherit;
-}
-.download-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
-.download-card__icon {
-  width: 2.75rem; height: 2.75rem;
-  border-radius: var(--r-lg);
-  display: grid; place-items: center;
-  font-size: 1.25rem; flex-shrink: 0;
-}
-.download-card--primary { background: var(--clr-primary-pale); border-color: var(--clr-primary); }
-.download-card--primary .download-card__icon { background: var(--clr-primary); color: #fff; }
-.download-card--success { background: var(--clr-success-pale); border-color: var(--clr-success); }
-.download-card--success .download-card__icon { background: var(--clr-success); color: #fff; }
-.download-card--amber { background: var(--clr-warning-pale); border-color: var(--clr-warning); }
-.download-card--amber .download-card__icon { background: var(--clr-warning); color: #fff; }
-.download-card--neutral { background: var(--clr-slate-50); border-color: var(--border); }
-.download-card--neutral .download-card__icon { background: var(--clr-slate-200); color: var(--txt-secondary); }
-.download-card__title { font-weight: 700; font-size: .9rem; }
-.download-card__sub   { font-size: .8rem; color: var(--txt-muted); }
-.download-card__arrow { margin-left: auto; color: var(--txt-muted); font-size: .875rem; }
-
-.detail-grid {
-  display: grid; grid-template-columns: auto 1fr; gap: .5rem 1.5rem; font-size: .9rem;
-}
-.detail-grid dt { font-weight: 600; color: var(--txt-muted); white-space: nowrap; }
-.detail-grid dd { color: var(--txt-primary); }
-</style>
 {% endblock %}

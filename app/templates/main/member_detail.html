@@ -23,11 +23,11 @@
 </div>
 
 {% if new_pin %}
-<div class="card" style="margin-bottom:1.25rem;border:2px solid var(--clr-success);">
+<div class="card mb-5 border-2 !border-emerald-500">
   <div class="card__body">
     <p><strong>New PIN for {{ member.display_name }}:</strong></p>
-    <div style="display:flex;gap:.75rem;align-items:center;margin:.5rem 0;">
-      <code style="font-size:1.75rem;letter-spacing:.3em;">{{ new_pin }}</code>
+    <div class="flex gap-3 items-center my-2">
+      <code class="text-3xl tracking-[.3em]">{{ new_pin }}</code>
       <button type="button" class="btn btn--outline btn--sm" data-copy="{{ new_pin }}">
         <i class="fas fa-copy"></i> Copy
       </button>
@@ -40,14 +40,14 @@
 </div>
 {% endif %}
 
-<div class="card" style="margin-bottom:1.25rem;">
+<div class="card mb-5">
   <div class="card__header">
     <h2 class="card__title"><i class="fas fa-calendar-check"></i> Contributions</h2>
   </div>
   {{ history_table(history, months) }}
 </div>
 
-<div style="display:grid;gap:1.25rem;grid-template-columns:repeat(auto-fit,minmax(20rem,1fr));">
+<div class="grid gap-5 md:grid-cols-2">
 
   <div class="card">
     <div class="card__header">
@@ -57,7 +57,7 @@
       <p class="text-sm">Opens this member's own history, without an account. Anyone with the link can see it,
         so send it to the member only.</p>
       {% if member.is_active %}
-      <div style="display:flex;gap:.5rem;margin:.75rem 0;">
+      <div class="flex gap-2 my-3">
         <input type="text" class="form-control" value="{{ history_url }}" readonly aria-label="Personal link">
         <button type="button" class="btn btn--primary btn--sm" data-copy="{{ history_url }}">
           <i class="fas fa-copy"></i> Copy
@@ -83,9 +83,9 @@
     <div class="card__body">
       <p class="text-sm">With a PIN, the member can also look up their history by name on the group's page.</p>
       {% if member.pin_locked_until %}
-      <p class="text-sm" style="color:var(--clr-danger);">Locked after too many wrong tries. A new PIN unlocks it.</p>
+      <p class="text-sm text-red-600">Locked after too many wrong tries. A new PIN unlocks it.</p>
       {% endif %}
-      <div style="display:flex;gap:.5rem;margin-top:.75rem;">
+      <div class="flex gap-2 mt-3">
         <form method="POST" action="{{ url_for('main.set_pin', member_id=member.id) }}"
               {% if member.pin_hash %}data-confirm="Make a new PIN? The current PIN will stop working."{% endif %}>
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -109,16 +109,15 @@
       <h2 class="card__title"><i class="fas fa-signature"></i> Name</h2>
     </div>
     <div class="card__body">
-      <form method="POST" action="{{ url_for('main.rename', member_id=member.id) }}" style="display:flex;gap:.5rem;">
+      <form class="flex gap-2" method="POST" action="{{ url_for('main.rename', member_id=member.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="text" name="name" value="{{ member.display_name }}" class="form-control" maxlength="150"
                aria-label="Name">
         <button type="submit" class="btn btn--primary btn--sm">Rename</button>
       </form>
-      <p class="text-sm" style="margin-top:1rem;"><strong>Other spellings</strong> (sheet rows with these match this member):</p>
+      <p class="text-sm mt-4"><strong>Other spellings</strong> (sheet rows with these match this member):</p>
       {% for alias in member.aliases %}
-      <form method="POST" action="{{ url_for('main.remove_alias', member_id=member.id, alias_id=alias.id) }}"
-            style="display:inline-flex;gap:.25rem;align-items:center;margin:.25rem .5rem .25rem 0;">
+      <form class="inline-flex gap-1 items-center my-1 mr-2" method="POST" action="{{ url_for('main.remove_alias', member_id=member.id, alias_id=alias.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <span class="badge badge--neutral">{{ alias.normalised_name }}</span>
         <button type="submit" class="btn btn--outline btn--sm" title="Remove" aria-label="Remove {{ alias.normalised_name }}">
@@ -141,9 +140,8 @@
       <p class="text-sm"><strong>Possibly the same person:</strong>
         {% for d in duplicates %}<a href="{{ url_for('main.member', member_id=d.id) }}">{{ d.display_name }}</a>{{ ', ' if not loop.last }}{% endfor %}</p>
       {% endif %}
-      <form method="POST" action="{{ url_for('main.merge_member', member_id=member.id) }}"
-            data-confirm="Merge {{ member.display_name }} into the chosen member? This can't be undone."
-            style="display:flex;gap:.5rem;margin-top:.75rem;">
+      <form class="flex gap-2 mt-3" method="POST" action="{{ url_for('main.merge_member', member_id=member.id) }}"
+            data-confirm="Merge {{ member.display_name }} into the chosen member? This can't be undone.">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <select name="into" class="form-control" required aria-label="Merge into">
           <option value="">Merge into…</option>
@@ -168,7 +166,7 @@
     <div class="card__body">
       <p class="text-sm">Retiring keeps their history but stops their personal link and PIN from working.
         To stop counting them as owing, set their Left month in the workbook.</p>
-      <form method="POST" action="{{ url_for('main.toggle_member', member_id=member.id) }}" style="margin-top:.75rem;">
+      <form class="mt-3" method="POST" action="{{ url_for('main.toggle_member', member_id=member.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn--sm {{ 'btn--outline' if member.is_active else 'btn--success' }}">
           {{ 'Retire' if member.is_active else 'Restore' }}

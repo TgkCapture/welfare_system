@@ -13,11 +13,11 @@ one rate limit per IP (PUBLIC_LOOKUP_RATE_LIMIT).
 """
 import calendar
 
-from flask import abort, current_app, make_response, render_template, request
+from flask import abort, current_app, make_response, render_template, request, send_file
 
 from app.extensions import limiter
 from app.models.group import Group
-from app.services import member_service, public_access
+from app.services import logo, member_service, public_access
 from app.services.branding import use_group_brand
 from app.services.standard_workbook import MONTHS
 
@@ -74,6 +74,15 @@ class PublicController:
                                               history=member_service.history(member), months=MONTHS)
             failed = True
         return PublicController._page('public/check.html', group, failed=failed)
+
+    @staticmethod
+    def logo(slug):
+        """The group's logo. Its URL carries the file name, so it can be cached for long."""
+        group = Group.query.filter_by(slug=slug, is_active=True).first()
+        path = logo.path_for(group) if group else None
+        if path is None:
+            abort(404)
+        return send_file(path, mimetype='image/png', max_age=7 * 24 * 3600)
 
     # ==================== HELPERS ====================
 

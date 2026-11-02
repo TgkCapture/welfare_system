@@ -3,7 +3,6 @@
 {% block title %}Log In — {{ brand.name if group else 'Platform Administration' }}{% endblock %}
 
 {% block extra_css %}
-{% include 'auth/_auth_styles.html' %}
 {% endblock %}
 
 {% block content %}
@@ -11,7 +10,12 @@
   <div class="auth-card">
 
     <div class="auth-card__top">
-      <div class="auth-card__icon"><i class="fas fa-sign-in-alt"></i></div>
+      {% if group and brand.logo %}
+        <img src="{{ url_for('group.logo', slug=group.slug, v=brand.logo) }}" alt=""
+             class="mx-auto mb-3 h-16 w-16 rounded-xl bg-white object-contain p-1">
+      {% else %}
+        <div class="auth-card__icon"><i class="fas fa-sign-in-alt"></i></div>
+      {% endif %}
       <h1 class="auth-card__title">{{ brand.name if group else 'Platform Administration' }}</h1>
       <p class="auth-card__sub">{{ 'Officer sign in' if group else 'Superadmin sign in' }}</p>
     </div>

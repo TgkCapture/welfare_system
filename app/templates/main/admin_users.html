@@ -22,7 +22,7 @@
 </div>
 
 <!-- Mini stats -->
-<div class="stats-grid" style="margin-bottom:1.25rem;">
+<div class="stats-grid mb-5">
   {% for role in roles %}
   <div class="stat-card">
     <div class="stat-card__icon stat-card__icon--{{ loop.cycle('purple', 'amber', 'cyan') }}">
@@ -61,11 +61,11 @@
         {% for u in users %}
         <tr class="{{ 'row--highlight' if u.id == current_user.id }}">
           <td>
-            <div style="display:flex;align-items:center;gap:.625rem;">
-              <span class="avatar" style="width:2rem;height:2rem;font-size:.75rem;">
+            <div class="flex items-center gap-2.5">
+              <span class="avatar w-8 h-8 text-xs">
                 {{ u.email[0]|upper }}
               </span>
-              <span style="font-size:.875rem;font-weight:600;">{{ u.email }}</span>
+              <span class="text-sm font-semibold">{{ u.email }}</span>
             </div>
           </td>
           <td><span class="role-badge role-badge--{{ u.badge_class }}">{{ u.role_name }}</span></td>
@@ -80,7 +80,7 @@
           </td>
           <td>
             {% if u.id != current_user.id and (not u.role or current_user.can_grant(u.role)) %}
-            <div style="display:flex;gap:.375rem;flex-wrap:wrap;">
+            <div class="flex gap-1.5 flex-wrap">
               <a href="{{ url_for('main.edit_user', user_id=u.id) }}"
                  class="btn btn--outline btn--sm" title="Edit">
                 <i class="fas fa-edit"></i>

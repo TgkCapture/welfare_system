@@ -15,7 +15,7 @@
   </div>
 </div>
 
-<div style="max-width:36rem;">
+<div class="max-w-xl">
   <form method="POST" action="{{ url_for('platform.create_group') }}" novalidate>
     {{ form.hidden_tag() }}
 
@@ -30,7 +30,7 @@
       </div>
     </div>
 
-    <div class="card" style="margin-top:1.25rem;">
+    <div class="card mt-5">
       <div class="card__header">
         <h2 class="card__title"><i class="fas fa-user-tie"></i> First officer (Chairperson)</h2>
       </div>
@@ -41,7 +41,7 @@
       </div>
     </div>
 
-    <div style="display:flex;gap:.75rem;margin-top:1.5rem;">
+    <div class="flex gap-3 mt-6">
       <button type="submit" class="btn btn--primary"><i class="fas fa-check"></i> Create group</button>
       <a href="{{ url_for('platform.dashboard') }}" class="btn btn--outline">Cancel</a>
     </div>

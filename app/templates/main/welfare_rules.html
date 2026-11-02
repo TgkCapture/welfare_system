@@ -1,6 +1,6 @@
 <!-- app/templates/main/welfare_rules.html -->
 {% extends 'base.html' %}
-{% from 'main/_rules.html' import render_sections, rules_styles %}
+{% from 'main/_rules.html' import render_sections %}
 {% block title %}Welfare Rules — {{ brand.name }}{% endblock %}
 
 {% block content %}
@@ -24,8 +24,8 @@
   </div>
 </div>
 
-<div class="card no-print" style="margin-bottom:1.25rem;">
-  <div class="card__body text-sm" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+<div class="card no-print mb-5">
+  <div class="card__body text-sm flex gap-2 items-center flex-wrap">
     <span>Members can read these at</span>
     <code>{{ url_for('group.rules', slug=brand.slug, _external=True) }}</code>
     <button type="button" class="btn btn--outline btn--sm"
@@ -36,5 +36,4 @@
 </div>
 
 {{ render_sections(sections) }}
-{{ rules_styles() }}
 {% endblock %}

@@ -15,7 +15,7 @@
   </div>
 </div>
 
-<div class="stats-grid" style="margin-bottom:1.25rem;">
+<div class="stats-grid mb-5">
   <div class="stat-card">
     <div class="stat-card__icon stat-card__icon--purple"><i class="fas fa-database"></i></div>
     <div>
@@ -46,7 +46,7 @@
   </div>
 </div>
 
-<div class="card" style="max-width:40rem;">
+<div class="card max-w-2xl">
   <div class="card__header">
     <h2 class="card__title"><i class="fas fa-broom"></i> Clean up now</h2>
   </div>
@@ -60,8 +60,7 @@
       {% endif %}
     </p>
 
-    <form method="POST" action="{{ url_for('main.cleanup_files') }}"
-          style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-top:1rem;">
+    <form class="flex gap-3 flex-wrap items-center mt-4" method="POST" action="{{ url_for('main.cleanup_files') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" name="dry_run" value="1" class="btn btn--outline">
         <i class="fas fa-search"></i> Preview
@@ -73,7 +72,7 @@
     </form>
 
     {% if cleanup_result %}
-    <div class="table-wrap" style="margin-top:1.25rem;">
+    <div class="table-wrap mt-5">
       <table class="data-table">
         <thead>
           <tr><th>Folder</th><th>{{ 'Would delete' if cleanup_result.dry_run else 'Deleted' }}</th><th>Kept</th><th>Space</th></tr>

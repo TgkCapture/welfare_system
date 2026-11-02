@@ -17,7 +17,7 @@
   </div>
 </div>
 
-<div style="max-width:36rem;">
+<div class="max-w-xl">
   <div class="card">
     <div class="card__body">
       <form method="POST"
@@ -39,7 +39,7 @@
         <div class="form-group">
           <span class="form-label"><i class="fas fa-key"></i> Permissions</span>
           {% for option in form.permissions %}
-          <label class="check-label" style="margin-bottom:.5rem;">
+          <label class="check-label mb-2">
             {{ option() }} {{ option.label.text }}
           </label>
           {% endfor %}
@@ -49,7 +49,7 @@
           {% endfor %}
         </div>
 
-        <div style="display:flex;gap:.75rem;margin-top:1.5rem;">
+        <div class="flex gap-3 mt-6">
           <button type="submit" class="btn btn--primary">
             <i class="fas fa-save"></i> Save role
           </button>
