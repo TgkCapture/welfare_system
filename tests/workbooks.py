@@ -83,6 +83,48 @@ def _write_old_sheet(ws):
     ws.append(['Bright Phiri', 500])
 
 
+def build_standard_workbook(path, members, contributions, payouts=(), rates=(), summary=()):
+    """Write a workbook in the standard layout, with plain values only.
+
+    members:       [(Member ID, Name, Joined, Left)]
+    contributions: {year: [(Member ID, Name, {month name: amount})]}
+    payouts:       [(Date, Member ID, Name, Purpose, Amount, Approved by)]
+    rates:         [(Effective from, Monthly amount)]
+    summary:       [(Year, Opening, Contributions, Payouts, Closing)] — None leaves a cell blank,
+                   as an unsaved formula would be
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Members'
+    ws.append(['Member ID', 'Name', 'Phone', 'Joined (month)', 'Left (month)', 'Notes'])
+    for code, name, joined, left in members:
+        ws.append([code, name, None, joined, left, None])
+
+    for year, rows in contributions.items():
+        ws = wb.create_sheet(f'Contributions {year}')
+        ws.append(['Member ID', 'Name'] + MONTHS)
+        for code, name, paid in rows:
+            ws.append([code, name] + [paid.get(m) for m in MONTHS])
+
+    ws = wb.create_sheet('Payouts')
+    ws.append(['Date', 'Member ID', 'Name', 'Purpose', 'Amount', 'Approved by', 'Notes'])
+    for row in payouts:
+        ws.append(list(row))
+
+    ws = wb.create_sheet('Rates')
+    ws.append(['Effective from', 'Monthly amount'])
+    for row in rates:
+        ws.append(list(row))
+
+    ws = wb.create_sheet('Summary')
+    ws.append(['Year', 'Opening balance', 'Contributions', 'Payouts', 'Closing balance'])
+    for row in summary:
+        ws.append(list(row))
+
+    wb.save(path)
+    return path
+
+
 def build_mzugoss_workbook(path):
     """Write a workbook mirroring MGSS.xlsx to *path* and return it."""
     wb = Workbook()

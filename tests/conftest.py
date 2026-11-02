@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash
 from app import create_app
 from app.extensions import db
 from app.models.group import Group, GroupSettings
+from app.models.ledger import PayoutPurpose
 from app.models.role import Role
 from app.models.user import User
 from tests.workbooks import build_mzugoss_workbook
@@ -57,6 +58,7 @@ def make_group(app):
         group.settings = GroupSettings(display_name=name)
         db.session.add(group)
         Role.seed_presets(group)
+        PayoutPurpose.seed_defaults(group)
         db.session.commit()
         return group
     return _make_group

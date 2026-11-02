@@ -15,13 +15,15 @@ import re
 import pytest
 
 from app.extensions import db
+from app.models.ledger import PayoutPurpose, SyncRun
 from app.models.report import GeneratedReport
 from app.models.role import Role
 from app.models.user import User
 
 _APP_DIR = pathlib.Path(__file__).resolve().parent.parent / 'app'
 _TENANT_MODELS = (r'(?:User|Role|GeneratedReport|ReportAccessLog'
-                  r'|Member|MemberAlias|Contribution|PeriodSummary)')
+                  r'|Member|MemberAlias|Contribution|PeriodSummary'
+                  r'|PayoutPurpose|Payout|Rate|YearSummary|SyncRun)')
 _RAW_QUERY = re.compile(
     rf'\b{_TENANT_MODELS}\.query\b'
     rf'|db\.session\.get\(\s*{_TENANT_MODELS}\b'
@@ -56,13 +58,16 @@ def other_group_data(make_group, make_user, tmp_path):
         group_id=other.id, month=3, year=2026, filename='theirs.pdf',
         file_path=str(pdf), generated_by=officer.id, total_contributions=999,
     )
-    db.session.add(report)
+    run = SyncRun(group_id=other.id, warnings=[{'where': 'x', 'message': 'theirs'}], details={})
+    db.session.add_all([report, run])
     db.session.commit()
     return {
-        'report_id': report.id,
-        'user_id':   officer.id,
-        'role_id':   Role.for_group(other.id).first().id,
-        'group_id':  other.id,
+        'report_id':  report.id,
+        'user_id':    officer.id,
+        'role_id':    Role.for_group(other.id).first().id,
+        'group_id':   other.id,
+        'run_id':     run.id,
+        'purpose_id': PayoutPurpose.for_group(other.id).first().id,
     }
 
 

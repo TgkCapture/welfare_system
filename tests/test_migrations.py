@@ -75,6 +75,12 @@ def test_seeds_preset_roles(migrated_legacy_db):
     assert 'manage_users' not in roles['Treasurer']
 
 
+def test_seeds_default_payout_purposes(migrated_legacy_db):
+    assert sorted(_rows(migrated_legacy_db, 'SELECT name, is_active FROM payout_purposes')) == [
+        ('Funeral condolence', 1), ('Sick patient grant', 1), ('Wedding gift', 1),
+    ]
+
+
 def test_maps_users_to_group_roles_and_deactivates_viewers(migrated_legacy_db):
     users = _rows(migrated_legacy_db, """
         SELECT u.email, r.name, u.group_id IS NOT NULL, u.is_active, u.is_superadmin
