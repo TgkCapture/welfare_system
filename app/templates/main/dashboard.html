@@ -1,0 +1,159 @@
+<!-- app/templates/main/dashboard.html — one dashboard; each part shows if the officer's role allows it -->
+{% extends 'base.html' %}
+{% from 'components/ui.html' import page_header, card, stat, button, badge, empty_state, copy_field %}
+{% block title %}Dashboard — {{ brand.name }}{% endblock %}
+
+{% block content %}
+{% set can = current_user.has_permission %}
+{% set cur = brand.currency %}
+
+{% call page_header(brand.name, sub=('Latest month synced: ' ~ latest_label) if latest else 'No contributions synced yet') %}
+  {% if can('upload_data') %}{{ button('Upload or sync', href=url_for('main.upload_dashboard'), icon='file-arrow-up') }}{% endif %}
+{% endcall %}
+
+{% if not latest %}
+  {% call card(class='mb-6') %}
+    {% call empty_state('Nothing synced yet', 'Once a month of contributions is uploaded or synced from Google Sheets, '
+                        'who has paid and the balances appear here.', icon='file-excel') %}
+      {% if can('upload_data') %}
+      <div class="flex flex-wrap justify-center gap-2">
+        {{ button('Get the workbook template', href=url_for('main.workbook'), icon='download', variant='outline') }}
+        {{ button('Upload or sync', href=url_for('main.upload_dashboard'), icon='file-arrow-up') }}
+      </div>
+      {% endif %}
+    {% endcall %}
+  {% endcall %}
+{% else %}
+  <div class="stats-grid">
+    {{ stat(latest.contributors_count, 'paid in ' ~ latest_label, icon='circle-check', tone='green',
+            meta='of ' ~ (latest.contributors_count + latest.defaulters_count) ~ ' members counted') }}
+    {{ stat(latest.defaulters_count, 'not paid', icon='circle-xmark', tone='red' if latest.defaulters_count else 'green',
+            href=url_for('main.members') if can('manage_members') else None) }}
+    {{ stat('{:,.0f}'.format(latest.total_contributions), cur ~ ' received', icon='coins', tone='blue',
+            meta=('paid out ' ~ cur ~ ' ' ~ '{:,.0f}'.format(latest.money_dispensed)) if latest.money_dispensed else None) }}
+    {% if year %}
+      {{ stat('{:,.0f}'.format(year.closing_balance), cur ~ ' balance, end of ' ~ year.year, icon='scale-balanced',
+              tone='purple', meta='calculated from the workbook') }}
+    {% elif latest.book_balance is not none %}
+      {{ stat('{:,.0f}'.format(latest.book_balance), cur ~ ' book balance', icon='scale-balanced', tone='purple',
+              meta='as the sheet shows it') }}
+    {% else %}
+      {{ stat(members, 'active members', icon='users', tone='cyan') }}
+    {% endif %}
+  </div>
+{% endif %}
+
+<div class="grid gap-5 lg:grid-cols-5">
+  <div class="space-y-5 lg:col-span-3">
+
+    {% if trend %}
+    {% call card('Last ' ~ trend|length ~ ' months', icon='chart-column') %}
+      <div class="space-y-3">
+        {% for row in trend %}
+        <div class="grid grid-cols-[3.5rem_1fr_auto] items-center gap-3 text-sm">
+          <span class="text-slate-500">{{ row.label }}</span>
+          <div class="h-3 overflow-hidden rounded-full bg-red-100" title="{{ row.paid }} paid, {{ row.unpaid }} not paid">
+            <div class="h-full rounded-full bg-brand" style="width: {{ row.percent }}%"></div>
+          </div>
+          <span class="w-28 text-right tabular-nums">
+            <strong>{{ row.percent }}%</strong>
+            <span class="text-slate-500">· {{ '{:,.0f}'.format(row.total) }}</span>
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="form-hint mt-4">Share of members who paid each month, and the money received ({{ cur }}).</p>
+    {% endcall %}
+    {% endif %}
+
+    {% if can('view_reports') %}
+    {% call card('Recent reports', icon='file-lines', padded=False,
+                 extra=button('All reports', href=url_for('report.list'), variant='outline', size='sm')) %}
+      {% if reports %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Month</th><th>Paid</th><th>Received</th><th></th></tr></thead>
+          <tbody>
+            {% for r in reports %}
+            <tr>
+              <td><strong>{{ ['', 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][r.month] }} {{ r.year }}</strong>
+                <div class="text-xs text-slate-500">{{ r.generated_at.strftime('%d %b %Y') }}</div></td>
+              <td>{{ r.contributors_count }}</td>
+              <td>{{ cur }} {{ '{:,.0f}'.format(r.total_contributions or 0) }}</td>
+              <td class="text-right">{{ button('Open', href=url_for('report.preview_specific', report_id=r.id), variant='outline', size='sm') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        {{ empty_state('No reports yet', 'Reports are made when a month is uploaded or synced.', icon='file-lines') }}
+      {% endif %}
+    {% endcall %}
+    {% endif %}
+  </div>
+
+  <div class="space-y-5 lg:col-span-2">
+    {% if attention %}
+    {% call card('Needs attention', icon='bell', padded=False) %}
+      <ul class="divide-y divide-slate-200">
+        {% for item in attention %}
+        <li>
+          <a href="{{ url_for(item.endpoint, **item.args) }}" class="flex items-start gap-3 px-5 py-3.5 text-slate-700 hover:bg-slate-50 hover:text-slate-900">
+            <span class="mt-0.5 {{ {'warning': 'text-amber-500', 'primary': 'text-brand'}.get(item.tone, 'text-slate-400') }}">
+              <i class="fas fa-{{ item.icon }}"></i></span>
+            <span class="flex-1 text-sm">{{ item.text }}</span>
+            <i class="fas fa-chevron-right mt-1 text-xs text-slate-400"></i>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    {% endcall %}
+    {% endif %}
+
+    {% if last_run %}
+    {% call card('Last sync', icon='rotate') %}
+      <div class="flex items-center justify-between gap-3 text-sm">
+        <span>
+          {{ last_run.synced_at.strftime('%d %b %Y, %H:%M') }}
+          <span class="block text-xs text-slate-500">
+            {{ 'Standard workbook' if last_run.layout == 'standard' else 'Older layout' }}
+            · {{ last_run.details.get('months', [])|length }} month(s)
+            {% if last_run.user %}· {{ last_run.user.email }}{% endif %}
+          </span>
+        </span>
+        {% if last_run.warnings %}{{ badge(last_run.warnings|length ~ ' warning(s)', 'warning') }}
+        {% else %}{{ badge('No warnings', 'success') }}{% endif %}
+      </div>
+      <div class="mt-3">{{ button('Details', href=url_for('main.sync_run', run_id=last_run.id), variant='outline', size='sm') }}</div>
+    {% endcall %}
+    {% endif %}
+
+    {% call card("Members' page", icon='globe') %}
+      <p class="mb-3 text-sm text-slate-600">Share this link in the group: rules, who has paid, and each member's own contributions.</p>
+      {{ copy_field(public_url, aria="Members' page link") }}
+      {% if can('edit_settings') %}
+        <a href="{{ url_for('main.public_pages') }}" class="mt-3 inline-block text-sm">Group code and options</a>
+      {% endif %}
+    {% endcall %}
+
+    {% call card('Shortcuts', icon='bolt', padded=False) %}
+      <div class="grid grid-cols-2 gap-px bg-slate-200">
+        {% set shortcuts = [
+          ('upload_data',    'main.workbook',      'file-excel',     'Workbook'),
+          ('manage_members', 'main.members',       'users',          'Members'),
+          (None,             'main.welfare_rules', 'book-open',      'Rules'),
+          ('manage_users',   'main.admin_users',   'users-gear',     'Officers'),
+          ('edit_settings',  'main.settings',      'gear',           'Settings'),
+          ('view_reports',   'report.list',        'file-lines',     'Reports'),
+        ] %}
+        {% for perm, endpoint, icon, label in shortcuts if perm is none or can(perm) %}
+        <a href="{{ url_for(endpoint) }}" class="flex items-center gap-2.5 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900">
+          <i class="fas fa-{{ icon }} text-brand"></i>{{ label }}
+        </a>
+        {% endfor %}
+      </div>
+    {% endcall %}
+  </div>
+</div>
+{% endblock %}

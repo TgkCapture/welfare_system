@@ -10,6 +10,10 @@ module.exports = {
     './app/static/js/**/*.js',
     './app/**/*.py',
   ],
+  // Component variants whose names are built in templates ({{ tone }}, {{ category }})
+  safelist: [
+    { pattern: /^(stat-card__icon|badge|btn|flash|role-badge|status-dot|download-card)--/ },
+  ],
   theme: {
     extend: {
       colors: {
