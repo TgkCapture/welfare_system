@@ -12,9 +12,12 @@ from flask import (
     request, url_for,
 )
 from flask_login import current_user
+from markupsafe import Markup
 
 from app.controllers.report_controller import ReportController
 from app.decorators.permissions import permission_required
+from app.extensions import db
+from app.models.ledger import SyncRun
 from app.models.report import GeneratedReport
 from app.models.tenancy import current_group
 from app.services.excel_parser import ExcelParser
@@ -23,6 +26,8 @@ from app.services.file_cleanup import FileCleanupService
 from app.services.file_processor import FileProcessor
 from app.services.group_storage import group_folder
 from app.services.period_store import PeriodStore
+from app.services.standard_sync import StandardSync
+from app.services.standard_workbook import StandardWorkbook
 
 MONTH_NAMES = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -81,16 +86,25 @@ class UploadController:
                 flash('Please enter a valid year.', 'error')
                 return redirect(url_for('main.upload_dashboard'))
 
-            # --- 3. Parse Excel ---
-            parsed = ExcelParser.parse_excel(filepath, year=year, month=month)
-
-            # --- 4. Store the month (members, contributions, summary) ---
+            # --- 3–4. Read the workbook and store it ---
             group = current_group()
             source = 'google_sheets' if FileProcessor.uses_google_sheets(request) else 'upload'
-            sync = PeriodStore.sync(group, parsed, user=current_user, source=source)
+            if StandardWorkbook.is_standard(filepath):
+                # Standard layout: every year and month in the workbook is stored
+                run = StandardSync.sync(group, filepath, user=current_user, source=source)
+            else:
+                # Older layout: only the chosen month is read
+                parsed = ExcelParser.parse_excel(filepath, year=year, month=month)
+                run = UploadController._record_legacy_sync(
+                    group, PeriodStore.sync(group, parsed, user=current_user, source=source), source,
+                )
 
             # --- 5. Generate the PDF from the stored month ---
             data = PeriodStore.report_data(group.id, year, month)
+            if data is None:
+                flash(f'The workbook was synced, but it has no contributions for '
+                      f'{MONTH_NAMES[month - 1]} {year} yet, so no report was made.', 'warning')
+                return redirect(url_for('main.sync_run', run_id=run.id))
             report_path = PDFGenerator.save_contribution_report(data, group_folder('reports'))
 
             # --- 6. Record the report; remember it for preview / download ---
@@ -102,7 +116,7 @@ class UploadController:
             UploadController._run_background_cleanup()
 
             flash('Report generated successfully!', 'success')
-            UploadController._flash_sync_notes(sync)
+            UploadController._flash_sync_notes(run)
             return redirect(url_for('report.preview'))
 
         except ValueError as e:
@@ -143,21 +157,40 @@ class UploadController:
             return None
 
     @staticmethod
-    def _flash_sync_notes(sync):
-        """Tell the officer about names the sync couldn't match or found twice."""
-        if sync['new_members']:
-            names = ', '.join(sync['new_members'][:10])
-            more = len(sync['new_members']) - 10
+    def _record_legacy_sync(group, result, source):
+        """Record an older-layout sync, turning repeated names into warnings."""
+        month_name = MONTH_NAMES[result['month'] - 1]
+        run = SyncRun(
+            group_id=group.id, synced_by=current_user.id, source=source, layout='legacy',
+            warnings=[
+                {'where': f"{result['year']} sheet, {month_name}",
+                 'message': f'{name} is listed more than once; the amounts were added together.'}
+                for name in sorted(set(result['repeated_names']))
+            ],
+            details={'years': [result['year']], 'months': [[result['year'], result['month']]],
+                     'new_members': result['new_members']},
+        )
+        db.session.add(run)
+        db.session.commit()
+        return run
+
+    @staticmethod
+    def _flash_sync_notes(run):
+        """Point the officer at new names and warnings from the sync."""
+        new_members = run.details.get('new_members', [])
+        if new_members:
+            names = ', '.join(new_members[:10])
+            more = len(new_members) - 10
             flash(
-                f"{len(sync['new_members'])} new member(s) added: {names}"
+                f"{len(new_members)} new member(s) added: {names}"
                 f"{f' and {more} more' if more > 0 else ''}. "
                 "If any is a respelling of an existing member, they can be merged.",
                 'info',
             )
-        if sync['repeated_names']:
+        if run.warnings:
             flash(
-                f"Listed more than once this month (amounts added together): "
-                f"{', '.join(sorted(set(sync['repeated_names'])))}.",
+                Markup('The workbook raised {} warning(s). <a href="{}">Review them</a>.').format(
+                    len(run.warnings), url_for('main.sync_run', run_id=run.id)),
                 'warning',
             )
 
