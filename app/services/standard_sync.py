@@ -21,7 +21,7 @@ Checks raise warnings, never errors, so a sync always stores what it can:
   - payouts with an unknown purpose or member, a future date, or a duplicate
   - payments outside a member's Joined / Left months
   - unknown or duplicate Member IDs, and members missing from a year's sheet
-    (who are not counted that year, as on the old sheets)
+    (who are counted as unpaid: a member who paid nothing is still a member)
 """
 import calendar
 from collections import defaultdict
@@ -188,13 +188,14 @@ class StandardSync:
                 else:
                     members[member] = [row.row, dict(row.amounts), row.excess]
 
-            # No row means not on the list that year: not counted, but worth a look
+            # A member with no row paid nothing that year: still counted, as unpaid
             missing = [m for m in self.by_code.values() if m not in members
                        and any(m.is_member_in(year, mo) for mo in range(1, 13))]
             for member in missing:
                 self.data.warn(sheet, f'{member.code} {member.display_name} is a member in {year} '
-                                      'but has no row, so they are not counted that year. '
-                                      'Add a row if they should be.')
+                                      'but has no row, so they are counted as unpaid. '
+                                      'Add their row, or set their Left month if they have left.')
+                members[member] = [None, {}, 0.0]
 
             credit_in = {member: self.credit[member] for member in members}
             for month in range(1, 13):

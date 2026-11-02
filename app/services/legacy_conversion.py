@@ -20,7 +20,8 @@ What the conversion decides, and lists in the review for a person to check:
   - Joined: blank for members on the first year's sheet; otherwise the first
     month they paid in the first year they appear (January if they never
     paid that year). Left: December of the last year they appear, unless they
-    are on the latest sheet.
+    are on the latest sheet. A member missing from a sheet between two they
+    are on paid nothing that year: they get an empty row there.
   - Rates: the most common amount paid each year, from January of that year
     (the first rate from the first month anyone paid).
   - Excess: a note like "1500N" beside a member's months means they paid that
@@ -35,7 +36,6 @@ What the conversion decides, and lists in the review for a person to check:
     carry-over that disagreed with the previous closing balance.
 """
 import calendar
-import difflib
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
@@ -43,15 +43,14 @@ from datetime import date
 
 from openpyxl import load_workbook
 
-from app.models.ledger import DEFAULT_PAYOUT_PURPOSES
 from app.models.member import normalise_name, tidy_name
+from app.services.name_matching import may_be_same_person, similarity
 from app.services.workbook_template import SpecMember, SpecPayout, WorkbookSpec
 
 UNSPECIFIED = 'Unspecified'
 _MONTHS = [m.casefold() for m in calendar.month_name[1:]]
 _YEAR_SHEET = re.compile(r'^\s*(\d{4})\s*$')
 _SUMMARY_ROW = re.compile(r'\btotals?\b|\bbalance\b|\bdispensed\b|\bcarry\b|\bmoney\b', re.I)
-_SIMILAR = 0.8
 _EXCESS_NOTE = re.compile(r'^\s*([\d,]+(?:\.\d+)?)\s*N\s*$', re.I)   # e.g. 1500N
 
 
@@ -79,13 +78,15 @@ class Conversion:
 class LegacyConverter:
 
     def __init__(self, path: str, title: str, merges: dict = None, drop_repeated_payouts: bool = False,
-                 today: date = None):
+                 today: date = None, purposes: list = None):
         self.path, self.title = path, title
         # normalised name to merge → normalised name to keep
         self.merges = {normalise_name(k): normalise_name(v) for k, v in (merges or {}).items()}
         # A merged member is shown under the name chosen to keep
         self.kept_names = {normalise_name(v): tidy_name(v) for v in (merges or {}).values()}
         self.drop_repeated_payouts = drop_repeated_payouts
+        # The group's own payout purposes, for the dropdown; old payouts are "Unspecified"
+        self.purposes = [p for p in (purposes or []) if p.casefold() != UNSPECIFIED.casefold()]
         self.today = today or date.today()
 
     def convert(self) -> Conversion:
@@ -113,10 +114,10 @@ class LegacyConverter:
             title=self.title,
             years=[s.year for s in sheets],
             members=list(members.values()),
-            purposes=DEFAULT_PAYOUT_PURPOSES + [UNSPECIFIED],
+            purposes=self.purposes + [UNSPECIFIED],
         )
         self._joined_left(spec, sheets, members, appearances, first_paid, review)
-        self._contributions(spec, sheets, members, review)
+        self._contributions(spec, sheets, members, appearances, review)
         self._rates(spec, sheets, review)
         self._payouts(spec, sheets, members, review)
         self._balances(spec, sheets, review)
@@ -233,7 +234,8 @@ class LegacyConverter:
                 notes.append(f'Left guessed (not on the {years[-1] + 1} sheet)')
             gaps = [y for y in range(years[0], years[-1] + 1) if y not in years]
             if gaps:
-                notes.append(f'Missing from {", ".join(map(str, gaps))}')
+                notes.append(f'Not on the {", ".join(map(str, gaps))} sheet: given an empty row there, '
+                             'so counted as unpaid (paid nothing that year)')
             if notes:
                 member.notes = '; '.join(notes) + '. Please check.'
                 joined = f'{member.joined:%b %Y}' if member.joined else '—'
@@ -251,7 +253,7 @@ class LegacyConverter:
 
     # ==================== CONTRIBUTIONS AND RATES ====================
 
-    def _contributions(self, spec, sheets, members, review):
+    def _contributions(self, spec, sheets, members, appearances, review):
         spec.year_members = {}
         excess_lines = []
         for sheet in sheets:
@@ -268,6 +270,11 @@ class LegacyConverter:
                 else:
                     codes.append(code)
                     amounts[code] = dict(paid)
+            # A member missing between two sheets they're on paid nothing that year: still listed
+            for key, member in members.items():
+                years = appearances[key]
+                if min(years) < sheet.year < max(years) and member.code not in amounts:
+                    codes.append(member.code)
             spec.year_members[sheet.year] = codes
             spec.contributions[sheet.year] = amounts
             spec.excess[sheet.year] = excess
@@ -375,32 +382,10 @@ class LegacyConverter:
             for b in keys[i + 1:]:
                 if set(appearances[a]) & set(appearances[b]):
                     continue        # both on one sheet: two people
-                score = difflib.SequenceMatcher(None, a, b).ratio()
-                if score >= _SIMILAR or _short_form(a, b) or _short_form(b, a):
+                if may_be_same_person(a, b):
                     # Keep the fuller name, then the one on more sheets
                     rank = lambda k: (len(k.split()), len(set(appearances[k])), len(k))
                     keep, merge = (a, b) if rank(a) >= rank(b) else (b, a)
-                    pairs.append((members[keep].name, members[merge].name, round(score, 2),
+                    pairs.append((members[keep].name, members[merge].name, similarity(a, b),
                                   sorted(set(appearances[keep])), sorted(set(appearances[merge]))))
         return sorted(pairs, key=lambda p: -p[2])
-
-
-def _short_form(a, b):
-    """True if *a* could be a shorter or variant way of writing *b*.
-
-    Every word of *a* must match a different word of *b*, in order, by starting
-    it or by close spelling: 'chiso mwale' / 'chisomo mwale', 'wapozga' /
-    'wapozga munyenyembe', 'agness' / 'agnes nomsa'. Same words in another
-    order also count.
-    """
-    wa, wb = a.split(), b.split()
-    if wa == wb or len(wa) > len(wb):
-        return False
-    if sorted(wa) == sorted(wb):
-        return True
-    rest = iter(wb)
-    return all(any(_word_matches(x, y) for y in rest) for x in wa)
-
-
-def _word_matches(x, y):
-    return (len(x) >= 3 and y.startswith(x)) or difflib.SequenceMatcher(None, x, y).ratio() >= 0.8
