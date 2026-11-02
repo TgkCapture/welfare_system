@@ -229,7 +229,7 @@ Step 1e delivered:
 
 Delivered in steps: **2a** stored data and sync (done), **2b** standard
 workbook template, parser and sync checks (done), **2c** MGSS.xlsx conversion for
-review, **2d** Members screen (merge, links, PINs), **2e** column mapping for
+review (done; awaiting the user's review), **2d** Members screen (merge, links, PINs), **2e** column mapping for
 older layouts, with reports built from stored data.
 
 Step 2a delivered:
@@ -298,6 +298,65 @@ Step 2b delivered:
   listing its warnings. Payout purposes are managed under Settings.
 - Google Sheets syncs now export the whole spreadsheet (every tab), falling
   back to the single year sheet if the export fails.
+
+Step 2c delivered:
+- `flask convert-legacy-workbook SOURCE [--merges CSV] [--drop-repeated-payouts]`
+  (`app/services/legacy_conversion.py`). It writes three files to
+  `conversion/`, which is git-ignored because they contain real member data:
+  - the standard workbook
+  - a review report (`*_review.md`)
+  - name-merge suggestions (`*_name_suggestions.csv`). Put "yes" in the
+    confirm column and re-run with `--merges` to apply them.
+- It reads the visible `YYYY` sheets. The `Old` sheet turned out to be an
+  exact copy of 2023's August–December, and the hidden month sheets are
+  leftovers, so both are ignored.
+- The confirmed mistakes are corrected by construction:
+  - Only the first year's carry-over is used. Later openings are calculated,
+    so the +2,000 into 2024 and the −16,000 into 2026 disappear, and the
+    mislabelled 2023 carry-over row no longer matters (it was empty, giving
+    an opening of 0).
+  - Payouts are read cell by cell, so the 2025 formula that missed rows
+    50–59 doesn't matter.
+  - `--drop-repeated-payouts` drops the three 2025 payouts (36,760) repeated
+    in 2026.
+- Decisions listed for review: Joined/Left months guessed from which sheets a
+  member is on and their first payment; rates taken as each year's most
+  common payment (500 from 2023, 1,000 from January 2025); payouts dated
+  31 December (today for the current year) with the purpose "Unspecified";
+  and a note found in an unused column.
+- Self-check: the converted workbook is synced into a throwaway database.
+  Every one of the 48 months' totals matches the old sheet, and the 18
+  warnings the treasurer will see are listed in the review.
+- Sync rule changed along the way: a member with no row on a year's sheet is
+  not counted that year (a warning is still raised). This matches the old
+  sheets, where unlisted members never counted as owing.
+- Before Mzugoss switches: the user reviews the workbook and report, confirms
+  name merges, and then the treasurer fills in real payout dates and purposes.
+
+Step 2c, after the user's review:
+- Confirmed merges (`conversion/MGSS_merges.csv`): Steven / Steve Ngoma,
+  Agness / Agnes Nomsa, wapozga / wapozga Munyenyembe. A merged member is
+  shown under the kept name. MGSS now converts to 63 members.
+- **Credit for overpayments.** A note like "1500N" means a member paid that
+  much beyond the year's months, to be carried into the next year. The old
+  sheet left it out of the book balance.
+  - The standard workbook has an **Excess** column after December (migration
+    `c4349d6178c3`). Money in the Excess column counts in the year it was
+    paid, and becomes credit that covers the member's first months of the next
+    year, which show as paid without being typed.
+  - With a known rate, paying more than the rate in a month also covers the
+    following month(s).
+  - Contributions record `credit_used`, and `member_years` keeps each member's
+    credit brought in, excess paid and carried out. Reports count
+    credit-covered months as paid, while money totals count only money
+    received.
+  - The converter turns "1500N" notes into the Excess column, which raises
+    2026's paid-in by 1,500.
+- Rates: the first rate starts in the first month anyone paid (500 from
+  August 2023). Rates change whenever the group decides, by adding a row to
+  the Rates sheet.
+- Payouts must show what they were for and when: the treasurer fills these in
+  on the Payouts sheet. Until then each sync lists them as warnings.
 
 ### Findings from the real Mzugoss workbook (MGSS.xlsx)
 

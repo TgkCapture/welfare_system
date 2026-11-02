@@ -21,3 +21,6 @@ instance/welfare_dev.db
 /*.csv
 instance/*.db
 backups/
+
+# Legacy workbook conversions (real member data)
+conversion/

@@ -175,7 +175,8 @@ class ReportController:
 
     @staticmethod
     def _render_paid_members(report):
-        if PeriodStore.report_data(report.group_id, report.year, report.month) is None:
+        data = PeriodStore.report_data(report.group_id, report.year, report.month)
+        if data is None:
             return ReportController._not_stored_redirect(report)
 
         paid_members = PeriodStore.paid_members(report.group_id, report.year, report.month)
@@ -187,7 +188,7 @@ class ReportController:
             month=MONTH_NAMES[report.month - 1],
             year=report.year,
             total_paid=len(paid_members),
-            total_contributions=sum(m['amount'] for m in paid_members),
+            total_contributions=data['total_contributions'],   # money received, not credit
         )
 
     # ==================== REPORTS LIST ====================

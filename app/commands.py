@@ -12,6 +12,9 @@ Available commands:
   flask create-admin        — create a group's first officer (Chairperson)
   flask create-superadmin   — create a platform superadmin
 """
+import calendar
+import os
+
 import click
 from flask import current_app
 from werkzeug.security import generate_password_hash
@@ -144,6 +147,63 @@ def init_commands(app) -> None:
         )
 
     # ------------------------------------------------------------------
+    # convert-legacy-workbook
+    # ------------------------------------------------------------------
+
+    @app.cli.command('convert-legacy-workbook')
+    @click.argument('source', type=click.Path(exists=True, dir_okay=False))
+    @click.option('--title', default='Mzugoss Class of 2018', show_default=True,
+                  help='Group name shown in the workbook.')
+    @click.option('--out-dir', default='conversion', show_default=True,
+                  help='Folder for the workbook, review and name suggestions (git-ignored).')
+    @click.option('--merges', 'merges_file', type=click.Path(exists=True, dir_okay=False),
+                  help='A name-suggestions CSV with "yes" in the confirm column for pairs to merge.')
+    @click.option('--drop-repeated-payouts', is_flag=True, default=False,
+                  help="Drop payouts that repeat the previous year's (same member and amount).")
+    def convert_legacy_workbook(source, title, out_dir, merges_file, drop_repeated_payouts):
+        """Convert an old-layout workbook to the standard layout, with a review report."""
+        import csv
+
+        from app.services.legacy_conversion import LegacyConverter
+        from app.services.workbook_template import write_workbook
+
+        merges = {}
+        if merges_file:
+            with open(merges_file, newline='', encoding='utf-8') as fh:
+                for row in csv.DictReader(fh):
+                    if (row.get('confirm') or '').strip().lower() in ('yes', 'y', 'x', '1'):
+                        merges[row['merge']] = row['keep']
+
+        conversion = LegacyConverter(source, title, merges=merges,
+                                     drop_repeated_payouts=drop_repeated_payouts).convert()
+
+        os.makedirs(out_dir, exist_ok=True)
+        stem = os.path.splitext(os.path.basename(source))[0]
+        workbook_path = os.path.join(out_dir, f'{stem}_standard.xlsx')
+        write_workbook(conversion.spec).save(workbook_path)
+
+        warnings, mismatches = _verify_conversion(workbook_path, conversion.legacy_totals)
+        review = conversion.review + _verification_section(merges, warnings, mismatches)
+        review_path = os.path.join(out_dir, f'{stem}_review.md')
+        with open(review_path, 'w', encoding='utf-8') as fh:
+            fh.write('\n'.join(review) + '\n')
+
+        suggestions_path = os.path.join(out_dir, f'{stem}_name_suggestions.csv')
+        with open(suggestions_path, 'w', newline='', encoding='utf-8') as fh:
+            writer = csv.writer(fh)
+            writer.writerow(['keep', 'merge', 'similarity', 'keep_years', 'merge_years', 'confirm'])
+            for keep, merge, score, keep_years, merge_years in conversion.suggestions:
+                writer.writerow([keep, merge, score, ' '.join(map(str, keep_years)),
+                                 ' '.join(map(str, merge_years)), ''])
+
+        click.secho(f'✓ Workbook:         {workbook_path}', fg='green')
+        click.echo(f'  Review:           {review_path}')
+        click.echo(f'  Name suggestions: {suggestions_path} ({len(conversion.suggestions)} pair(s))')
+        colour = 'green' if not mismatches else 'red'
+        click.secho(f'  Check: {len(mismatches)} month(s) differ from the old sheet; '
+                    f'{len(warnings)} sync warning(s).', fg=colour)
+
+    # ------------------------------------------------------------------
     # create-group
     # ------------------------------------------------------------------
 
@@ -215,6 +275,61 @@ def init_commands(app) -> None:
         _create_account(
             email, password, label='Superadmin', group_id=None, is_superadmin=True,
         )
+
+
+def _verify_conversion(workbook_path, legacy_totals):
+    """Sync the converted workbook into a throwaway database and compare month totals.
+
+    Returns (sync warnings, [(year, month, old total, converted total)]).
+    """
+    import tempfile
+
+    from app import create_app
+    from app.extensions import db
+    from app.models.group import Group, GroupSettings
+    from app.models.ledger import PayoutPurpose
+    from app.models.member import PeriodSummary
+    from app.services.standard_sync import StandardSync
+
+    scratch = tempfile.mkdtemp()
+    check_app = create_app('testing', {
+        'SQLALCHEMY_DATABASE_URI': 'sqlite://',
+        'UPLOAD_FOLDER': os.path.join(scratch, 'uploads'),
+        'REPORT_FOLDER': os.path.join(scratch, 'reports'),
+        'LOGS_FOLDER': os.path.join(scratch, 'logs'),
+    })
+    with check_app.app_context():
+        db.create_all()
+        group = Group(name='Check', slug='check', settings=GroupSettings(display_name='Check'))
+        db.session.add(group)
+        PayoutPurpose.seed_defaults(group)
+        db.session.commit()
+        run = StandardSync.sync(group, workbook_path)
+        stored = {(s.year, s.month): s.total_contributions for s in PeriodSummary.for_group(group.id)}
+        mismatches = [
+            (year, month, old, stored.get((year, month), 0.0))
+            for (year, month), old in sorted(legacy_totals.items())
+            if abs(old - stored.get((year, month), 0.0)) > 0.005
+        ]
+        warnings = list(run.warnings)
+        db.session.remove()
+    return warnings, mismatches
+
+
+def _verification_section(merges, warnings, mismatches):
+    lines = ['## Check', '']
+    if merges:
+        lines += [f'Merged as confirmed: ' + '; '.join(f'{m} → {k}' for m, k in merges.items()) + '.', '']
+    if mismatches:
+        lines += ['**Months whose total differs from the old sheet:**', '',
+                  '| Month | Old sheet | Converted |', '| --- | ---: | ---: |']
+        lines += [f'| {calendar.month_name[m]} {y} | {old:,.0f} | {new:,.0f} |' for y, m, old, new in mismatches]
+    else:
+        lines.append('Every month\'s total paid in matches the old sheet.')
+    lines += ['', f'Syncing the converted workbook gives {len(warnings)} warning(s) '
+                  '(the treasurer sees these after each sync until they are fixed):', '']
+    lines += [f"- {w['where']}: {w['message']}" for w in warnings] or ['- none']
+    return lines + ['']
 
 
 def _create_account(email, password, label, **fields) -> None:
