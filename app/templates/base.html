@@ -44,6 +44,10 @@
              class="topnav__link{% if ep == 'main.upload_dashboard' %} is-active{% endif %}">
             <i class="fas fa-file-upload"></i><span>Generate</span>
           </a>
+          <a href="{{ url_for('main.workbook') }}"
+             class="topnav__link{% if ep in ('main.workbook', 'main.sync_run') %} is-active{% endif %}">
+            <i class="fas fa-file-excel"></i><span>Workbook</span>
+          </a>
         {% endif %}
 
         {% if current_user.has_permission('view_reports') %}
@@ -164,6 +168,9 @@
       {% if current_user.has_permission('upload_data') %}
         <a href="{{ url_for('main.upload_dashboard') }}" class="mobile-nav__link">
           <i class="fas fa-file-upload"></i>Generate Report
+        </a>
+        <a href="{{ url_for('main.workbook') }}" class="mobile-nav__link">
+          <i class="fas fa-file-excel"></i>Workbook
         </a>
       {% endif %}
 

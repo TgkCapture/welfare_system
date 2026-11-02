@@ -1,0 +1,71 @@
+<!-- app/templates/main/sync_run.html -->
+{% extends 'base.html' %}
+{% set month_names = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] %}
+{% block title %}Sync — Welfare System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-sync"></i> Sync of {{ run.synced_at.strftime('%d %b %Y %H:%M') }}</h1>
+    <p class="page-header__sub">
+      {{ 'Standard workbook' if run.layout == 'standard' else 'Older layout' }}
+      · {{ 'Google Sheets' if run.source == 'google_sheets' else 'Uploaded file' }}
+      {% if run.user %}· by {{ run.user.email }}{% endif %}
+    </p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.workbook') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Workbook
+    </a>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:1.25rem;">
+  <div class="card__header">
+    <h2 class="card__title"><i class="fas fa-database"></i> Stored</h2>
+  </div>
+  <div class="card__body text-sm">
+    {% set months = run.details.months %}
+    {% if months %}
+      <p><strong>{{ months|length }} month(s):</strong>
+        {% for year, group in months|groupby(0) %}
+          {{ year }} ({% for m in group %}{{ month_names[m[1]] }}{{ ', ' if not loop.last }}{% endfor %}){{ '; ' if not loop.last }}
+        {% endfor %}
+      </p>
+    {% else %}
+      <p>No months with payments were found.</p>
+    {% endif %}
+    {% set new_members = run.details.new_members %}
+    {% if new_members %}
+      <p style="margin-top:.75rem;"><strong>{{ new_members|length }} new member(s):</strong> {{ new_members|join(', ') }}</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title"><i class="fas fa-exclamation-triangle"></i> Warnings</h2>
+    <span class="badge {{ 'badge--warning' if run.warnings else 'badge--success' }}">{{ run.warnings|length }}</span>
+  </div>
+  <div class="table-wrap">
+    {% if run.warnings %}
+    <table class="data-table">
+      <thead><tr><th>Where</th><th>What to check</th></tr></thead>
+      <tbody>
+        {% for w in run.warnings %}
+        <tr>
+          <td class="text-sm" style="white-space:nowrap;">{{ w.where }}</td>
+          <td class="text-sm">{{ w.message }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="padding:1.25rem;" class="text-sm">The workbook passed every check.</p>
+    {% endif %}
+  </div>
+</div>
+<p class="form-hint" style="margin-top:1rem;">
+  Warnings don't stop a sync: everything usable was stored. Fix the workbook and sync again to clear them.
+</p>
+{% endblock %}
