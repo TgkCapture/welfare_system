@@ -7,14 +7,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
   <meta name="referrer" content="no-referrer">
-  <title>My contributions — {{ group.settings.display_name if group.settings else group.name }}</title>
+  <title>My contributions — {{ brand.name }}</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  {% if brand.color != '#1d4ed8' %}<style>:root { --clr-primary: {{ brand.color }}; }</style>{% endif %}
 </head>
 <body>
   <main class="main-content" style="max-width:64rem;margin:0 auto;padding:1.5rem 1rem;">
-    <p class="text-sm text-muted">{{ group.settings.display_name if group.settings else group.name }}</p>
+    <p class="text-sm text-muted">{{ brand.name }}</p>
     <h1 class="page-header__title" style="margin-bottom:.25rem;">{{ member.display_name }}</h1>
     <p class="text-sm text-muted" style="margin-bottom:1.25rem;">Your contributions, month by month.</p>
 

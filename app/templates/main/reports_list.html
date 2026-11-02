@@ -1,6 +1,6 @@
 <!-- app/templates/main/reports_list.html -->
 {% extends 'base.html' %}
-{% block title %}Reports — Mzugoss Welfare{% endblock %}
+{% block title %}Reports — {{ brand.name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -68,7 +68,7 @@
 
     <div class="report-card__stats">
       <div class="rstat">
-        <div class="rstat__val">MWK {{ "%.0f"|format(r.total_contributions) }}</div>
+        <div class="rstat__val">{{ brand.currency }} {{ "%.0f"|format(r.total_contributions) }}</div>
         <div class="rstat__lbl">Contributions</div>
       </div>
       <div class="rstat">

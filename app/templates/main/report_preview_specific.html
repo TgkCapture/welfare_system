@@ -1,6 +1,6 @@
 <!-- app/templates/main/report_preview_specific.html -->
 {% extends 'base.html' %}
-{% block title %}Report — {{ month_names[report.month-1] }} {{ report.year }} — Mzugoss Welfare{% endblock %}
+{% block title %}Report — {{ month_names[report.month-1] }} {{ report.year }} — {{ brand.name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -39,7 +39,7 @@
   <div class="stat-card">
     <div class="stat-card__icon stat-card__icon--green"><i class="fas fa-money-bill-wave"></i></div>
     <div>
-      <div class="stat-card__value" style="font-size:1.25rem;">MWK {{ "%.2f"|format(report.total_contributions) }}</div>
+      <div class="stat-card__value" style="font-size:1.25rem;">{{ brand.currency }} {{ "%.2f"|format(report.total_contributions) }}</div>
       <div class="stat-card__label">Total Contributions</div>
     </div>
   </div>
@@ -61,7 +61,7 @@
   <div class="stat-card">
     <div class="stat-card__icon stat-card__icon--cyan"><i class="fas fa-hand-holding-usd"></i></div>
     <div>
-      <div class="stat-card__value" style="font-size:1.25rem;">MWK {{ "%.2f"|format(report.money_dispensed) }}</div>
+      <div class="stat-card__value" style="font-size:1.25rem;">{{ brand.currency }} {{ "%.2f"|format(report.money_dispensed) }}</div>
       <div class="stat-card__label">Money Dispensed</div>
     </div>
   </div>
@@ -70,7 +70,7 @@
   <div class="stat-card">
     <div class="stat-card__icon stat-card__icon--purple"><i class="fas fa-book"></i></div>
     <div>
-      <div class="stat-card__value" style="font-size:1.25rem;">MWK {{ "%.2f"|format(report.total_book_balance) }}</div>
+      <div class="stat-card__value" style="font-size:1.25rem;">{{ brand.currency }} {{ "%.2f"|format(report.total_book_balance) }}</div>
       <div class="stat-card__label">Book Balance</div>
     </div>
   </div>

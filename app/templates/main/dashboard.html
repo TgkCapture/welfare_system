@@ -1,7 +1,7 @@
 <!-- app/templates/main/dashboard.html -->
 {% extends 'base.html' %}
 
-{% block title %}Dashboard - Mzugoss Welfare{% endblock %}
+{% block title %}Dashboard — {{ brand.name }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
@@ -180,7 +180,7 @@
                 </div>
                 <div class="report-stats">
                     <div class="report-stat">
-                        <span class="stat-value">MWK {{ "%.2f"|format(report.total) }}</span>
+                        <span class="stat-value">{{ brand.currency }} {{ "%.2f"|format(report.total) }}</span>
                         <span class="stat-label">Total</span>
                     </div>
                     <div class="report-stat">

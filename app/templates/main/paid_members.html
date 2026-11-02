@@ -1,6 +1,6 @@
 <!-- app/templates/main/paid_members.html -->
 {% extends 'base.html' %}
-{% block title %}Paid Members — {{ month }} {{ year }} — Mzugoss Welfare{% endblock %}
+{% block title %}Paid Members — {{ month }} {{ year }} — {{ brand.name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -26,13 +26,13 @@
   </div>
   <div class="summary-strip__divider"></div>
   <div class="summary-strip__item">
-    <span class="summary-strip__val">MWK {{ "%.2f"|format(total_contributions) }}</span>
+    <span class="summary-strip__val">{{ brand.currency }} {{ "%.2f"|format(total_contributions) }}</span>
     <span class="summary-strip__lbl">Total Collected</span>
   </div>
   {% if total_paid > 0 %}
   <div class="summary-strip__divider"></div>
   <div class="summary-strip__item">
-    <span class="summary-strip__val">MWK {{ "%.2f"|format(total_contributions / total_paid) }}</span>
+    <span class="summary-strip__val">{{ brand.currency }} {{ "%.2f"|format(total_contributions / total_paid) }}</span>
     <span class="summary-strip__lbl">Average</span>
   </div>
   {% endif %}
@@ -56,7 +56,7 @@
           <td class="text-muted text-sm">{{ loop.index }}</td>
           <td style="font-weight:600;">{{ m.name }}</td>
           <td>
-            <span class="amount-pill">MWK {{ "%.2f"|format(m.amount) }}</span>
+            <span class="amount-pill">{{ brand.currency }} {{ "%.2f"|format(m.amount) }}</span>
           </td>
           <td>
             <span class="badge badge--success">
@@ -70,7 +70,7 @@
         <tr>
           <td colspan="2" style="font-weight:700;padding:.875rem 1rem;">Total</td>
           <td style="font-weight:700;padding:.875rem 1rem;">
-            MWK {{ "%.2f"|format(total_contributions) }}
+            {{ brand.currency }} {{ "%.2f"|format(total_contributions) }}
           </td>
           <td></td>
         </tr>

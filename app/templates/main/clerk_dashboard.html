@@ -1,6 +1,6 @@
 <!-- app/templates/main/clerk_dashboard.html -->
 {% extends 'base.html' %}
-{% block title %}Clerk Dashboard — Mzugoss Welfare{% endblock %}
+{% block title %}Clerk Dashboard — {{ brand.name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -109,7 +109,7 @@
             {{ r.month }} {{ r.year }}
           </div>
           <div class="report-row__stats">
-            <span class="text-sm">MWK {{ "%.0f"|format(r.total_contributions) }}</span>
+            <span class="text-sm">{{ brand.currency }} {{ "%.0f"|format(r.total_contributions) }}</span>
             <span class="badge badge--primary">{{ r.contributors }} paid</span>
             {% if r.defaulters %}<span class="badge badge--warning">{{ r.defaulters }} missed</span>{% endif %}
           </div>

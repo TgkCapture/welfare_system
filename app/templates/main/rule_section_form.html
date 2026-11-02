@@ -1,0 +1,67 @@
+<!-- app/templates/main/rule_section_form.html -->
+{% extends 'base.html' %}
+{% from 'main/_rules.html' import render_blocks, rules_styles %}
+{% block title %}{{ section.title }} — Edit Rules — {{ brand.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-edit"></i> {{ section.title }}</h1>
+    <p class="page-header__sub">Edit this section of the welfare rules</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.rules_editor') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> All sections
+    </a>
+  </div>
+</div>
+
+<div style="display:grid;gap:1.25rem;grid-template-columns:repeat(auto-fit,minmax(22rem,1fr));align-items:start;">
+  <div class="card">
+    <div class="card__body">
+      <form method="POST" action="{{ url_for('main.edit_rule_section', section_id=section.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label class="form-label" for="title">Title</label>
+          <input type="text" id="title" name="title" class="form-control" maxlength="120" required
+                 value="{{ section.title }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="subtitle">Subtitle (optional)</label>
+          <input type="text" id="subtitle" name="subtitle" class="form-control" maxlength="200"
+                 value="{{ section.subtitle or '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="body">Text</label>
+          <textarea id="body" name="body" class="form-control" rows="14"
+                    style="font-family:monospace;font-size:.875rem;">{{ section.body }}</textarea>
+        </div>
+        <button type="submit" class="btn btn--primary"><i class="fas fa-save"></i> Save</button>
+      </form>
+    </div>
+  </div>
+
+  <div>
+    <div class="card" style="margin-bottom:1.25rem;">
+      <div class="card__header"><h2 class="card__title"><i class="fas fa-eye"></i> As saved</h2></div>
+      <div class="rule-section__body">{{ render_blocks(blocks) }}</div>
+    </div>
+    <div class="card">
+      <div class="card__header"><h2 class="card__title"><i class="fas fa-question-circle"></i> How to format</h2></div>
+      <div class="card__body text-sm">
+        <table class="data-table">
+          <tbody>
+            <tr><td><code>**Amount:** K50,000</code></td><td><b>Amount:</b> K50,000</td></tr>
+            <tr><td><code>*regularly*</code></td><td><i>regularly</i></td></tr>
+            <tr><td><code>- Mother</code></td><td>• a bulleted list (one line per item)</td></tr>
+            <tr><td><code>1. Pay on time</code></td><td>1. a numbered list</td></tr>
+            <tr><td><code>&gt; Example: …</code></td><td>a highlighted note</td></tr>
+            <tr><td>a blank line</td><td>starts a new paragraph</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{{ rules_styles() }}
+{% endblock %}

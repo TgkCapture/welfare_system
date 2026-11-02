@@ -1,6 +1,6 @@
 <!-- app/templates/main/admin_dashboard.html -->
 {% extends 'base.html' %}
-{% block title %}Admin Dashboard — Mzugoss Welfare{% endblock %}
+{% block title %}Admin Dashboard — {{ brand.name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -168,7 +168,7 @@
             {{ r.month }} {{ r.year }}
           </div>
           <div class="report-row__stats">
-            <span>MWK {{ "%.0f"|format(r.total_contributions) }}</span>
+            <span>{{ brand.currency }} {{ "%.0f"|format(r.total_contributions) }}</span>
             <span class="badge badge--primary">{{ r.contributors }} paid</span>
           </div>
           <div class="report-row__date text-muted text-xs">{{ r.generated_date }}</div>

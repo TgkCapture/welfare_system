@@ -1,6 +1,6 @@
 <!-- app/templates/auth/login.html -->
 {% extends 'base.html' %}
-{% block title %}Log In — {{ group.settings.display_name if group else 'Platform Administration' }}{% endblock %}
+{% block title %}Log In — {{ brand.name if group else 'Platform Administration' }}{% endblock %}
 
 {% block extra_css %}
 {% include 'auth/_auth_styles.html' %}
@@ -12,7 +12,7 @@
 
     <div class="auth-card__top">
       <div class="auth-card__icon"><i class="fas fa-sign-in-alt"></i></div>
-      <h1 class="auth-card__title">{{ group.settings.display_name if group else 'Platform Administration' }}</h1>
+      <h1 class="auth-card__title">{{ brand.name if group else 'Platform Administration' }}</h1>
       <p class="auth-card__sub">{{ 'Officer sign in' if group else 'Superadmin sign in' }}</p>
     </div>
 

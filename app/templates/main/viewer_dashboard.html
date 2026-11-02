@@ -1,6 +1,6 @@
 <!-- app/templates/main/viewer_dashboard.html -->
 {% extends 'base.html' %}
-{% block title %}Dashboard — Mzugoss Welfare{% endblock %}
+{% block title %}Dashboard — {{ brand.name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -61,7 +61,7 @@
         </div>
         <div class="report-row__stats">
           <span class="badge badge--primary">{{ r.contributors }} paid</span>
-          <span class="text-sm text-muted">MWK {{ "%.0f"|format(r.total_contributions) }}</span>
+          <span class="text-sm text-muted">{{ brand.currency }} {{ "%.0f"|format(r.total_contributions) }}</span>
         </div>
         <div style="display:flex;gap:.375rem;">
           <a href="{{ r.preview_url }}" class="btn btn--outline btn--sm">

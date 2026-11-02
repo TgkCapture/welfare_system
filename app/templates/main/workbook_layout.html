@@ -1,6 +1,6 @@
 <!-- app/templates/main/workbook_layout.html -->
 {% extends 'base.html' %}
-{% block title %}Workbook Layout — Welfare System{% endblock %}
+{% block title %}Workbook Layout — {{ brand.name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -21,7 +21,7 @@
     automatically and ignore these settings. For any other workbook, leave a setting blank to have it worked
     out, and fill in only what the app gets wrong. Test the settings with a sample file before saving.
     {% if mapping.is_automatic() %}
-      <strong>Now: everything is worked out automatically</strong> (the original Mzugoss layout).
+      <strong>Now: everything is worked out automatically</strong> (the original layout).
     {% endif %}
   </div>
 </div>

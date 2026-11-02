@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Mzugoss Welfare{% endblock %}</title>
+  <title>{% block title %}{{ brand.name }}{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  {% if brand.color != '#1d4ed8' %}<style>:root { --clr-primary: {{ brand.color }}; }</style>{% endif %}
   {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -20,10 +21,10 @@
     <div class="topnav__inner">
 
       <!-- Logo -->
-      <a href="{{ url_for('main.dashboard') }}" class="topnav__logo" aria-label="Mzugoss Welfare home">
+      <a href="{{ url_for('main.dashboard') }}" class="topnav__logo" aria-label="{{ brand.name }} home">
         <span class="topnav__logo-icon"><i class="fas fa-hands-helping"></i></span>
         <span class="topnav__logo-text">
-          <span class="topnav__logo-primary">Mzugoss</span>
+          <span class="topnav__logo-primary">{{ brand.short_name }}</span>
           <span class="topnav__logo-secondary">Welfare</span>
         </span>
       </a>
@@ -265,7 +266,7 @@
   <footer class="site-footer">
     <div class="page-container">
       <div class="site-footer__inner">
-        <span>&copy; {{ now.year if now else '2025' }} Mzugoss Welfare System</span>
+        <span>&copy; {{ now.year if now else '2025' }} {{ brand.name }}</span>
         <span class="site-footer__version">
           <i class="fas fa-code-branch"></i> v{{ version }}
         </span>

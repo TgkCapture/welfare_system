@@ -1,0 +1,64 @@
+{# app/templates/main/_rules.html — welfare rule sections (officer and public pages) #}
+{% macro render_blocks(blocks) %}
+  {% for block in blocks %}
+    {% if block.kind == 'ul' %}
+      <ul class="rule-list">{% for item in block.items %}<li>{{ item }}</li>{% endfor %}</ul>
+    {% elif block.kind == 'ol' %}
+      <ol class="rule-list rule-list--numbered">{% for item in block.items %}<li>{{ item }}</li>{% endfor %}</ol>
+    {% elif block.kind == 'note' %}
+      <div class="rule-note"><i class="fas fa-info-circle"></i> <span>{{ block.items[0] }}</span></div>
+    {% else %}
+      <p class="rule-text">{{ block.items[0] }}</p>
+    {% endif %}
+  {% endfor %}
+{% endmacro %}
+
+{% macro render_sections(sections) %}
+<div class="rules-sections">
+  {% for section, blocks in sections %}
+  <section class="rule-section">
+    <div class="rule-section__header">
+      <h2 class="rule-section__title">{{ section.title }}</h2>
+      {% if section.subtitle %}<p class="rule-section__sub">{{ section.subtitle }}</p>{% endif %}
+    </div>
+    <div class="rule-section__body">{{ render_blocks(blocks) }}</div>
+  </section>
+  {% else %}
+  <div class="empty-state">
+    <i class="fas fa-book-open"></i>
+    <h3>No rules written yet</h3>
+    <p>The group's officers haven't added the welfare rules yet.</p>
+  </div>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{% macro rules_styles() %}
+<style>
+.rules-sections { display: flex; flex-direction: column; gap: 1.25rem; }
+.rule-section {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-xl); overflow: hidden;
+}
+.rule-section__header {
+  padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); background: var(--clr-slate-50);
+  border-left: 4px solid var(--clr-primary);
+}
+.rule-section__title { font-size: 1.0625rem; font-weight: 800; }
+.rule-section__sub   { font-size: .875rem; color: var(--txt-muted); margin-top: .125rem; }
+.rule-section__body  { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: .75rem; }
+.rule-text { font-size: .9375rem; }
+.rule-list { padding-left: 1.25rem; display: flex; flex-direction: column; gap: .375rem; font-size: .9375rem; }
+.rule-list:not(.rule-list--numbered) { list-style: disc; }
+.rule-list--numbered { list-style: decimal; }
+.rule-note {
+  display: flex; gap: .625rem; align-items: flex-start;
+  padding: .625rem .875rem; background: var(--clr-slate-50); border-radius: var(--r-md);
+  font-size: .875rem; color: var(--txt-secondary); border-left: 3px solid var(--clr-primary);
+}
+.rule-note i { margin-top: .2rem; color: var(--clr-primary); }
+@media print {
+  .topnav, .site-footer, .page-header__actions, .no-print { display: none !important; }
+}
+</style>
+{% endmacro %}
