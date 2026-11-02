@@ -5,7 +5,6 @@ Core report operations: generation, preview and download.
 import os
 from datetime import datetime
 
-import pandas as pd
 from flask import (
     current_app, flash, make_response, redirect,
     render_template, send_file, session, url_for,
@@ -17,6 +16,7 @@ from app.extensions import db
 from app.models.report import GeneratedReport, ReportAccessLog
 from app.services.image_generator import ImageGenerator
 from app.services.pdf_service import PDFGenerator
+from app.services.period_store import PeriodStore
 
 MONTH_NAMES = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -28,27 +28,31 @@ class ReportController:
     """Report generation, preview and download."""
 
     # ==================== PREVIEW ====================
+    #
+    # The routes without a report id act on the report the officer generated
+    # last (remembered in the session by id only); the rest take an id.
+    # Member detail comes from the stored contributions for that month.
 
     @staticmethod
     @permission_required('view_reports')
     def report_preview():
-        """Preview a freshly generated report stored in the session."""
-        data = ReportController.session_report()
-        if data is None:
+        """Preview the report the officer just generated."""
+        report = ReportController.session_report()
+        if report is None:
             flash('No report data available. Please generate a report first.', 'error')
             return redirect(url_for('main.dashboard'))
 
         return render_template(
             'main/report_preview.html',
             version=current_app.version,
-            month=data.get('month'),
-            year=data.get('year'),
-            total_contributions=data.get('total_contributions'),
-            contributors=data.get('num_contributors'),
-            defaulters=data.get('num_missing'),
-            money_dispensed=data.get('money_dispensed'),
-            total_book_balance=data.get('total_book_balance'),
-            filename=data.get('report_filename'),
+            month=MONTH_NAMES[report.month - 1],
+            year=report.year,
+            total_contributions=report.total_contributions,
+            contributors=report.contributors_count,
+            defaulters=report.defaulters_count,
+            money_dispensed=report.money_dispensed,
+            total_book_balance=report.total_book_balance,
+            filename=report.filename,
             current_date=datetime.now(),
         )
 
@@ -77,40 +81,21 @@ class ReportController:
     @staticmethod
     @permission_required('view_reports')
     def download_report(report_id=None):
-        """Download a PDF report.
-        """
+        """Download a report's PDF."""
+        report = ReportController._report_or_none(report_id)
+        if report is None:
+            return ReportController._no_report_redirect(report_id)
+
         try:
-            if report_id:
-                report = GeneratedReport.get_for_group_or_404(report_id)
-
-                if not ReportController.can_access_report(current_user, report):
-                    flash('You do not have permission to access this report.', 'error')
-                    return redirect(url_for('report.list'))
-
-                file_path = report.file_path
-                download_name = report.filename
-                ReportController._log_access(report.id, 'download')
-
-            else:
-                data = ReportController.session_report()
-                if data is None or 'report_path' not in session:
-                    flash('No report available for download.', 'error')
-                    return redirect(url_for('main.dashboard'))
-
-                file_path = session['report_path']
-                download_name = data.get(
-                    'report_filename',
-                    f"report_{datetime.now().strftime('%Y%m%d')}.pdf",
-                )
-
-            if not os.path.exists(file_path):
+            if not os.path.exists(report.file_path):
                 flash('Report file not found on disk.', 'error')
                 return redirect(url_for('main.dashboard'))
 
+            ReportController._log_access(report.id, 'download')
             return send_file(
-                file_path,
+                report.file_path,
                 as_attachment=True,
-                download_name=download_name,
+                download_name=report.filename,
                 mimetype='application/pdf',
             )
 
@@ -122,63 +107,33 @@ class ReportController:
     @staticmethod
     @permission_required('view_reports')
     def download_paid_members(report_id=None):
-        """Download the paid-members list as a PNG image.
-        """
+        """Download a report month's paid-members list as a PNG image."""
+        report = ReportController._report_or_none(report_id)
+        if report is None:
+            return ReportController._no_report_redirect(report_id)
+
+        data = PeriodStore.report_data(report.group_id, report.year, report.month)
+        if data is None:
+            return ReportController._not_stored_redirect(report)
+
         try:
-            if report_id:
-                report = GeneratedReport.get_for_group_or_404(report_id)
-
-                if not ReportController.can_access_report(current_user, report):
-                    flash('You do not have permission to access this report.', 'error')
-                    return redirect(url_for('report.list'))
-
-                # Raw data is not yet persisted — inform the user clearly
-                flash(
-                    'Paid-members image is only available for newly generated reports. '
-                    'Re-upload the source file to regenerate it.',
-                    'info',
-                )
-                return redirect(
-                    url_for('report.preview_specific', report_id=report_id)
-                )
-
-            data = ReportController.session_report()
-            if data is None:
-                flash('No report data available.', 'error')
-                return redirect(url_for('main.dashboard'))
-
-            image_data = {
-                'data': pd.DataFrame(data['data']),
-                'month_col': data['month_col'],
-                'name_col': data['name_col'],
-                'month': data['month'],
-                'year': data['year'],
-                'total_contributions': data['total_contributions'],
-                'num_contributors': data['num_contributors'],
-                'num_missing': data['num_missing'],
-                'money_dispensed': data.get('money_dispensed'),
-                'total_book_balance': data.get('total_book_balance'),
-            }
-
-            img_buffer = ImageGenerator.generate_paid_members_image(image_data)
+            img_buffer = ImageGenerator.generate_paid_members_image(data)
 
             if img_buffer is None:
                 flash('No paid members to display.', 'info')
-                return redirect(url_for('report.preview'))
+                return redirect(url_for('report.preview_specific', report_id=report.id))
 
             return send_file(
                 img_buffer,
                 mimetype='image/png',
                 as_attachment=True,
-                download_name=(
-                    f"paid_members_{image_data['month']}_{image_data['year']}.png"
-                ),
+                download_name=f"paid_members_{data['month']}_{data['year']}.png",
             )
 
         except Exception as e:
             current_app.logger.error(f"Error generating paid-members image: {e}", exc_info=True)
             flash('Error generating paid members image.', 'error')
-            return redirect(url_for('report.preview'))
+            return redirect(url_for('report.preview_specific', report_id=report.id))
 
     @staticmethod
     def download_welfare_rules_pdf():
@@ -202,41 +157,37 @@ class ReportController:
     @staticmethod
     @permission_required('view_reports')
     def paid_members_view():
-        """Render the paid-members list for the current session report."""
-        data = ReportController.session_report()
-        if data is None:
+        """Paid members for the report the officer just generated."""
+        report = ReportController.session_report()
+        if report is None:
             flash('No report data available. Please generate a report first.', 'info')
             return redirect(url_for('main.dashboard'))
-
-        paid_members = ReportController._extract_paid_members(data)
-
-        return render_template(
-            'main/paid_members.html',
-            version=current_app.version,
-            paid_members=paid_members,
-            month=data['month'],
-            year=data['year'],
-            total_paid=len(paid_members),
-            total_contributions=data['total_contributions'],
-        )
+        return ReportController._render_paid_members(report)
 
     @staticmethod
     @permission_required('view_reports')
     def paid_members_for_report(report_id):
-        """View paid members for a specific archived report."""
-        report = GeneratedReport.get_for_group_or_404(report_id)
+        """Paid members for a specific report's month."""
+        report = ReportController._report_or_none(report_id)
+        if report is None:
+            return ReportController._no_report_redirect(report_id)
+        return ReportController._render_paid_members(report)
 
-        if not ReportController.can_access_report(current_user, report):
-            flash('You do not have permission to access this report.', 'error')
-            return redirect(url_for('report.list'))
+    @staticmethod
+    def _render_paid_members(report):
+        if PeriodStore.report_data(report.group_id, report.year, report.month) is None:
+            return ReportController._not_stored_redirect(report)
 
-        # Raw member data is not stored per-report yet
-        flash(
-            'Paid-members detail is only available for newly generated reports.',
-            'info',
-        )
-        return redirect(
-            url_for('report.preview_specific', report_id=report_id)
+        paid_members = PeriodStore.paid_members(report.group_id, report.year, report.month)
+        return render_template(
+            'main/paid_members.html',
+            version=current_app.version,
+            report=report,
+            paid_members=paid_members,
+            month=MONTH_NAMES[report.month - 1],
+            year=report.year,
+            total_paid=len(paid_members),
+            total_contributions=sum(m['amount'] for m in paid_members),
         )
 
     # ==================== REPORTS LIST ====================
@@ -294,8 +245,6 @@ class ReportController:
             db.session.commit()
 
             ReportController._log_access(report.id, 'generate')
-            session['last_report_id'] = report.id
-
             return report.id
 
         except Exception as e:
@@ -305,29 +254,60 @@ class ReportController:
 
     # ==================== SESSION REPORT ====================
     #
-    # A freshly uploaded report is kept in the session for preview and
-    # download. It is tagged with the officer who generated it and cleared
-    # on login and logout, so it can never reach another officer.
+    # Only the id of the officer's latest report is kept in the session,
+    # tagged with the officer and cleared on login and logout. The data
+    # itself is stored in the DB, scoped to the group.
 
-    SESSION_REPORT_KEYS = ('report_data', 'report_path', 'report_owner_id', 'last_report_id')
+    SESSION_REPORT_KEYS = ('last_report_id', 'report_owner_id',
+                           'report_data', 'report_path')   # last two: pre-2a cookies
 
     @staticmethod
-    def store_session_report(serialized: dict) -> None:
-        """Keep a freshly generated report for the current officer."""
-        session.update(serialized)
+    def remember_report(report_id: int) -> None:
+        """Remember the report the current officer just generated."""
+        session['last_report_id'] = report_id
         session['report_owner_id'] = current_user.id
+        session.pop('report_data', None)
+        session.pop('report_path', None)
 
     @staticmethod
     def session_report():
-        """Return the session report's data if the current officer generated it."""
-        if 'report_data' not in session or session.get('report_owner_id') != current_user.id:
+        """The current officer's latest report, if they may still see it."""
+        if session.get('report_owner_id') != current_user.id or 'last_report_id' not in session:
             return None
-        return session['report_data']
+        report = GeneratedReport.for_group().filter_by(id=session['last_report_id']).first()
+        if report is None or not ReportController.can_access_report(current_user, report):
+            return None
+        return report
 
     @staticmethod
     def clear_session_report() -> None:
         for key in ReportController.SESSION_REPORT_KEYS:
             session.pop(key, None)
+
+    @staticmethod
+    def _report_or_none(report_id):
+        """The report with *report_id* (404 if not in the group), or the session's."""
+        if report_id is None:
+            return ReportController.session_report()
+        report = GeneratedReport.get_for_group_or_404(report_id)
+        return report if ReportController.can_access_report(current_user, report) else None
+
+    @staticmethod
+    def _no_report_redirect(report_id):
+        if report_id is None:
+            flash('No report available. Please generate a report first.', 'error')
+            return redirect(url_for('main.dashboard'))
+        flash('You do not have permission to access this report.', 'error')
+        return redirect(url_for('report.list'))
+
+    @staticmethod
+    def _not_stored_redirect(report):
+        flash(
+            "Member detail for this month isn't stored yet: the report was generated "
+            "before contributions were kept. Upload or sync the month again to see it.",
+            'info',
+        )
+        return redirect(url_for('report.preview_specific', report_id=report.id))
 
     # ==================== SHARED UTILITIES ====================
 
@@ -392,29 +372,3 @@ class ReportController:
         except Exception as e:
             current_app.logger.error(f"Error fetching reports for user: {e}")
             return []
-
-    @staticmethod
-    def _extract_paid_members(report_data):
-        """Parse session report data and return a list of paid member dicts."""
-        paid = []
-        try:
-            df = pd.DataFrame(report_data['data'])
-            month_col = report_data['month_col']
-            name_col = report_data['name_col']
-
-            for _, row in df.iterrows():
-                try:
-                    amount = float(row.get(month_col, 0) or 0)
-                    if amount > 0:
-                        paid.append({
-                            'name': row.get(name_col, ''),
-                            'amount': amount,
-                            'status': 'Paid',
-                        })
-                except (ValueError, TypeError):
-                    pass
-
-        except Exception as e:
-            current_app.logger.error(f"Error extracting paid members: {e}")
-
-        return paid
