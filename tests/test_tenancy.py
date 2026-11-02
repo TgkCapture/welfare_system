@@ -61,6 +61,7 @@ def other_group_data(make_group, make_user, tmp_path):
         'report_id': report.id,
         'user_id':   officer.id,
         'role_id':   Role.for_group(other.id).first().id,
+        'group_id':  other.id,
     }
 
 
