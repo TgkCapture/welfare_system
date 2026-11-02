@@ -28,15 +28,17 @@ class FileProcessor:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def process_upload(request) -> str:
-        """Dispatch to the correct handler based on form input method.
-        """
-        use_sheets = (
+    def uses_google_sheets(request) -> bool:
+        return (
             request.form.get('input_method') == 'sheets'
             or request.form.get('use_google_sheets') == 'on'
         )
 
-        if use_sheets:
+    @staticmethod
+    def process_upload(request) -> str:
+        """Dispatch to the correct handler based on form input method.
+        """
+        if FileProcessor.uses_google_sheets(request):
             return FileProcessor._process_google_sheets(request)
         return FileProcessor._process_file_upload(request)
 
