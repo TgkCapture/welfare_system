@@ -6,7 +6,7 @@ Superadmins create, rename and suspend groups and add officers to a
 group (its first Chairperson, or a replacement if a group locks itself
 out). They do not see a group's reports or data.
 """
-from flask import abort, current_app, flash, redirect, render_template, url_for
+from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from sqlalchemy import func
 from werkzeug.security import generate_password_hash
 
@@ -17,6 +17,7 @@ from app.models.group import Group, GroupSettings
 from app.models.report import GeneratedReport
 from app.models.role import Role
 from app.models.user import User
+from app.services.file_cleanup import FileCleanupService
 
 
 class PlatformController:
@@ -156,6 +157,18 @@ class PlatformController:
                     flash(error, 'danger')
 
         return redirect(url_for('platform.group_detail', group_id=group.id))
+
+    # ==================== STORAGE ====================
+
+    @staticmethod
+    @superadmin_required
+    def storage():
+        """Storage per group; POST runs (or previews) cleanup for every group."""
+        result = None
+        if request.method == 'POST':
+            result = FileCleanupService.cleanup_all(dry_run=bool(request.form.get('dry_run')))
+        return render_template('platform/storage.html', result=result,
+                               storage=FileCleanupService.platform_storage())
 
     # ==================== PRIVATE HELPERS ====================
 

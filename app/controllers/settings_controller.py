@@ -1,19 +1,22 @@
 # app/controllers/settings_controller.py
 """
-Settings management.
+Group settings (requires edit_settings).
 
-Only officers with edit_settings may write settings. The values are still
-global; step 1e moves them into each group's settings.
+Each group has its own Google Sheet URL and report retention period,
+stored in its GroupSettings row.
 """
 from flask import render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
 
 from app.decorators.permissions import permission_required
-from app.models.setting import Setting
+from app.extensions import db
+from app.models.tenancy import current_group
+
+MAX_RETENTION_DAYS = 3650
 
 
 class SettingsController:
-    """Handles system settings business logic."""
+    """Handles group settings business logic."""
 
     # ==================== SETTINGS PAGE ====================
 
@@ -33,18 +36,28 @@ class SettingsController:
     @staticmethod
     def _handle_settings_update():
         """Persist submitted settings values."""
+        settings = current_group().settings
         sheet_url = request.form.get('sheet_url', '').strip()
+        retention = request.form.get('report_retention_days', '').strip()
 
         # Basic sanity check — must look like a URL if provided
         if sheet_url and not sheet_url.startswith(('http://', 'https://')):
             flash('Google Sheets URL must start with http:// or https://', 'danger')
             return redirect(url_for('main.settings'))
 
-        Setting.set_value('google_sheets_url', sheet_url)
+        if retention and not (retention.isdigit() and 1 <= int(retention) <= MAX_RETENTION_DAYS):
+            flash(f'Retention must be a whole number of days between 1 and {MAX_RETENTION_DAYS}.',
+                  'danger')
+            return redirect(url_for('main.settings'))
+
+        settings.google_sheet_url = sheet_url or None
+        settings.report_retention_days = int(retention) if retention else None
+        db.session.commit()
 
         current_app.logger.info(
-            f"Settings updated by {current_user.email}: "
-            f"google_sheets_url={'[set]' if sheet_url else '[cleared]'}"
+            f"Settings updated by {current_user.email} (group {settings.group_id}): "
+            f"google_sheet_url={'[set]' if sheet_url else '[cleared]'}, "
+            f"report_retention_days={retention or 'default'}"
         )
         flash('Settings updated successfully.', 'success')
         return redirect(url_for('main.settings'))
@@ -52,12 +65,15 @@ class SettingsController:
     @staticmethod
     def _render_settings():
         """Render the settings page with current values."""
-        sheet_url = Setting.get_value('google_sheets_url', '')
+        settings = current_group().settings
 
         return render_template(
             'main/settings.html',
             version=current_app.version,
-            sheet_url=sheet_url,
+            sheet_url=settings.google_sheet_url or '',
+            retention_days=settings.report_retention_days,
+            default_retention_days=current_app.config.get('REPORT_RETENTION_DAYS', 7),
+            max_retention_days=MAX_RETENTION_DAYS,
         )
 
     # ==================== STATUS HELPERS ====================
@@ -65,31 +81,12 @@ class SettingsController:
     @staticmethod
     @login_required
     def get_google_sheets_status():
-        """Return Google Sheets configuration status.
-
-        """
-        sheet_url = Setting.get_value('google_sheets_url', '')
+        """Return whether the current group has a Google Sheet configured."""
+        group = current_group()
+        sheet_url = group.settings.google_sheet_url if group else None
 
         return {
             'configured': bool(sheet_url),
-            'url': sheet_url if current_user.has_permission('edit_settings') else None,
             # Only expose the raw URL to settings editors; others just need configured: bool
-        }
-
-    @staticmethod
-    @login_required
-    def get_all_settings():
-        """Return all settings as a dict — edit_settings only.
-
-        Useful for a future settings API or debug page.
-        """
-        if not current_user.has_permission('edit_settings'):
-            return {}
-
-        return {
-            'google_sheets_url': Setting.get_value('google_sheets_url', ''),
-            'report_retention_days': Setting.get_value(
-                'report_retention_days',
-                str(current_app.config.get('REPORT_RETENTION_DAYS', 7))
-            ),
+            'url': sheet_url if current_user.has_permission('edit_settings') else None,
         }

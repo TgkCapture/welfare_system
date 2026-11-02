@@ -4,15 +4,17 @@ Report lifecycle management: archive, restore, delete, cleanup, regenerate.
 """
 import os
 import shutil
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from flask import current_app, flash, redirect, url_for
 from flask_login import current_user
 
-from app.decorators.permissions import permission_required, superadmin_required
+from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.report import GeneratedReport, ReportAccessLog
+from app.models.tenancy import current_group
 from app.services.file_cleanup import FileCleanupService
+from app.services.group_storage import group_folder
 from app.controllers.report_controller import ReportController
 
 
@@ -117,10 +119,7 @@ class ReportManagement:
         try:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             new_filename = f"copy_{timestamp}_{report.filename}"
-            new_filepath = os.path.join(
-                current_app.config['REPORT_FOLDER'],
-                new_filename,
-            )
+            new_filepath = os.path.join(group_folder('reports'), new_filename)
 
             shutil.copy2(report.file_path, new_filepath)
 
@@ -162,34 +161,15 @@ class ReportManagement:
     # ==================== BULK CLEANUP ====================
 
     @staticmethod
-    @superadmin_required
+    @permission_required('manage_reports')
     def cleanup_reports():
-        """Archive old DB records and delete stale files (manage_reports)."""
+        """Delete the group's expired files and archive their reports (manage_reports)."""
         try:
-            days_to_keep = current_app.config.get('REPORT_RETENTION_DAYS', 7)
-
-            # 1. Remove stale files from disk
-            file_result = FileCleanupService.cleanup_old_files(
-                days_to_keep=days_to_keep
-            )
-
-            # 2. Auto-archive old DB records whose files have been removed
-            cutoff = datetime.utcnow() - timedelta(days=days_to_keep)
-            old_reports = GeneratedReport.query.filter(  # platform-wide: superadmin cleanup
-                GeneratedReport.generated_at < cutoff,
-                GeneratedReport.is_archived == False,
-            ).all()
-
-            for r in old_reports:
-                r.is_archived = True
-                r.archived_at = datetime.utcnow()
-
-            db.session.commit()
-
+            result = FileCleanupService.cleanup_group(current_group())
             flash(
                 f'Cleanup complete: '
-                f'{file_result.get("deleted_count", 0)} files removed, '
-                f'{len(old_reports)} reports archived.',
+                f'{result["deleted_count"]} files removed, '
+                f'{result["reports_archived"]} reports archived.',
                 'success'
             )
 

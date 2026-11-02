@@ -2,19 +2,19 @@
 """
 Dashboard routing and per-role dashboard views.
 """
-import os
 from datetime import datetime, timedelta
 
 from flask import (
     current_app, flash, jsonify, redirect,
-    render_template, request, session, url_for,
+    render_template, request, url_for,
 )
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
-from app.decorators.permissions import permission_required, superadmin_required
+from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.role import Role
+from app.models.tenancy import current_group
 from app.models.user import User
 from app.models.report import GeneratedReport
 from app.services.file_cleanup import FileCleanupService
@@ -143,40 +143,43 @@ class DashboardController:
             current_date=datetime.now(),
         )
 
-    # ==================== FILE CLEANUP (ADMIN) ====================
+    # ==================== FILE CLEANUP (manage_reports) ====================
 
     @staticmethod
-    @superadmin_required
+    @permission_required('manage_reports')
     def cleanup_files():
-        """Admin page to manually trigger file cleanup."""
+        """The group's storage, with a button to expire old files now."""
+        group = current_group()
         cleanup_result = None
 
         if request.method == 'POST':
-            days_to_keep = request.form.get('days_to_keep', 7, type=int)
-            cleanup_result = FileCleanupService.cleanup_old_files(days_to_keep)
-
-            if cleanup_result.get('success'):
-                flash(
-                    f"Cleaned up {cleanup_result['deleted_count']} old files.",
-                    'success'
-                )
-            else:
-                flash(f"Cleanup failed: {cleanup_result.get('error')}", 'error')
+            dry_run = bool(request.form.get('dry_run'))
+            cleanup_result = FileCleanupService.cleanup_group(group, dry_run=dry_run)
+            verb = 'Would delete' if dry_run else 'Deleted'
+            flash(
+                f"{verb} {cleanup_result['deleted_count']} file(s) and "
+                f"{'archive' if dry_run else 'archived'} {cleanup_result['reports_archived']} report(s).",
+                'info' if dry_run else 'success'
+            )
 
         return render_template(
             'admin/cleanup.html',
             version=current_app.version,
-            storage_stats=FileCleanupService.get_folder_sizes(),
+            storage_stats=FileCleanupService.group_storage(group),
             cleanup_result=cleanup_result,
         )
 
     # ==================== API / UTILITY ENDPOINTS ====================
 
     @staticmethod
-    @superadmin_required
+    @permission_required('manage_reports')
     def storage_status():
-        """JSON endpoint — current storage usage."""
-        return jsonify(FileCleanupService.get_folder_sizes())
+        """JSON endpoint — the group's storage usage."""
+        stats = FileCleanupService.group_storage(current_group())
+        # Folder paths are server internals; officers only need the numbers
+        for folder in stats['folders'].values():
+            folder.pop('path', None)
+        return jsonify(stats)
 
     @staticmethod
     def version():
@@ -196,32 +199,16 @@ class DashboardController:
 
     @staticmethod
     def _get_file_statistics():
-        """Return upload/report folder sizes and file counts."""
-        upload_folder = current_app.config.get('UPLOAD_FOLDER', '')
-        report_folder = current_app.config.get('REPORT_FOLDER', '')
-
-        def folder_stats(path):
-            if not os.path.exists(path):
-                return 0, 0
-            total_size = 0
-            total_count = 0
-            for dirpath, _, filenames in os.walk(path):
-                for f in filenames:
-                    fp = os.path.join(dirpath, f)
-                    if os.path.exists(fp):
-                        total_size += os.path.getsize(fp)
-                        total_count += 1
-            return total_size, total_count
-
-        upload_size, upload_count = folder_stats(upload_folder)
-        report_size, report_count = folder_stats(report_folder)
+        """Return the group's upload/report folder sizes (bytes) and file counts."""
+        folders = FileCleanupService.group_storage(current_group())['folders']
+        to_bytes = lambda mb: int(mb * 1024 * 1024)
 
         return {
-            'upload_folder_size': upload_size,
-            'report_folder_size': report_size,
-            'upload_file_count': upload_count,
-            'report_file_count': report_count,
-            'total_size': upload_size + report_size,
+            'upload_folder_size': to_bytes(folders['uploads']['size_mb']),
+            'report_folder_size': to_bytes(folders['reports']['size_mb']),
+            'upload_file_count': folders['uploads']['file_count'],
+            'report_file_count': folders['reports']['file_count'],
+            'total_size': to_bytes(folders['uploads']['size_mb'] + folders['reports']['size_mb']),
         }
 
     @staticmethod

@@ -15,12 +15,13 @@ from flask_login import current_user
 
 from app.controllers.report_controller import ReportController
 from app.decorators.permissions import permission_required
-from app.models.setting import Setting
 from app.models.report import GeneratedReport
+from app.models.tenancy import current_group
 from app.services.excel_parser import ExcelParser
 from app.services.pdf_service import PDFGenerator
 from app.services.file_cleanup import FileCleanupService
 from app.services.file_processor import FileProcessor
+from app.services.group_storage import group_folder
 from app.services.report_serializer import ReportDataSerializer
 
 MONTH_NAMES = [
@@ -39,10 +40,7 @@ class UploadController:
     def upload_dashboard():
         """Landing page for officers with upload_data."""
         current_date = datetime.now()
-        sheet_url = Setting.get_value(
-            'google_sheets_url',
-            current_app.config.get('DEFAULT_SHEET_URL', '')
-        )
+        sheet_url = current_group().settings.google_sheet_url or ''
         recent_reports = UploadController._get_recent_reports_for_user()
 
         return render_template(
@@ -89,7 +87,7 @@ class UploadController:
             # --- 4. Generate PDF report ---
             report_path = PDFGenerator.save_contribution_report(
                 data,
-                current_app.config['REPORT_FOLDER'],
+                group_folder('reports'),
             )
 
             # --- 5. Store in session for preview / download ---
@@ -117,7 +115,7 @@ class UploadController:
             return redirect(url_for('main.upload_dashboard'))
 
         finally:
-            # Always clean up the temp file even if generation failed
+            # Always remove the uploaded copy, even if generation failed
             if filepath:
                 FileProcessor.cleanup_file(filepath)
 
@@ -143,8 +141,9 @@ class UploadController:
 
     @staticmethod
     def _run_background_cleanup():
+        """Expire the group's old files; other groups are left to the daily job."""
         try:
-            FileCleanupService.cleanup_old_files(days_to_keep=30)
+            FileCleanupService.cleanup_group(current_group())
         except Exception as e:
             current_app.logger.warning(f"Background cleanup failed: {e}")
 
