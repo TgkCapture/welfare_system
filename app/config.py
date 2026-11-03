@@ -18,14 +18,19 @@ from datetime import timedelta
 
 
 def database_url(default=''):
-    """Return DATABASE_URL, pointed at the psycopg 3 driver for Postgres.
+    """Return DATABASE_URL, pointed at the psycopg 3 driver for Postgres."""
+    return with_psycopg(os.environ.get('DATABASE_URL', default))
+
+
+def with_psycopg(url):
+    """Point a Postgres URL at the psycopg 3 driver.
 
     Hosts often hand out ``postgres://`` or ``postgresql://`` URLs, which
-    SQLAlchemy would read as the older psycopg2 driver.
+    SQLAlchemy would read as the older psycopg2 driver. create_app applies
+    this after every config source, so instance/config.py may use either.
     """
-    url = os.environ.get('DATABASE_URL', default)
     for prefix in ('postgres://', 'postgresql://'):
-        if url.startswith(prefix):
+        if url and url.startswith(prefix):
             return 'postgresql+psycopg://' + url[len(prefix):]
     return url
 
@@ -77,12 +82,22 @@ class BaseConfig:
     DEFAULT_SHEET_URL       = os.environ.get('DEFAULT_SHEET_URL', '')
     SHEETS_CACHE_TTL        = int(os.environ.get('SHEETS_CACHE_TTL', 300))
 
-    # ── Rate limiting ─────────────────────────────────────────────────
-    # Use a shared store (e.g. redis://) when running several workers.
+    # ── Rate limiting (app/services/limits.py) ────────────────────────
+    # Failed attempts per client IP. The in-memory store is per process:
+    # with several workers each keeps its own count, so point this at a
+    # shared store (e.g. redis://) to make the limits exact.
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
+    # Wrong passwords (sign-in, password change) and unknown group codes
     LOGIN_RATE_LIMIT      = os.environ.get('LOGIN_RATE_LIMIT', '10 per minute;50 per hour')
-    # Access code and PIN attempts on a group's public pages, per IP
+    # Wrong access codes, PINs and personal history links
     PUBLIC_LOOKUP_RATE_LIMIT = os.environ.get('PUBLIC_LOOKUP_RATE_LIMIT', '10 per minute;30 per hour')
+
+    # ── Reverse proxy ─────────────────────────────────────────────────
+    # How many proxies (nginx, a load balancer) sit in front of the app.
+    # Their X-Forwarded-For/-Proto/-Host headers are trusted that many hops
+    # deep, so rate limits and the audit log see each visitor's own address.
+    # Leave at 0 when the app is reached directly: the headers can be forged.
+    TRUSTED_PROXIES = int(os.environ.get('TRUSTED_PROXIES', 0))
 
     # ── Platform support sessions ─────────────────────────────────────
     # How long a superadmin's read-only look at a group lasts

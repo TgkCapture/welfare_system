@@ -16,7 +16,7 @@ from app.models.group import Group
 from app.models.ledger import SyncRun
 from app.models.member import Member, MemberAlias, normalise_name
 from app.models.tenancy import current_group
-from app.services import audit, member_service
+from app.services import audit, limits, member_service
 from app.services.branding import use_group_brand
 from app.services.member_service import MemberError
 from app.services.standard_workbook import MONTHS
@@ -191,12 +191,14 @@ class MemberController:
     # ==================== PUBLIC HISTORY ====================
 
     @staticmethod
+    @limits.history_link
     def public_history(slug, token):
         """A member's own contribution history, opened by their personal link."""
         group = Group.query.filter_by(slug=slug, is_active=True).first()
         member = (Member.for_group(group.id).filter_by(history_token=token, is_active=True).first()
                   if group else None)
         if member is None:
+            limits.failed()
             abort(404)
         use_group_brand(group)
 

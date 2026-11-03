@@ -6,6 +6,7 @@ Register with the app via ``init_commands(app)`` in the app factory.
 
 Available commands:
   flask cleanup-files       — delete expired files (each group's retention period)
+  flask daily-cleanup       — the scheduled cleanup, for cron; runs once a day at most
   flask storage-status      — print storage per group
   flask move-files-to-groups — move existing report files into group folders
   flask create-group        — create a welfare group with preset roles
@@ -62,6 +63,26 @@ def init_commands(app) -> None:
             for folder, stats in result['folder_stats'].items():
                 for err in stats.get('errors', []):
                     click.secho(f"  warning ({folder}): {err}", fg='yellow')
+
+    # ------------------------------------------------------------------
+    # daily-cleanup
+    # ------------------------------------------------------------------
+
+    @app.cli.command('daily-cleanup')
+    def daily_cleanup():
+        """The scheduled cleanup, for cron (with ENABLE_AUTO_CLEANUP=false).
+
+        Safe to run from several machines: only the first run of the day
+        does the work.
+        """
+        from app.services.file_cleanup import FileCleanupService
+
+        result = FileCleanupService.cleanup_scheduled()
+        if result is None:
+            click.echo("Today's cleanup has already run; nothing to do.")
+        else:
+            click.secho(f"✓ Deleted {result['deleted_count']} file(s), {result['freed_space_mb']:.2f} MB, "
+                        f"{result['reports_archived']} report(s) archived", fg='green')
 
     # ------------------------------------------------------------------
     # storage-status

@@ -98,13 +98,21 @@ class FileCleanupService:
         }
 
     @staticmethod
-    def cleanup_scheduled() -> dict:
-        """Daily job run by the scheduler."""
-        result = FileCleanupService.cleanup_all()
-        logger.info(
-            f"Scheduled cleanup: {result['deleted_count']} files deleted, "
-            f"{result['reports_archived']} reports archived."
-        )
+    def cleanup_scheduled() -> dict | None:
+        """The daily cleanup, run by the scheduler or `flask daily-cleanup`.
+
+        Runs once a day however many workers try; None when it already ran.
+        """
+        from app.services import jobs
+
+        result = jobs.run_daily('cleanup', FileCleanupService.cleanup_all, summarise=lambda r: {
+            key: r[key] for key in ('deleted_count', 'freed_space_mb', 'reports_archived')
+        })
+        if result is not None:
+            logger.info(
+                f"Scheduled cleanup: {result['deleted_count']} files deleted, "
+                f"{result['reports_archived']} reports archived."
+            )
         return result
 
     # ------------------------------------------------------------------

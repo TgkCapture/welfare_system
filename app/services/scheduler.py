@@ -3,7 +3,12 @@
 Background cleanup scheduler.
 
 Runs a daemon thread that fires FileCleanupService.cleanup_scheduled()
-once per day at the configured time (default 02:00).
+once per day at or after the configured time (default 02:00).
+
+Every worker process runs its own thread; the job claims the day in the
+database (app/services/jobs.py), so only one of them does the work. To
+use cron instead, set ENABLE_AUTO_CLEANUP=false and run
+`flask daily-cleanup` once a day.
 
 Usage in your app factory:
 
@@ -87,17 +92,8 @@ class CleanupScheduler:
                 logger.info("CleanupScheduler: stopped cleanly")
 
     # ------------------------------------------------------------------
-    # Admin / testing helpers
+    # Monitoring
     # ------------------------------------------------------------------
-
-    def run_now(self) -> dict:
-        """Trigger an immediate cleanup and return the result dict."""
-        if not self.app:
-            return {'success': False, 'error': 'No app context'}
-        logger.info("CleanupScheduler: manual run triggered")
-        result = self._run_cleanup()
-        self._last_run_date = datetime.now().date()
-        return result or {}
 
     def get_status(self) -> dict:
         """Return current scheduler state for monitoring / admin UI."""
@@ -125,13 +121,10 @@ class CleanupScheduler:
             try:
                 if self._is_due():
                     logger.info(f"CleanupScheduler: running at {datetime.now()}")
-                    self._run_cleanup()
                     self._last_run_date = datetime.now().date()
+                    self._run_cleanup()
                     self._error_count   = 0
-                    # Sleep 5 min after running to avoid double-trigger
-                    self._shutdown.wait(timeout=300)
-                else:
-                    self._shutdown.wait(timeout=30)
+                self._shutdown.wait(timeout=30)
 
             except Exception as e:
                 self._error_count += 1
@@ -143,18 +136,17 @@ class CleanupScheduler:
         logger.debug("CleanupScheduler: loop exited")
 
     def _is_due(self) -> bool:
-        """Return True if cleanup should fire right now."""
-        now = datetime.now()
+        """True once the time has passed and this process hasn't tried today.
 
-        # Already ran today
+        A worker started after the time still runs the day's cleanup; if
+        another worker already did, the claim in the database stops it.
+        """
+        now = datetime.now()
         if self._last_run_date == now.date():
             return False
 
         h, m = self.cleanup_hour
-        target = now.replace(hour=h, minute=m, second=0, microsecond=0)
-
-        # Fire within a ±2 minute window around the target time
-        return (target - timedelta(minutes=2)) <= now <= (target + timedelta(minutes=2))
+        return now >= now.replace(hour=h, minute=m, second=0, microsecond=0)
 
     def _run_cleanup(self) -> dict | None:
         """Execute cleanup inside an app context. Returns result or None."""
@@ -166,6 +158,9 @@ class CleanupScheduler:
             from app.services.file_cleanup import FileCleanupService
             with self.app.app_context():
                 result = FileCleanupService.cleanup_scheduled()
+                if result is None:
+                    logger.info("CleanupScheduler: another worker ran today's cleanup")
+                    return None
                 deleted = result.get('deleted_count', 0)
                 archived = result.get('reports_archived', 0)
                 logger.info(

@@ -172,6 +172,14 @@ def test_database_url_uses_the_psycopg_driver(monkeypatch):
     assert database_url() == 'sqlite:///x.db'
 
 
+def test_a_postgres_url_from_any_config_source_uses_psycopg(tmp_path):
+    from app import create_app
+
+    app = create_app('testing', {'SQLALCHEMY_DATABASE_URI': 'postgres://u:p@h/db',
+                                 'LOGS_FOLDER': str(tmp_path)})
+    assert app.config['SQLALCHEMY_DATABASE_URI'] == 'postgresql+psycopg://u:p@h/db'
+
+
 def test_migrations_give_booleans_boolean_defaults():
     """Postgres refuses DEFAULT 0 on a boolean column; use sa.true()/sa.false()."""
     import pathlib

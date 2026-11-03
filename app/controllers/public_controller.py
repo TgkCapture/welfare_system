@@ -8,25 +8,17 @@ A group's public pages for its members (no accounts), under /g/<slug>/:
 
 The rules and the personal history link live in their own controllers.
 Every page shows the group's branding, asks search engines not to index it,
-and says when the data was last updated. Access code and PIN attempts share
-one rate limit per IP (PUBLIC_LOOKUP_RATE_LIMIT).
+and says when the data was last updated. Wrong access codes and PINs count
+against one rate limit per IP (see app/services/limits.py).
 """
 import calendar
 
-from flask import abort, current_app, make_response, render_template, request, send_file
+from flask import abort, make_response, render_template, request, send_file
 
-from app.extensions import limiter
 from app.models.group import Group
-from app.services import logo, member_service, public_access
+from app.services import limits, logo, member_service, public_access
 from app.services.branding import use_group_brand
 from app.services.standard_workbook import MONTHS
-
-
-def _lookup_rate_limit():
-    return current_app.config.get('PUBLIC_LOOKUP_RATE_LIMIT', '10 per minute;30 per hour')
-
-
-_limit_attempts = limiter.shared_limit(_lookup_rate_limit, scope='public-lookup', methods=['POST'])
 
 
 class PublicController:
@@ -38,7 +30,7 @@ class PublicController:
                                       last_updated=public_access.last_updated(group))
 
     @staticmethod
-    @_limit_attempts
+    @limits.public_lookup
     def paid(slug):
         group = PublicController._group(slug)
         if not group.settings.public_paid_enabled:
@@ -48,6 +40,8 @@ class PublicController:
             wrong = False
             if request.method == 'POST':
                 wrong = not public_access.try_code(group, request.form.get('code', ''))
+                if wrong:
+                    limits.failed()
             if public_access.needs_code(group):
                 return PublicController._page('public/access_code.html', group, wrong=wrong)
 
@@ -63,7 +57,7 @@ class PublicController:
         )
 
     @staticmethod
-    @_limit_attempts
+    @limits.public_lookup
     def check(slug):
         group = PublicController._group(slug)
         failed = False
@@ -73,6 +67,7 @@ class PublicController:
                 return PublicController._page('public/member_history.html', group, member=member,
                                               history=member_service.history(member), months=MONTHS)
             failed = True
+            limits.failed()
         return PublicController._page('public/check.html', group, failed=failed)
 
     @staticmethod

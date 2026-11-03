@@ -2,6 +2,7 @@
 # Import every model so string-based relationships always resolve.
 from app.models.audit import AuditEvent  # noqa: F401
 from app.models.group import Group, GroupSettings  # noqa: F401
+from app.models.job import JobRun  # noqa: F401
 from app.models.ledger import Payout, PayoutPurpose, Rate, SyncRun, YearSummary  # noqa: F401
 from app.models.member import (  # noqa: F401
     Contribution, Member, MemberAlias, MemberYear, PeriodSummary,

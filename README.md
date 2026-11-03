@@ -97,6 +97,12 @@ Report files expire after the group's retention period (set on its Settings
 page, otherwise `REPORT_RETENTION_DAYS`). Expired reports are archived, not
 deleted. `flask cleanup-files [--group <slug>] [--dry-run]` runs cleanup by hand.
 
+The daily cleanup runs at `CLEANUP_TIME` (default `02:00`) in every worker
+process; the first one to claim the day in the database does the work and
+the others skip it, so any number of workers or servers is safe. To use cron
+instead, set `ENABLE_AUTO_CLEANUP=false` and run `flask daily-cleanup` once a
+day; it also runs at most once a day.
+
 Upgrading an existing single-group install automatically creates a
 "Mzugoss" group (slug `mzugoss`) and moves existing users and reports into
 it: admins become Chairperson, clerks become Treasurer, and viewer
@@ -108,9 +114,19 @@ Signing in:
 * Platform superadmins: `/platform/login`
 * `/auth/login` asks for the group code and remembers it for next time
 
-Login attempts are rate limited per IP (`LOGIN_RATE_LIMIT`, default
-`10 per minute;50 per hour`). With several workers, point
-`RATELIMIT_STORAGE_URI` at a shared store such as Redis.
+Failed attempts are rate limited per IP; successful ones never count, since
+many members can share one mobile network address:
+
+* wrong passwords (sign-in and password change) and unknown group codes:
+  `LOGIN_RATE_LIMIT`, default `10 per minute;50 per hour`
+* wrong access codes, PINs and personal history links:
+  `PUBLIC_LOOKUP_RATE_LIMIT`, default `10 per minute;30 per hour`
+
+With several workers, point `RATELIMIT_STORAGE_URI` at a shared store such
+as Redis; otherwise each worker counts on its own. Behind a reverse proxy
+(nginx, a load balancer), set `TRUSTED_PROXIES` to the number of proxies so
+limits and the audit log see each visitor's own address. Leave it at `0`
+when the app is reached directly, because the forwarded headers can be forged.
 
 If you already have a database created by an older version (before
 migrations were added), mark it as up to date once instead of upgrading:

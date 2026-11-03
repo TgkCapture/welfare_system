@@ -17,9 +17,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.auth.forms import LoginForm
 from app.controllers.report_controller import ReportController
-from app.services import audit, support
+from app.services import audit, limits, support
 from app.services.branding import use_group_brand
-from app.extensions import db, limiter
+from app.extensions import db
 from app.models.group import Group
 from app.models.user import User
 
@@ -32,14 +32,6 @@ LAST_GROUP_MAX_AGE = 365 * 24 * 3600
 # Checked when no account matches, so a wrong email takes as long as a
 # wrong password and response times don't reveal which emails exist
 _DUMMY_HASH = generate_password_hash('not-a-real-password', method='scrypt')
-
-
-def _login_rate_limit() -> str:
-    return current_app.config['LOGIN_RATE_LIMIT']
-
-
-# One budget per client IP across every login form
-_limit_logins = limiter.shared_limit(_login_rate_limit, scope='login', methods=['POST'])
 
 
 def safe_next_url(target):
@@ -63,6 +55,7 @@ class AuthController:
     # ==================== GROUP FINDER ====================
 
     @staticmethod
+    @limits.login
     def login():
         """Send the visitor to their group's login page."""
         if current_user.is_authenticated:
@@ -74,6 +67,7 @@ class AuthController:
             slug = request.form.get('group', '').strip().lower()
             if Group.query.filter_by(slug=slug, is_active=True).first():
                 return redirect(url_for('group.login', slug=slug, next=next_url))
+            limits.failed()
             flash("We couldn't find an active group with that code.", 'danger')
         else:
             slug = request.cookies.get(LAST_GROUP_COOKIE)
@@ -85,7 +79,7 @@ class AuthController:
     # ==================== GROUP LOGIN ====================
 
     @staticmethod
-    @_limit_logins
+    @limits.login
     def group_login(slug):
         """Officer login for one group."""
         group = Group.query.filter_by(slug=slug, is_active=True).first()
@@ -119,7 +113,7 @@ class AuthController:
     # ==================== PLATFORM LOGIN ====================
 
     @staticmethod
-    @_limit_logins
+    @limits.login
     def platform_login():
         """Superadmin login."""
         if current_user.is_authenticated:
@@ -175,6 +169,7 @@ class AuthController:
         # Single generic message prevents user enumeration
         email = form.email.data.strip()
         if not user or not password_ok:
+            limits.failed()
             audit.record('auth.failed', f'Failed sign-in as {email}', group_id=group_id, actor=email,
                          user_id=user.id if user else None)
             flash('Invalid email or password.', 'danger')

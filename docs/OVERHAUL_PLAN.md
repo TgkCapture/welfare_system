@@ -838,12 +838,34 @@ Step 6a delivered (Postgres, audit log, support sessions):
   - Reports and the reports API now check the current group rather than the
     officer's own, so they work in a support session.
 
+Step 6b delivered (rate limits, multi-worker scheduler):
+- Rate limits (`app/services/limits.py`), per client IP, counting **failed
+  attempts only**, so members sharing a mobile network address don't use up
+  each other's budget. Once spent, every attempt from that address gets 429
+  until it recovers.
+  - `login` budget: group and platform sign-ins, wrong current passwords on
+    the password change form (new), and unknown codes in the group finder (new).
+  - `public-lookup` budget: the access code, member PINs and wrong personal
+    history links (new).
+- `TRUSTED_PROXIES` (default 0) wraps the app in Werkzeug's `ProxyFix`, so
+  behind nginx or a load balancer the limits and the audit log see the
+  visitor's address, not the proxy's. Forwarded headers are ignored otherwise.
+- A Postgres URL from any config source, including `instance/config.py`,
+  now uses psycopg 3 (it had to come from `DATABASE_URL` before).
+- Daily jobs (`JobRun`, `app/services/jobs.py`, migration `2dce51ee491c`):
+  the runner claims `(job, day)` with a unique key before working, so only
+  one worker or cron entry does the day's cleanup; the row records the
+  outcome. Checked on Postgres with four processes started together.
+  - The scheduler now runs once the time has passed (it used to need a
+    worker awake within two minutes of it), so a restart doesn't skip a day.
+  - `flask daily-cleanup` is the cron alternative (`ENABLE_AUTO_CLEANUP=false`).
+
 - [x] Use a Postgres-ready config. Check the migrations on SQLite and Postgres.
 - [x] Add audit log entries for settings, mapping, rules, role and member
       changes, PIN resets and link regeneration.
 - [x] Superadmin support mode ("act as group"), with an audit trail.
-- [ ] Rate limiting on all login and public lookup endpoints.
-- [ ] Make the scheduler safe with multiple workers (a lock, or move it to a CLI cron job).
+- [x] Rate limiting on all login and public lookup endpoints.
+- [x] Make the scheduler safe with multiple workers (a lock, or move it to a CLI cron job).
 - [ ] Docker setup (an old `dockerize` branch exists and is worth reviewing).
 - [ ] Write the migration runbook for the live Mzugoss deployment.
 - [ ] Bump the major version to 3.0.0.

@@ -37,7 +37,7 @@ def _sqlite_foreign_keys(dbapi_connection, _record):
 # Schema migrations (Alembic). Batch mode lets SQLite ALTER existing tables.
 migrate = Migrate(render_as_batch=True)
 
-# Rate limiting — only routes that opt in with @limiter.limit are limited.
+# Rate limiting — only the routes in app/services/limits.py are limited.
 # Storage comes from RATELIMIT_STORAGE_URI (in-memory by default).
 limiter = Limiter(key_func=get_remote_address)
 

@@ -18,7 +18,7 @@ from app.auth.forms import ChangePasswordForm, ProfileForm
 from app.models.user import User
 from app.models.setting import Setting
 from app.models.report import GeneratedReport
-from app.services import audit
+from app.services import audit, limits
 
 
 class ProfileController:
@@ -91,6 +91,7 @@ class ProfileController:
 
     @staticmethod
     @login_required
+    @limits.login
     def change_password():
         """Handle password change form submission."""
         user = db.session.get(User, current_user.id)  # own account
@@ -104,6 +105,7 @@ class ProfileController:
             return redirect(url_for('auth.profile'))
 
         if not check_password_hash(user.password, current_password):
+            limits.failed()
             flash('Current password is incorrect.', 'danger')
             return redirect(url_for('auth.profile'))
 

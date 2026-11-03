@@ -16,7 +16,7 @@ from datetime import datetime
 from flask import Flask
 from flask_wtf.csrf import generate_csrf
 
-from app.config import config
+from app.config import config, with_psycopg
 from app.extensions import csrf, db, limiter, login_manager, migrate
 
 __version__ = "2.0.2"
@@ -49,9 +49,16 @@ def create_app(env: str = None, test_config: dict = None) -> Flask:
 
     if test_config:
         app.config.update(test_config)
+    app.config['SQLALCHEMY_DATABASE_URI'] = with_psycopg(app.config.get('SQLALCHEMY_DATABASE_URI'))
 
     # Runs after every config source so it creates the folders actually in use
     cfg.init_app(app)
+
+    # ── Reverse proxy ─────────────────────────────────────────────────
+    proxies = app.config.get('TRUSTED_PROXIES', 0)
+    if proxies:
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxies, x_proto=proxies, x_host=proxies)
 
     # ── App version ───────────────────────────────────────────────────
     app.version = os.environ.get('APP_VERSION', __version__)
