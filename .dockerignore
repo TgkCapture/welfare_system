@@ -1,0 +1,30 @@
+# Never put member data, keys or local state in the image
+*.xlsx
+*.xls
+*.csv
+conversion/
+credentials/
+backups/
+instance/
+uploads/
+reports/
+logs/
+temp/
+.env
+.env.*
+
+# Not needed to run the app
+.git/
+.github/
+.history/
+.vscode/
+.idea/
+venv/
+node_modules/
+tests/
+docs/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+run_migration.py
+sheet_diagnostic.py

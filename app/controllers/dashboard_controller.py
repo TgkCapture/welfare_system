@@ -9,8 +9,10 @@ from flask import (
     render_template, request, url_for,
 )
 from flask_login import current_user, login_required
+from sqlalchemy import text
 
 from app.decorators.permissions import permission_required
+from app.extensions import db
 from app.models.tenancy import current_group
 from app.services import audit, dashboard, setup, support
 from app.services.file_cleanup import FileCleanupService
@@ -90,11 +92,21 @@ class DashboardController:
 
     @staticmethod
     def health_check():
-        """Health-check endpoint for uptime monitoring."""
+        """Health-check endpoint for uptime monitoring and the container.
+
+        503 when the database can't be reached, so a restart or an alert follows.
+        """
+        try:
+            db.session.execute(text('SELECT 1'))
+            healthy = True
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Health check: database unreachable: {e}')
+            healthy = False
         return jsonify({
-            'status': 'healthy',
+            'status': 'healthy' if healthy else 'database unreachable',
             'version': current_app.version,
             'timestamp': datetime.now().isoformat(),
-        })
+        }), 200 if healthy else 503
 
     # ==================== PRIVATE HELPERS ====================

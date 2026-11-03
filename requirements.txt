@@ -30,6 +30,7 @@ google-auth==2.40.3
 googleapis-common-protos==1.70.0
 greenlet==3.2.3
 gspread==6.2.1
+gunicorn==23.0.0
 httplib2==0.31.0
 idna==3.10
 itsdangerous==2.2.0
@@ -41,7 +42,7 @@ markdown-it-py==4.2.0
 MarkupSafe==3.0.2
 matplotlib==3.9.4
 mdurl==0.1.2
-numpy==2.0.2
+numpy==2.2.2
 oauthlib==3.3.1
 openpyxl==3.1.5
 ordered-set==4.1.0
@@ -61,6 +62,7 @@ pyphen==0.17.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
 pytz==2025.2
+redis==5.2.1
 reportlab==4.4.2
 requests-oauthlib==2.0.0
 requests==2.32.4
@@ -82,4 +84,4 @@ wheel==0.45.1
 wrapt==2.5.2
 WTForms==3.2.1
 xlsxwriter==3.2.9
-zopfli==0.2.3
+zopfli==0.4.0

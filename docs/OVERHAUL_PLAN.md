@@ -860,15 +860,60 @@ Step 6b delivered (rate limits, multi-worker scheduler):
     worker awake within two minutes of it), so a restart doesn't skip a day.
   - `flask daily-cleanup` is the cron alternative (`ENABLE_AUTO_CLEANUP=false`).
 
+Step 6c delivered (Docker, runbook, 3.0.0):
+- Upgrading a live 2.0.x database was broken. Those installs made their
+  tables with `db.create_all()`: 2.0.0 has no index on `users.email` and
+  no named constraints, so the first multi-group migration failed. It was
+  found by rehearsing on databases created by the real `origin/main` (2.0.0)
+  and `origin/develop` (2.0.2) code.
+  - New migration `4f1e9a7c2b6d`, right after the baseline, rebuilds the
+    four original tables as the baseline makes them. It copies every row,
+    fills values that 2.0.0 left empty, and drops access records pointing at
+    deleted users.
+  - New installs and databases already past it never run it.
+  - Tests build both old schemas, upgrade them and check the officers,
+    reports and links.
+  - Both rehearsals end at head with no drift, and officers sign in with
+    their old passwords.
+- Docker (`Dockerfile`, `docker/entrypoint.sh`, `docker-compose.yml`,
+  `.env.example`), written fresh. The `dockerize` branch ran the Flask
+  development server on SQLite with no migrations. Now:
+  - Python 3.13 and gunicorn, running as a non-root user.
+  - Migrations run on start.
+  - Postgres 17 and Redis 7, which shares rate-limit counts between workers.
+  - Volumes for uploads, reports, logs and logos.
+  - The app is published on 127.0.0.1 only, for a proxy.
+  - Member workbooks, keys and `instance/` are kept out of the image.
+- Built and run locally:
+  - migrations ran on Postgres and the container became healthy
+  - the 4th failed sign-in from one forwarded address got 429 across both
+    workers, while another address could still try
+  - the audit log recorded each visitor's own address
+  - the scheduler ran the day's cleanup once
+- `/api/health` now checks the database and returns 503 when it can't
+  reach it.
+- `requirements.txt`:
+  - gunicorn and redis added
+  - numpy and zopfli updated to the versions the tests already ran on;
+    the old pins have no Python 3.13 wheels
+- `docs/MZUGOSS_RUNBOOK.md`: the cutover from 2.0.x. It covers:
+  - what to finish in the converted workbook first
+  - Docker with Postgres (recommended) or in place on SQLite
+  - backups and setting up the group
+  - PINs and links
+  - checks, including removing the `admin@welfare.org` account that 2.0.x
+    created on its own, and how to undo the move
+- Version 3.0.0.
+
 - [x] Use a Postgres-ready config. Check the migrations on SQLite and Postgres.
 - [x] Add audit log entries for settings, mapping, rules, role and member
       changes, PIN resets and link regeneration.
 - [x] Superadmin support mode ("act as group"), with an audit trail.
 - [x] Rate limiting on all login and public lookup endpoints.
 - [x] Make the scheduler safe with multiple workers (a lock, or move it to a CLI cron job).
-- [ ] Docker setup (an old `dockerize` branch exists and is worth reviewing).
-- [ ] Write the migration runbook for the live Mzugoss deployment.
-- [ ] Bump the major version to 3.0.0.
+- [x] Docker setup (an old `dockerize` branch exists and is worth reviewing).
+- [x] Write the migration runbook for the live Mzugoss deployment.
+- [x] Bump the major version to 3.0.0.
 
 ---
 

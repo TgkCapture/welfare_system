@@ -19,7 +19,7 @@ Downgrade drops the new tables and columns. Viewer deactivation is not
 reversed.
 
 Revision ID: 808c6b6f7843
-Revises: 365dc0d4aa41
+Revises: 4f1e9a7c2b6d
 Create Date: 2026-11-01 22:10:03.612052
 
 """
@@ -31,7 +31,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '808c6b6f7843'
-down_revision = '365dc0d4aa41'
+down_revision = '4f1e9a7c2b6d'
 branch_labels = None
 depends_on = None
 

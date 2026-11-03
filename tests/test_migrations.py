@@ -153,3 +153,112 @@ def test_attaches_reports_and_logs_to_group(migrated_legacy_db):
     group_id = _rows(conn, 'SELECT id FROM groups')[0][0]
     assert _rows(conn, 'SELECT DISTINCT group_id FROM generated_reports') == [(group_id,)]
     assert _rows(conn, 'SELECT DISTINCT group_id FROM report_access_logs') == [(group_id,)]
+
+
+# ==================== INSTALLS FROM BEFORE MIGRATIONS ====================
+# Tables exactly as db.create_all() made them in the versions Mzugoss may be
+# running. Upgrading them is `flask db stamp 365dc0d4aa41` then `flask db upgrade`.
+
+_CREATE_ALL_2_0_0 = """
+CREATE TABLE users (id INTEGER NOT NULL, email VARCHAR(100) NOT NULL, password VARCHAR(100) NOT NULL,
+    role VARCHAR(20) DEFAULT 'viewer' NOT NULL, is_active BOOLEAN, created_at DATETIME, last_login DATETIME,
+    PRIMARY KEY (id), UNIQUE (email));
+CREATE TABLE settings (id INTEGER NOT NULL, "key" VARCHAR(100) NOT NULL, value TEXT, updated_at DATETIME,
+    PRIMARY KEY (id), UNIQUE ("key"));
+CREATE TABLE generated_reports (id INTEGER NOT NULL, month INTEGER NOT NULL, year INTEGER NOT NULL,
+    report_type VARCHAR(50) NOT NULL, filename VARCHAR(255) NOT NULL, file_path VARCHAR(500) NOT NULL,
+    generated_by INTEGER NOT NULL, generated_at DATETIME, file_size INTEGER, total_contributions FLOAT,
+    contributors_count INTEGER, defaulters_count INTEGER, money_dispensed FLOAT, total_book_balance FLOAT,
+    is_archived BOOLEAN, archived_at DATETIME, PRIMARY KEY (id), FOREIGN KEY(generated_by) REFERENCES users (id));
+CREATE TABLE report_access_logs (id INTEGER NOT NULL, report_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+    accessed_at DATETIME, action VARCHAR(50), PRIMARY KEY (id),
+    FOREIGN KEY(report_id) REFERENCES generated_reports (id), FOREIGN KEY(user_id) REFERENCES users (id));
+"""
+
+_CREATE_ALL_2_0_2 = """
+CREATE TABLE users (id INTEGER NOT NULL, email VARCHAR(150) NOT NULL, password VARCHAR(256) NOT NULL,
+    role VARCHAR(20) DEFAULT 'viewer' NOT NULL, is_active BOOLEAN NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, last_login DATETIME, PRIMARY KEY (id));
+CREATE UNIQUE INDEX ix_users_email ON users (email);
+CREATE TABLE settings (id INTEGER NOT NULL, "key" VARCHAR(100) NOT NULL, value TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id));
+CREATE UNIQUE INDEX ix_settings_key ON settings ("key");
+CREATE TABLE generated_reports (id INTEGER NOT NULL, month INTEGER NOT NULL, year INTEGER NOT NULL,
+    report_type VARCHAR(50) NOT NULL, filename VARCHAR(255) NOT NULL, file_path VARCHAR(500) NOT NULL,
+    generated_by INTEGER NOT NULL, generated_at DATETIME NOT NULL, file_size INTEGER, total_contributions FLOAT,
+    contributors_count INTEGER, defaulters_count INTEGER, money_dispensed FLOAT, total_book_balance FLOAT,
+    is_archived BOOLEAN NOT NULL, archived_at DATETIME, PRIMARY KEY (id),
+    FOREIGN KEY(generated_by) REFERENCES users (id));
+CREATE INDEX ix_generated_reports_is_archived ON generated_reports (is_archived);
+CREATE INDEX ix_generated_reports_generated_by ON generated_reports (generated_by);
+CREATE TABLE report_access_logs (id INTEGER NOT NULL, report_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+    accessed_at DATETIME NOT NULL, action VARCHAR(50) NOT NULL, PRIMARY KEY (id),
+    FOREIGN KEY(report_id) REFERENCES generated_reports (id), FOREIGN KEY(user_id) REFERENCES users (id));
+CREATE INDEX ix_report_access_logs_report_id ON report_access_logs (report_id);
+CREATE INDEX ix_report_access_logs_user_id ON report_access_logs (user_id);
+"""
+
+
+@pytest.fixture(params=['2.0.0', '2.0.2'])
+def migrated_old_install(request, tmp_path):
+    import sqlite3
+
+    from flask_migrate import stamp
+
+    path = tmp_path / 'old.db'
+    raw = sqlite3.connect(path)
+    raw.executescript({'2.0.0': _CREATE_ALL_2_0_0, '2.0.2': _CREATE_ALL_2_0_2}[request.param])
+    nulls = request.param == '2.0.0'      # 2.0.0 allowed NULL in these columns
+    raw.executescript(f"""
+        INSERT INTO users (id, email, password, role, is_active, created_at) VALUES
+            (1, 'chair@mzugoss.com', 'hash', 'admin', 1, '2025-01-01'),
+            (2, 'clerk@mzugoss.com', 'hash', 'clerk', {'NULL' if nulls else 1}, '2025-01-01'),
+            (3, 'viewer@mzugoss.com', 'hash', 'viewer', 1, '2025-01-01');
+        INSERT INTO settings (key, value) VALUES ('google_sheets_url', 'https://docs.google.com/spreadsheets/d/abc');
+        INSERT INTO generated_reports (id, month, year, report_type, filename, file_path, generated_by,
+            generated_at, is_archived) VALUES
+            (1, 3, 2026, 'contributions', 'r.pdf', '/r.pdf', 1, {'NULL' if nulls else "'2026-03-31'"},
+             {'NULL' if nulls else 0}),
+            (2, 3, 2026, 'contributions', 'gone.pdf', '/gone.pdf', 99, '2026-03-31', 0);
+        INSERT INTO report_access_logs (report_id, user_id, accessed_at, action) VALUES
+            (1, 1, '2026-03-31', {'NULL' if nulls else "'download'"}), (2, 99, '2026-03-31', 'download');
+    """)
+    raw.commit()
+    raw.close()
+
+    app = create_app('testing', {'SQLALCHEMY_DATABASE_URI': f'sqlite:///{path}',
+                                 'LOGS_FOLDER': str(tmp_path / 'logs')})
+    with app.app_context():
+        from app.extensions import db
+
+        stamp(directory=MIGRATIONS, revision=BASELINE)
+        upgrade(directory=MIGRATIONS)
+        with db.engine.connect() as conn:
+            yield conn
+
+
+def test_old_installs_upgrade_with_their_officers_and_reports(migrated_old_install):
+    conn = migrated_old_install
+    assert _rows(conn, """
+        SELECT u.email, r.name, u.is_active FROM users u LEFT JOIN roles r ON r.id = u.role_id ORDER BY u.id
+    """) == [('chair@mzugoss.com', 'Chairperson', 1), ('clerk@mzugoss.com', 'Treasurer', 1),
+             ('viewer@mzugoss.com', None, 0)]
+    assert _rows(conn, 'SELECT google_sheet_url FROM group_settings') == [
+        ('https://docs.google.com/spreadsheets/d/abc',)]
+
+    # Missing values are filled in; rows pointing at a deleted officer are dropped
+    [(generated_at, is_archived)] = _rows(conn, 'SELECT generated_at, is_archived FROM generated_reports')
+    assert generated_at is not None and is_archived == 0
+    assert len(_rows(conn, "SELECT action FROM report_access_logs WHERE action IS NOT NULL")) == 1
+
+
+def test_old_installs_end_up_with_the_current_schema(migrated_old_install):
+    from alembic.script import ScriptDirectory
+
+    conn = migrated_old_install
+    assert _rows(conn, 'SELECT version_num FROM alembic_version') == [
+        (ScriptDirectory(MIGRATIONS).get_current_head(),)]
+    assert _rows(conn, "SELECT name FROM sqlite_master WHERE substr(name, 1, 1) = '_'") == []
+    assert _rows(conn, 'PRAGMA foreign_key_check') == []
+    links = {row[3]: row[6] for row in _rows(conn, 'PRAGMA foreign_key_list(generated_reports)')}
+    assert links['generated_by'] == 'SET NULL'

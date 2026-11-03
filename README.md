@@ -43,11 +43,30 @@ A Flask-based system to automate the tracking of monthly contributions, simplify
 | PNG/Charts              | matplotlib, Pillow |
 | Spreadsheet Integration | openpyxl, gspread  |
 | Version Control         | bump2version       |
-| Auth & Storage          | SQLite (built-in)  |
+| Database                | Postgres (SQLite for development) |
+| Serving                 | gunicorn in Docker, with Redis for shared rate limits |
 
 ---
 
-## ⚡ Installation
+## 🐳 Running with Docker
+
+The app, Postgres and Redis, ready for a server behind nginx or Caddy:
+
+```bash
+cp .env.example .env          # fill in SECRET_KEY, POSTGRES_PASSWORD, Google credentials
+docker compose up -d --build  # upgrades the database, then starts gunicorn on 127.0.0.1:8000
+docker compose exec web flask create-superadmin
+```
+
+The site must be served over HTTPS (production cookies are HTTPS-only). Set
+`TRUSTED_PROXIES=1` when a proxy on the same machine forwards to the app.
+Back up with `docker compose exec -T db pg_dump -U welfare welfare > backup.sql`.
+`/api/health` reports the version and whether the database answers.
+
+Moving the live Mzugoss site from 2.0.x: see
+[docs/MZUGOSS_RUNBOOK.md](docs/MZUGOSS_RUNBOOK.md).
+
+## ⚡ Installation (development)
 
 ### 1. Clone the Repo
 
@@ -129,10 +148,12 @@ limits and the audit log see each visitor's own address. Leave it at `0`
 when the app is reached directly, because the forwarded headers can be forged.
 
 If you already have a database created by an older version (before
-migrations were added), mark it as up to date once instead of upgrading:
+migrations were added, 2.0.x and earlier), mark it as being at the baseline
+once, then upgrade. The first migration brings the old tables into line:
 
 ```bash
 flask db stamp 365dc0d4aa41
+flask db upgrade
 ```
 
 ### 5. Run the App
