@@ -1,0 +1,96 @@
+# Tests on every push and pull request.
+#
+#   tests      the suite on SQLite, with Python 3.12 (the Oracle server's) and 3.13 (Docker's)
+#   postgres   the suite on Postgres, as the Docker setup runs it
+#   migrations a new database built by the migrations matches the models
+#   docker     the image builds
+name: CI
+
+on:
+  push:
+    branches: [main, develop, 'feature/**', 'overhaul/**', 'ci/**', 'fix/**']
+  pull_request:
+  workflow_dispatch:
+  workflow_call:          # the deploy workflow runs these first
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q -p no:warnings
+
+  postgres:
+    name: Tests on Postgres
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: welfare
+          POSTGRES_PASSWORD: welfare
+          POSTGRES_DB: welfare_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U welfare -d welfare_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://welfare:welfare@localhost:5432/welfare_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q -p no:warnings
+
+  migrations:
+    name: Migrations match the models
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FLASK_APP: run.py
+      FLASK_ENV: production
+      SECRET_KEY: ci-only-not-a-secret-ci-only-not-a-secret
+      DATABASE_URL: sqlite:////tmp/ci.db
+      ENABLE_AUTO_CLEANUP: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements.txt
+      - run: flask db upgrade
+      - run: flask db check
+
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t welfare-system:ci .

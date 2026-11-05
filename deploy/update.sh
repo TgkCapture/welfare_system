@@ -10,6 +10,10 @@
 set -eu
 
 REF="${1:-main}"
+# A tag, branch or commit name only: this may come from the deploy key's forced command
+case "$REF" in
+    -*|*[!A-Za-z0-9._/-]*|'') echo "Not a version name: $REF" >&2; exit 2 ;;
+esac
 SERVICE="${SERVICE:-welfare3}"
 PORT="${PORT:-5001}"
 PREVIOUS="$(git rev-parse --short HEAD)"
@@ -26,6 +30,8 @@ fi
 
 echo "== Installing requirements"
 venv/bin/pip install --quiet -r requirements.txt
+# New programs in the venv get the label SELinux lets systemd run (docs/DEPLOY_VPS.md)
+if command -v restorecon >/dev/null 2>&1; then restorecon -R venv/bin 2>/dev/null || true; fi
 
 echo "== Upgrading the database"
 sh deploy/flask.sh db upgrade
