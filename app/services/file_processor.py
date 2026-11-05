@@ -35,11 +35,13 @@ class FileProcessor:
         )
 
     @staticmethod
-    def process_upload(request) -> str:
+    def process_upload(request, sheet_url=None) -> str:
         """Dispatch to the correct handler based on form input method.
+
+        With *sheet_url*, that sheet is fetched whatever the form says.
         """
-        if FileProcessor.uses_google_sheets(request):
-            return FileProcessor._process_google_sheets(request)
+        if sheet_url or FileProcessor.uses_google_sheets(request):
+            return FileProcessor._process_google_sheets(request, sheet_url)
         return FileProcessor._process_file_upload(request)
 
     @staticmethod
@@ -91,14 +93,17 @@ class FileProcessor:
         return filepath
 
     @staticmethod
-    def _process_google_sheets(request) -> str:
+    def _process_google_sheets(request, saved_url=None) -> str:
         """Fetch a Google Sheet and persist it as a temp .xlsx file.
+
+        *saved_url* is the group's own sheet; otherwise the form's link is
+        used and remembered as the group's sheet.
         """
         from app.extensions import db
         from app.models.tenancy import current_group
         from app.services.google_sheets_service import GoogleSheetsService
 
-        sheet_url = request.form.get('sheet_url', '').strip()
+        sheet_url = saved_url or request.form.get('sheet_url', '').strip()
         year      = request.form.get('year', type=int)
 
         if not sheet_url:
@@ -106,9 +111,10 @@ class FileProcessor:
         if not year:
             raise ValueError("Year is required when importing from Google Sheets.")
 
-        # Remember it as the group's sheet so the settings page stays in sync
-        current_group().settings.google_sheet_url = sheet_url
-        db.session.commit()
+        if not saved_url:
+            # Remember it as the group's sheet so the settings page stays in sync
+            current_group().settings.google_sheet_url = sheet_url
+            db.session.commit()
 
         service = GoogleSheetsService()
         service.init_app(current_app._get_current_object())

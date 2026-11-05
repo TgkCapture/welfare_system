@@ -110,12 +110,84 @@ def test_filled_in_template_syncs(app, group, tmp_path):
     assert Rate.for_group(group.id).one().amount == 1000
 
 
-def test_template_carries_over_the_previous_closing_balance(app, group):
-    db.session.add(YearSummary(group_id=group.id, year=2025, opening_balance=0,
-                               total_contributions=5000, total_payouts=1000, closing_balance=4000))
+def test_template_starts_from_the_first_stored_year(app, group):
+    db.session.add(YearSummary(group_id=group.id, year=2025, opening_balance=3000,
+                               total_contributions=2000, total_payouts=1000, closing_balance=4000))
     db.session.commit()
     wb = load_workbook(build_template(group, 2026))
-    assert wb['Summary']['B2'].value == 4000
+    assert [n for n in wb.sheetnames if n.startswith('Contributions')] == [
+        'Contributions 2025', 'Contributions 2026']
+    assert wb['Summary']['B2'].value == 3000          # the first year's opening: the only typed figure
+    assert wb['Summary']['B3'].value == '=E2'         # 2026 opens with 2025's closing
+
+
+def test_the_whole_history_downloads_filled_in_and_syncs_back(app, group, tmp_path):
+    members = MEMBERS + [('M004', 'Dan Zulu', date(2024, 1, 1), date(2024, 12, 1))]   # left end of 2024
+    contributions = {
+        2024: [('M001', 'Ann Banda', {'January': 1000, 'December': 1000}),
+               ('M002', 'Ben Phiri', {'January': 1000}),
+               ('M004', 'Dan Zulu', {'January': 500})],
+        2025: [('M001', 'Ann Banda', {'January': 1000, 'February': 1000}),
+               ('M002', 'Ben Phiri', {'January': 1000}),
+               ('M003', 'Cara Mwale', {'March': 1000})],
+    }
+    path = _book(tmp_path, members=members, contributions=contributions,
+                 rates=[(date(2024, 1, 1), 1000)],
+                 payouts=[(date(2024, 6, 3), 'M002', 'Ben Phiri', 'Wedding gift', 1500, 'Chair'),
+                          (date(2025, 2, 10), None, 'A visitor', 'Funeral condolence', 700, 'Chair')],
+                 summary=[(2024, 10000, None, None, None), (2025, None, None, None, None)])
+    wb = load_workbook(path)
+    wb['Contributions 2025']['O1'] = 'Excess'
+    wb['Contributions 2025']['O2'] = 1500           # Ann paid ahead for 2026
+    wb.save(path)
+    _sync(group, path)
+
+    def stored():
+        return (sorted((c.member.code, c.year, c.month, c.amount, c.status)
+                       for c in Contribution.for_group(group.id)),
+                sorted((y.year, y.opening_balance, y.total_contributions, y.total_payouts, y.closing_balance)
+                       for y in YearSummary.for_group(group.id) if y.year <= 2025),
+                sorted((p.paid_on, p.beneficiary, p.purpose, p.amount) for p in Payout.for_group(group.id)),
+                sorted((m.member.code, m.year, m.excess_paid) for m in MemberYear.for_group(group.id)
+                       if m.year <= 2025))
+    before = stored()
+
+    download = tmp_path / 'download.xlsx'
+    download.write_bytes(build_template(group, 2026).getvalue())
+    wb = load_workbook(download)
+    assert [n for n in wb.sheetnames if n.startswith('Contributions')] == [
+        'Contributions 2024', 'Contributions 2025', 'Contributions 2026']
+    y2024 = wb['Contributions 2024']
+    assert [y2024.cell(r, 1).value for r in range(2, 6)] == ['M001', 'M002', 'M004', None]   # Cara joins 2025
+    assert (y2024['C2'].value, y2024['N2'].value, y2024['C4'].value) == (1000, 1000, 500)
+    assert y2024['D2'].value is None                                  # unpaid months stay blank
+    assert wb['Contributions 2025']['O2'].value == 1500
+    y2026 = wb['Contributions 2026']
+    assert [y2026.cell(r, 1).value for r in range(2, 6)] == ['M001', 'M002', 'M003', None]   # Dan has left
+    assert all(y2026.cell(r, c).value is None for r in range(2, 5) for c in range(3, 16))
+    payouts = wb['Payouts']
+    assert [payouts.cell(2, c).value for c in (2, 4, 5)] == ['M002', 'Wedding gift', 1500]
+    assert payouts['C2'].value.startswith('=IF(B2=""')
+    assert [payouts.cell(3, c).value for c in (2, 3, 5)] == [None, 'A visitor', 700]
+    assert wb['Summary']['B2'].value == 10000
+
+    run = _sync(group, download)
+    assert stored() == before
+    assert run.warnings == []
+    ann_2026 = MemberYear.for_group(group.id).filter_by(year=2026).one()
+    assert (ann_2026.member.code, ann_2026.credit_in) == ('M001', 1500)    # the Excess carries over
+    assert (YearSummary.for_group(group.id).filter_by(year=2026).one().opening_balance
+            == YearSummary.for_group(group.id).filter_by(year=2025).one().closing_balance)
+
+
+def test_the_download_never_drops_a_stored_year(client, group, make_user, login):
+    for year in (2024, 2025):
+        db.session.add(YearSummary(group_id=group.id, year=year))
+    db.session.commit()
+    make_user()
+    login()
+    response = client.post('/workbook/template', data={'year': '2024'})
+    assert 'mzugoss_contributions_2024-2025.xlsx' in response.headers['Content-Disposition']
 
 
 def test_template_download_page(client, group, make_user, login):
@@ -360,9 +432,12 @@ def test_summary_sheet_disagreements_are_warnings(app, group, tmp_path):
         (2025, 8000, 1000, 0, 9000),        # typed carry-over: 2024 closed at 6,000
     ]))
 
+    # (Plain numbers here, so each also says it comes from a typed-over cell)
     messages = _messages(run)
-    assert 'Summary 2025: Opening balance is 8,000, but 2024 closed at 6,000.' in messages
-    assert 'Summary 2025: The sheet shows closing balance of 9,000, but the app calculates 7,000.' in messages
+    assert any(m.startswith('Summary 2025: The opening balance is 8,000, but 2024 closed at 6,000.')
+               for m in messages)
+    assert any(m.startswith('Summary 2025: The sheet shows closing balance of 9,000, but the app '
+                            'calculates 7,000.') for m in messages)
     assert not any(m.startswith('Summary 2024') for m in messages)
 
 
@@ -438,6 +513,50 @@ def test_sync_pages_are_scoped_and_need_upload_data(client, group, make_group, m
     client.get('/auth/logout')
     login('chair@example.com')
     assert client.get(f'/syncs/{theirs.id}').status_code == 404
+
+
+def test_a_secretary_syncs_the_linked_sheet_and_makes_the_report(client, group, make_user, login,
+                                                                tmp_path, monkeypatch):
+    from io import BytesIO
+    from app.services.google_sheets_service import GoogleSheetsService
+
+    book = _book(tmp_path)
+    fetched = []
+
+    def fake_fetch(self, url):
+        fetched.append(url)
+        return BytesIO(open(book, 'rb').read())
+    monkeypatch.setattr(GoogleSheetsService, 'get_workbook_as_excel', fake_fetch)
+    monkeypatch.setattr(GoogleSheetsService, 'init_app', lambda self, app: None)
+
+    make_user(email='sec@example.com', role='Secretary')
+    login('sec@example.com')
+
+    # Nothing linked yet: nothing to sync
+    assert b"isn't linked yet" in client.get('/upload-dashboard').data
+    client.post('/upload', data={'input_method': 'sheets', 'year': '2025', 'month': '3'})
+    assert fetched == [] and GeneratedReport.query.count() == 0
+
+    group.settings.google_sheet_url = 'https://docs.google.com/spreadsheets/d/the-group-sheet/edit'
+    db.session.commit()
+    page = client.get('/upload-dashboard').data
+    assert b'the-group-sheet' in page and b'Choose or drop the workbook' not in page
+
+    # Another link in the form is ignored, and isn't saved
+    response = client.post('/upload', data={'input_method': 'sheets', 'year': '2025', 'month': '3',
+                                            'sheet_url': 'https://docs.google.com/spreadsheets/d/another/edit'})
+    assert response.status_code == 302
+    assert fetched == ['https://docs.google.com/spreadsheets/d/the-group-sheet/edit']
+    assert group.settings.google_sheet_url.endswith('the-group-sheet/edit')
+    assert GeneratedReport.query.filter_by(group_id=group.id, year=2025, month=3).count() == 1
+    run = SyncRun.for_group(group.id).one()
+    assert client.get(f'/syncs/{run.id}').status_code == 200
+
+    # A file is never read for them
+    with open(book, 'rb') as fh:
+        client.post('/upload', data={'file': (fh, 'book.xlsx'), 'year': '2025', 'month': '3'},
+                    content_type='multipart/form-data')
+    assert len(fetched) == 2 and SyncRun.for_group(group.id).count() == 2
 
 
 # ==================== PAYOUT PURPOSES ====================
@@ -552,11 +671,25 @@ def test_legacy_months_keep_the_sheets_own_figures(app, group, mzugoss_workbook)
 def test_a_typed_over_summary_formula_is_a_warning(app, group, tmp_path):
     run = _sync(group, _book(tmp_path, summary=[(2025, 10000, '=SUM(1)', 125000, '=B2+C2-D2')]))
 
-    messages = _messages(run)
-    assert any(m.startswith('Summary row 2, Payouts: Has a typed number (125,000) where the formula should be')
-               for m in messages)
-    assert not any(m.startswith(('Summary row 2, Opening', 'Summary row 2, Contributions',
-                                 'Summary row 2, Closing')) for m in messages)
+    typed = [w for w in run.warnings if w.get('kind') == 'formula']
+    assert len(typed) == 1                     # not the first opening balance, nor real formulas
+    assert typed[0]['where'] == 'Summary D2 (2025 payouts)'
+    assert typed[0]['message'].startswith('Someone typed the number 125,000 over the formula')
+    assert typed[0]['fix'] == ('Click Summary D2, delete the number and type this formula: '
+                               '=SUMIFS(Payouts!$E:$E,Payouts!$A:$A,">="&DATE(A2,1,1),'
+                               'Payouts!$A:$A,"<="&DATE(A2,12,31))')
+
+    # The totals it throws out point back to it, and come after it on the page
+    summary = [w for w in run.warnings if w.get('kind') == 'summary']
+    assert summary and all('typed number in Summary D2' in w['message'] for w in summary)
+    assert [w.get('kind') for w in run.ordered_warnings[:2]] == ['formula', 'summary']
+
+
+def test_the_fix_quotes_the_formula_the_template_uses(app, group):
+    from app.services.standard_workbook import summary_formula
+    wb = load_workbook(build_template(group, 2026))
+    for col, header in zip('CDE', ('Contributions', 'Payouts', 'Closing balance')):
+        assert wb['Summary'][f'{col}2'].value == summary_formula(header, 2, 2026)
 
 
 def test_dates_dragged_down_into_the_next_month_are_a_warning(app, group, tmp_path):
@@ -568,7 +701,57 @@ def test_dates_dragged_down_into_the_next_month_are_a_warning(app, group, tmp_pa
                ('M006', 'Fay Gondwe', date(2024, 3, 3), None)]   # counts up, but stays in March
     run = _sync(group, _book(tmp_path, members=members, contributions={}))
 
-    dragged = [m for m in _messages(run) if 'dragged down' in m]
+    dragged = [w for w in run.warnings if w.get('kind') == 'dates']
     assert len(dragged) == 1
-    assert dragged[0].startswith('Members rows 2–4: Joined (month) goes up a day per row (30 Jan 2024, 31 Jan 2024')
-    assert 'So rows 4–4 are in a later month than row 2.' in dragged[0]
+    assert dragged[0]['where'] == 'Members rows 2–4, Joined (month)'
+    assert dragged[0]['message'] == (
+        'The dates go up one day per row (30 Jan, 31 Jan, 01 Feb…), which is what Excel does when a '
+        'date is dragged down. So 1 member(s) on rows 4–4 (Cara Mwale) are recorded as joining in '
+        'Feb 2024 instead of Jan 2024.')
+    assert dragged[0]['fix'].startswith('If they all joined in Jan 2024: type Jan 2024 in D2, '
+                                        'select D2:D4 and press Ctrl+D')
+
+
+def test_the_sync_page_groups_warnings_with_their_fixes(client, group, make_user, login, tmp_path):
+    members = [('M001', 'Ann Banda', date(2024, 1, 30), None),
+               ('M002', 'Ben Phiri', date(2024, 1, 31), None),
+               ('M003', 'Cara Mwale', date(2024, 2, 1), None)]
+    run = _sync(group, _book(tmp_path, members=members,
+                             summary=[(2025, 10000, '=SUM(1)', 125000, '=B2+C2-D2')]))
+    make_user()
+    login()
+    page = client.get(f'/syncs/{run.id}').get_data(as_text=True)
+    headings = ['Formulas typed over', 'Dates changed by dragging', "Summary totals that don&#39;t match the app"]
+    positions = [page.index(h) for h in headings]
+    assert positions == sorted(positions)
+    assert 'How to fix:' in page and 'Ctrl+D' in page
+
+
+def test_the_dashboard_ignores_a_year_that_has_not_started(app, group, make_user):
+    from app.services.dashboard import overview
+    this_year = date.today().year
+    for year in (this_year, this_year + 1):        # next year's sheet is already in the workbook
+        db.session.add(YearSummary(group_id=group.id, year=year, closing_balance=year))
+    db.session.commit()
+    assert overview(group, make_user())['year'].year == this_year
+
+
+def test_clear_ledger_starts_a_group_again_and_leaves_others(app, group, make_group, make_user, tmp_path):
+    from app.models.audit import AuditEvent
+    other = make_group(slug='other', name='Other')
+    _sync(group, _book(tmp_path))
+    _sync(other, tmp_path / 'book.xlsx')
+    officer = make_user()
+    cli = app.test_cli_runner()
+
+    kept = cli.invoke(args=['clear-ledger', '--group', 'mzugoss'], input='wrong\n')
+    assert 'Nothing deleted.' in kept.output and Member.for_group(group.id).count() == 3
+
+    result = cli.invoke(args=['clear-ledger', '--group', 'mzugoss'], input='mzugoss\n')
+    assert 'Cleared.' in result.output
+    for model in (Member, Contribution, PeriodSummary, YearSummary, Rate, SyncRun, Payout):
+        assert model.for_group(group.id).count() == 0
+    assert Member.for_group(other.id).count() == 3               # another group's records stay
+    assert db.session.get(type(officer), officer.id) is not None  # officers stay
+    assert PayoutPurpose.for_group(group.id).count() == len(PURPOSES)
+    assert AuditEvent.query.filter_by(group_id=group.id, action='ledger.cleared').count() == 1

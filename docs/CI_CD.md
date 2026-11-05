@@ -16,6 +16,29 @@ on every pull request. It runs four checks:
 To stop untested code reaching `main`: **Settings → Branches → Add rule** for
 `main`, with *Require status checks to pass* (pick the four jobs).
 
+## Branches
+
+- `main`: what's released. Every tag on it is a version on the server.
+- `develop`: the next version, merged and tested.
+- `fix/<what>` and `feature/<what>`: one change each, branched from
+  `develop` and merged back when CI passes. Add a line under
+  **Unreleased** in [CHANGELOG.md](../CHANGELOG.md) in the same branch.
+
+## Releasing
+
+```bash
+git checkout main && git pull && git merge --no-ff develop
+# CHANGELOG.md: rename "Unreleased" to the new version and date, commit
+bump2version patch        # 3.0.0 → 3.0.1, bug fixes only
+bump2version minor        # 3.0.x → 3.1.0, new or changed behaviour
+git push origin main v3.0.1          # the new tag starts the deploy
+git checkout develop && git merge --ff-only main && git push origin develop
+```
+
+`bump2version` changes the version in `app/__init__.py` and
+`.bumpversion.cfg`, commits it and makes the tag. `/api/health` then
+reports the new version.
+
 ## Deployment
 
 [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) deploys

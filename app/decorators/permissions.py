@@ -3,6 +3,7 @@
 Permission decorators.
 
   @permission_required('upload_data')  — group officer whose role grants it
+  @permission_required('upload_data', 'generate_reports')  — grants either
   @superadmin_required                 — platform superadmin
 
 Permission codes are defined in ``app/models/role.py``.
@@ -46,8 +47,8 @@ def _require_login():
     return None
 
 
-def permission_required(permission: str):
-    """Restrict a view to officers whose group role grants *permission*.
+def permission_required(*permissions: str):
+    """Restrict a view to officers whose group role grants one of *permissions*.
 
     Usage::
 
@@ -61,7 +62,7 @@ def permission_required(permission: str):
             if denied:
                 return denied
 
-            if not current_user.has_permission(permission):
+            if not any(current_user.has_permission(p) for p in permissions):
                 return _deny('You do not have permission to perform this action.')
 
             return fn(*args, **kwargs)

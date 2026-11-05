@@ -50,29 +50,43 @@
   </div>
 </div>
 
+{% if run.warnings %}
+  {% for heading, why, items in run.warning_sections %}
+  <div class="card mb-5">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-exclamation-triangle"></i> {{ heading }}</h2>
+      <span class="badge badge--warning">{{ items|length }}</span>
+    </div>
+    {% if why %}<p class="card__body text-sm text-muted pb-0">{{ why }}</p>{% endif %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Where</th><th>What's wrong, and how to fix it</th></tr></thead>
+        <tbody>
+          {% for w in items %}
+          <tr>
+            <td class="text-sm whitespace-nowrap align-top">{{ w.where }}</td>
+            <td class="text-sm">
+              {{ w.message }}
+              {% if w.fix %}
+              <div class="mt-2"><strong>How to fix:</strong> {{ w.fix }}</div>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
 <div class="card">
   <div class="card__header">
-    <h2 class="card__title"><i class="fas fa-exclamation-triangle"></i> Warnings</h2>
-    <span class="badge {{ 'badge--warning' if run.warnings else 'badge--success' }}">{{ run.warnings|length }}</span>
+    <h2 class="card__title"><i class="fas fa-check"></i> Warnings</h2>
+    <span class="badge badge--success">0</span>
   </div>
-  <div class="table-wrap">
-    {% if run.warnings %}
-    <table class="data-table">
-      <thead><tr><th>Where</th><th>What to check</th></tr></thead>
-      <tbody>
-        {% for w in run.warnings %}
-        <tr>
-          <td class="text-sm whitespace-nowrap">{{ w.where }}</td>
-          <td class="text-sm">{{ w.message }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="text-sm p-5">The workbook passed every check.</p>
-    {% endif %}
-  </div>
+  <p class="text-sm p-5">The workbook passed every check.</p>
 </div>
+{% endif %}
 <p class="form-hint mt-4">
   Warnings don't stop a sync: everything usable was stored. Fix the workbook and sync again to clear them.
 </p>

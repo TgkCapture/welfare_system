@@ -47,12 +47,14 @@
         {{ nav_link('main.dashboard', 'gauge-high', 'Dashboard',
                     ('main.admin_dashboard', 'main.clerk_dashboard', 'main.viewer_dashboard')) }}
 
-        {% if current_user.has_permission('upload_data') or current_user.has_permission('view_reports')
+        {% if current_user.can_sync or current_user.has_permission('view_reports')
               or current_user.has_permission('manage_members') %}
         <div class="sidebar__section">Contributions</div>
         {% if current_user.has_permission('upload_data') %}
           {{ nav_link('main.upload_dashboard', 'file-arrow-up', 'Upload or sync') }}
           {{ nav_link('main.workbook', 'file-excel', 'Workbook', ('main.sync_run',)) }}
+        {% elif current_user.can_sync %}
+          {{ nav_link('main.upload_dashboard', 'file-arrow-up', 'Sync and report', ('main.sync_run',)) }}
         {% endif %}
         {% if current_user.has_permission('view_reports') %}
           {{ nav_link('report.list', 'file-lines', 'Reports',

@@ -351,15 +351,27 @@ class StandardSync:
         """Warn where the Summary sheet disagrees with the calculation."""
         if not figures:
             return
-        checks = [('contributions', contributions, 'contributions'), ('payouts', payouts, 'payouts'),
-                  ('closing', closing, 'closing balance')]
+        # A typed-over cell explains its own figure and every one calculated from it
+        typed = {header: cell for (y, header), cell in self.data.typed_summary.items() if y == year}
+        if typed:
+            cause = ', '.join(f'{SUMMARY} {cell}' for cell in typed.values())
+            fix = (f'Put the formula back in {cause} (see that warning); this one then clears '
+                   'at the next sync.')
+        else:
+            fix = None
+        where = f'{SUMMARY} {year}'
         if year != first_year:
             sheet_opening = figures.get('opening')
             if sheet_opening is not None and abs(sheet_opening - opening) > _TOLERANCE:
-                self.data.warn(f'{SUMMARY} {year}', f'Opening balance is {_money(sheet_opening)}, but '
-                                                    f'{year - 1} closed at {_money(opening)}.')
+                self.data.warn(where, f'The opening balance is {_money(sheet_opening)}, but '
+                                      f'{year - 1} closed at {_money(opening)}.', fix=fix, kind='summary')
+        checks = [('contributions', contributions, 'contributions'), ('payouts', payouts, 'payouts'),
+                  ('closing', closing, 'closing balance')]
         for key, calculated, label in checks:
             value = figures.get(key)
             if value is not None and abs(value - calculated) > _TOLERANCE:
-                self.data.warn(f'{SUMMARY} {year}', f'The sheet shows {label} of {_money(value)}, '
-                                                    f'but the app calculates {_money(calculated)}.')
+                message = (f'The sheet shows {label} of {_money(value)}, but the app calculates '
+                           f'{_money(calculated)}.')
+                if typed:
+                    message += f' The difference comes from the typed number in {cause}.'
+                self.data.warn(where, message, fix=fix, kind='summary')
