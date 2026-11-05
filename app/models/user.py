@@ -84,6 +84,15 @@ class User(TenantScoped, UserMixin, db.Model):
         """True if this officer's group role grants *permission*."""
         return permission in self.permissions
 
+    @property
+    def can_sync(self) -> bool:
+        """Can sync the group's workbook and make the month's report.
+
+        upload_data may also upload a file or change the sheet link;
+        generate_reports syncs from the group's linked Google Sheet only.
+        """
+        return self.has_permission('upload_data') or self.has_permission('generate_reports')
+
     def can_grant(self, role) -> bool:
         """An officer may only assign roles whose permissions they hold."""
         return set(role.permissions or ()) <= self.permissions

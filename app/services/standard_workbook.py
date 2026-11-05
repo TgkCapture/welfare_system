@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 
 from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
 
 MONTHS = list(calendar.month_name)[1:]
 
@@ -51,6 +52,34 @@ _DATE_FORMATS = ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%d %b %Y', '%d %B %Y')
 
 def contributions_sheet(year: int) -> str:
     return f'{CONTRIBUTIONS_PREFIX}{year}'
+
+
+SUMMARY_SUM_ROWS = 2300     # Contributions rows the Summary adds up
+
+
+def payouts_in_year(year_cell: str, purpose_cell: str = None) -> str:
+    """Summary formula: payouts dated in the year in *year_cell* (and of one purpose)."""
+    criteria = (f'{PAYOUTS}!$A:$A,">="&DATE({year_cell},1,1),'
+                f'{PAYOUTS}!$A:$A,"<="&DATE({year_cell},12,31)')
+    if purpose_cell:
+        criteria += f',{PAYOUTS}!$D:$D,{purpose_cell}'
+    return f'=SUMIFS({PAYOUTS}!$E:$E,{criteria})'
+
+
+def summary_formula(header: str, row: int, year: int, letters: dict = None) -> str:
+    """The formula a Summary cell holds (*letters*: header → column letter, default B–E)."""
+    col = {h: get_column_letter(i) for i, h in enumerate(SUMMARY_HEADERS, start=1)}
+    col.update(letters or {})
+    if header == 'Opening balance':
+        return f"={col['Closing balance']}{row - 1}"          # last year's closing, carried over
+    if header == 'Contributions':                              # months and Excess: all money received
+        return f"=SUM('{contributions_sheet(year)}'!C2:O{SUMMARY_SUM_ROWS})"
+    if header == 'Payouts':
+        return payouts_in_year(f"{col['Year']}{row}")
+    if header == 'Closing balance':
+        return (f"={col['Opening balance']}{row}+{col['Contributions']}{row}"
+                f"-{col['Payouts']}{row}")
+    raise ValueError(header)
 
 
 # ==================== READ RESULT ====================
@@ -93,10 +122,18 @@ class WorkbookData:
     payouts: list = field(default_factory=list)
     rates: list = field(default_factory=list)           # [(effective_from, amount)]
     summary: dict = field(default_factory=dict)         # year → {opening, contributions, payouts, closing}
-    warnings: list = field(default_factory=list)        # [{'where': ..., 'message': ...}]
+    warnings: list = field(default_factory=list)        # [{'where', 'message', 'fix'?, 'kind'?}]
+    # (year, Summary header) → cell, where a formula was typed over with a number
+    typed_summary: dict = field(default_factory=dict)
 
-    def warn(self, where: str, message: str) -> None:
-        self.warnings.append({'where': where, 'message': message})
+    def warn(self, where: str, message: str, fix: str = None, kind: str = None) -> None:
+        """Record a warning; *fix* says what to do about it, *kind* groups it on the page."""
+        warning = {'where': where, 'message': message}
+        if fix:
+            warning['fix'] = fix
+        if kind:
+            warning['kind'] = kind
+        self.warnings.append(warning)
 
 
 # ==================== READER ====================
@@ -171,25 +208,41 @@ class StandardWorkbook:
         for header in ('Joined (month)', 'Left (month)'):
             if header not in cols:
                 continue
-            dated = [(row, get(header)) for row, get in _rows(ws, cols)]
-            dated = [(row, v.date() if isinstance(v, datetime) else v) for row, v in dated
+            letter = get_column_letter(cols[header])
+            dated = [(row, get(header), _name(get('Name'))) for row, get in _rows(ws, cols)]
+            dated = [(row, v.date() if isinstance(v, datetime) else v, name) for row, v, name in dated
                      if isinstance(v, (date, datetime))]
             runs = []
-            for row, value in dated:
+            for row, value, name in dated:
                 last = runs[-1][-1] if runs else None
                 if last and row == last[0] + 1 and (value - last[1]).days == 1:
-                    runs[-1].append((row, value))
+                    runs[-1].append((row, value, name))
                 else:
-                    runs.append([(row, value)])
+                    runs.append([(row, value, name)])
             for run in runs:
-                (first_row, first), (_, second) = run[0], run[1] if len(run) > 1 else run[0]
-                moved = [r for r, v in run if (v.year, v.month) != (first.year, first.month)]
-                if len(run) >= 3 and moved:
-                    data.warn(f'{MEMBERS} rows {first_row}–{run[-1][0]}',
-                              f'{header} goes up a day per row ({first:%d %b %Y}, {second:%d %b %Y}, …), '
-                              f'as Excel fills a date that is dragged down. So rows {moved[0]}–{moved[-1]} '
-                              f'are in a later month than row {first_row}. If they are all {first:%b %Y}, '
-                              f'type it once and copy it down (Ctrl+D) instead of dragging.')
+                first_row, first, _ = run[0]
+                moved = [(r, v, n) for r, v, n in run if (v.year, v.month) != (first.year, first.month)]
+                if len(run) < 3 or not moved:
+                    continue
+                last_row = run[-1][0]
+                months = sorted({(v.year, v.month) for _, v, _ in moved})
+                landed = ', '.join(date(y, m, 1).strftime('%b %Y') for y, m in months)
+                names = [n for _, _, n in moved if n]
+                example = ', '.join(names[:3]) + (f' and {len(names) - 3} more' if len(names) > 3 else '')
+                what, did = ('joining', 'joined') if header.startswith('Joined') else ('leaving', 'left')
+                data.warn(
+                    f'{MEMBERS} rows {first_row}–{last_row}, {header}',
+                    f'The dates go up one day per row ({first:%d %b}, {run[1][1]:%d %b}, '
+                    f'{run[2][1]:%d %b}…), which is what Excel does when a date is dragged down. '
+                    f'So {len(moved)} member(s) on rows {moved[0][0]}–{moved[-1][0]}'
+                    f'{f" ({example})" if example else ""} are recorded as {what} in {landed} '
+                    f'instead of {first:%b %Y}.',
+                    fix=(f'If they all {did} in {first:%b %Y}: type {first:%b %Y} in {letter}{first_row}, '
+                         f'select {letter}{first_row}:{letter}{last_row} and press Ctrl+D (in Google Sheets, '
+                         f'copy {letter}{first_row} and paste it into the other cells). '
+                         f"If some really {did} later, type each one's own month."),
+                    kind='dates',
+                )
 
     @staticmethod
     def _read_contributions(ws, year, data):
@@ -278,18 +331,32 @@ class StandardWorkbook:
         try:
             ws = wb[SUMMARY]
             cols = _columns(ws, ['Year', 'Opening balance'], SUMMARY_HEADERS)
+            letters = {h: get_column_letter(c) for h, c in cols.items()}
             first = True
             for row, get in _rows(ws, cols):
-                if get('Year') in (None, ''):
+                year = get('Year')
+                if year in (None, ''):
+                    continue
+                try:
+                    year = int(float(year))
+                except (TypeError, ValueError):
                     continue
                 for header in SUMMARY_HEADERS[1:]:
-                    if header == 'Opening balance' and first:
+                    if header not in cols or (header == 'Opening balance' and first):
                         continue
                     value = get(header)
                     if isinstance(value, (int, float)) and not isinstance(value, bool):
-                        data.warn(f'{SUMMARY} row {row}, {header}',
-                                  f'Has a typed number ({value:,.0f}) where the formula should be, so it '
-                                  f'no longer updates. Copy the formula back from a newly downloaded template.')
+                        cell = f'{letters[header]}{row}'
+                        data.typed_summary[(year, header)] = cell
+                        data.warn(
+                            f'{SUMMARY} {cell} ({year} {header.lower()})',
+                            f'Someone typed the number {value:,.0f} over the formula in this cell, so it '
+                            f'no longer adds itself up: payments or payouts added to the workbook since '
+                            f"don't change it, and every total after it is out by the same amount.",
+                            fix=f'Click {SUMMARY} {cell}, delete the number and type this formula: '
+                                f'{summary_formula(header, row, year, letters)}',
+                            kind='formula',
+                        )
                 first = False
         finally:
             wb.close()

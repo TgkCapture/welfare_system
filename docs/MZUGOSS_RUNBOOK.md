@@ -40,19 +40,35 @@ is git-ignored because it holds real member data. Its review report,
       new one:
       `flask convert-legacy-workbook MGSS.xlsx --merges conversion/MGSS_merges.csv --drop-repeated-payouts --group mzugoss`
 
-### 1.2 Put the workbook where the app can read it
+### 1.2 One workbook for every year
+
+The group keeps a single workbook: a Contributions sheet for each year from
+2023, with the carry-overs calculated from one year to the next. Each new
+year gets its own sheet in the same workbook.
+
+`conversion/MGSS_2023-2027.xlsx` is that workbook: the converted 2023–2026
+history, and an empty 2027. To make it again (after changing the converted
+workbook), sync `MGSS_standard.xlsx` into a group that holds nothing else,
+then on **Workbook** download it up to 2027. Syncing the download gives the
+same figures as the converted file.
+
+Later, to start a new year, download the workbook again up to that year, or
+add the year's sheet by hand (the workbook's Read me says how).
+
+### 1.3 Put the workbook where the app can read it
 
 Either:
-- **Google Sheets (recommended).** Upload `MGSS_standard.xlsx` to Google
-  Drive, open it as a Google Sheet, and share it as a Viewer with the
-  service account's email (the `client_email` in the key file). Note the
-  sheet's URL.
+- **Google Sheets (recommended).** Upload `MGSS_2023-2027.xlsx` to Google
+  Drive, open it as a Google Sheet (**File → Save as Google Sheets**), and
+  share it as a Viewer with the service account,
+  `mzugoss-welfare-app@mzugoss-welfare.iam.gserviceaccount.com` (the
+  `client_email` in the key file). Note the Google Sheet's URL.
 - **Upload.** Officers upload the `.xlsx` file each month from the Upload
   page instead.
 
 Keep the old MGSS sheet as it is: it's the record of everything before 3.0.0.
 
-### 1.3 Choose a path
+### 1.4 Choose a path
 
 | | **A. Docker with Postgres** (recommended) | **B. In place on SQLite** |
 |---|---|---|
@@ -65,7 +81,7 @@ Keep the old MGSS sheet as it is: it's the record of everything before 3.0.0.
 Members and contributions aren't in the old database either way: they come
 from the workbook at the first sync.
 
-### 1.4 Rehearse
+### 1.5 Rehearse
 
 Do the whole chosen path once on a copy, on any machine:
 
@@ -85,7 +101,7 @@ Do the whole chosen path once on a copy, on any machine:
 If anything fails, stop and keep the error. On SQLite a failed upgrade can
 leave the copy half changed, so start again from a fresh copy.
 
-### 1.5 Tell people
+### 1.6 Tell people
 
 - Officers: the date, the new sign-in page (`/g/mzugoss/login`), and that
   viewer accounts end (members get PINs and personal links instead).
@@ -208,28 +224,45 @@ everything it needs from the environment.
 Sign in as the Chairperson at `/g/mzugoss/login`. The **Setup** page
 (`/setup`) lists these steps.
 
-1. **Data source.** In **Settings**, set the Google Sheet URL to the new
-   standard workbook from 1.2, not the old MGSS sheet. Path B copied the old
-   URL across, so change it.
-2. **First sync.** From **Upload**, sync (or upload `MGSS_standard.xlsx`).
-   Check:
+0. **The real Chairperson.** If the group's only Chairperson is a
+   placeholder account (such as `admin@admin.com`), create the real one and
+   remove the placeholder:
+
+   ```bash
+   sh deploy/flask.sh create-admin --group mzugoss     # their email and a first password
+   ```
+
+   They sign in, change their password under **Profile**, and delete the
+   placeholder under **Officers**.
+1. **Start clean, if the group was test-synced.** A test sync of the old
+   MGSS sheet leaves members under its spellings and months in its layout.
+   Back up, then clear them; officers, settings and reports stay:
+
+   ```bash
+   sh deploy/backup.sh
+   sh deploy/flask.sh clear-ledger --group mzugoss     # asks you to type mzugoss
+   ```
+2. **Data source.** In **Settings**, set the Google Sheet URL to the
+   workbook from 1.3, not the old MGSS sheet. Path B copied the old URL
+   across, so change it.
+3. **First sync.** From **Upload**, sync. Check:
    - every month's total matches the old sheet; `MGSS_review.md` lists them,
-     and all 48 matched in the rehearsal
-   - 63 members
+     and all 41 months matched
+   - 63 members, and on **Workbook** the balances for 2023 to 2027
    - the only warnings are the ones you expect, such as payouts not yet filled in
-3. **Payout purposes** (Settings → Payout purposes): rename or add the
+4. **Payout purposes** (Settings → Payout purposes): rename or add the
    group's own purposes. There's no fixed list.
-4. **Rules** (Settings → Rules): check the welfare rules read correctly.
-5. **Branding:** logo, colours and display name.
-6. **Public pages** (Settings → Public pages): note the access code that
+5. **Rules** (Settings → Rules): check the welfare rules read correctly.
+6. **Branding:** logo, colours and display name.
+7. **Public pages** (Settings → Public pages): note the access code that
    members need for the paid list, or set your own.
-7. **Members.** For each member, from their page under **Members**:
+8. **Members.** For each member, from their page under **Members**:
    - **Make a PIN.** The PIN is shown once, so give it to the member
      privately. They look up their history with their name and PIN at
      `/g/mzugoss/check`.
    - Or send their **personal link** (**Copy link**), which opens their
      history directly. Treat it like a password; **New link** cancels the old one.
-8. **Officers.** Check each officer's role, and that everyone who can manage
+9. **Officers.** Check each officer's role, and that everyone who can manage
    officers really should.
 
 ---

@@ -2,12 +2,15 @@
 {% extends 'base.html' %}
 {% from 'components/ui.html' import page_header, card, button %}
 {% from 'main/_cycle_steps.html' import cycle_steps %}
-{% block title %}Upload or sync — {{ brand.name }}{% endblock %}
+{% set heading = 'Sync and report' if sheet_only else 'Upload or sync' %}
+{% block title %}{{ heading }} — {{ brand.name }}{% endblock %}
 
 {% block content %}
-{% call page_header('Upload or sync', icon='file-arrow-up',
+{% call page_header(heading, icon='file-arrow-up',
                     sub=('Last month synced: ' ~ latest_label) if latest_label else 'No month synced yet') %}
+  {% if not sheet_only %}
   {{ button('Workbook', href=url_for('main.workbook'), icon='file-excel', variant='outline', size='sm') }}
+  {% endif %}
 {% endcall %}
 {{ cycle_steps(1) }}
 
@@ -39,6 +42,17 @@
     </p>
   {% endcall %}
 
+  {% if sheet_only %}
+  {% call card("Your group's Google Sheet", icon='database') %}
+    <input type="hidden" name="input_method" value="sheets" data-source checked>
+    {% if sheet_url %}
+      <p class="break-all text-sm"><a href="{{ sheet_url }}" target="_blank" rel="noopener" class="text-brand underline">{{ sheet_url }}</a></p>
+      <p class="form-hint">The latest version is fetched now. Only the Chairperson can change which sheet this is, in Settings.</p>
+    {% else %}
+      <p class="text-sm text-slate-600">Your group's Google Sheet isn't linked yet. Ask the Chairperson to add it in Settings.</p>
+    {% endif %}
+  {% endcall %}
+  {% else %}
   {% call card('Where is the data?', icon='database') %}
     <div class="mb-4 grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1" role="radiogroup" aria-label="Data source">
       {% for value, icon, label in (('sheets', 'fab fa-google', 'Google Sheet'), ('file', 'fas fa-file-excel', 'Upload a file')) %}
@@ -69,8 +83,10 @@
       <input type="file" name="file" id="fileInput" accept=".xlsx,.xls,.csv" class="sr-only">
     </div>
   {% endcall %}
+  {% endif %}
 
-  <button type="submit" class="btn btn--primary btn--lg btn--full" id="submitBtn">
+  <button type="submit" class="btn btn--primary btn--lg btn--full" id="submitBtn"
+          {{ 'disabled' if sheet_only and not sheet_url }}>
     <i class="fas fa-arrow-right"></i> <span>Read the workbook</span>
   </button>
   <p class="text-center text-xs text-slate-500">Members, contributions and balances are stored, then you'll check and share them.</p>
@@ -88,6 +104,7 @@
   const input = document.getElementById('fileInput');
   const zone = document.getElementById('dropZone');
   const name = document.getElementById('fileName');
+  if (zone) {
   input.addEventListener('change', () => { if (input.files[0]) name.textContent = input.files[0].name; });
   ['dragover', 'dragenter'].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('border-brand'); }));
   zone.addEventListener('dragleave', () => zone.classList.remove('border-brand'));
@@ -95,9 +112,11 @@
     e.preventDefault();
     if (e.dataTransfer.files[0]) { input.files = e.dataTransfer.files; name.textContent = e.dataTransfer.files[0].name; }
   });
+  }
 
   document.getElementById('uploadForm').addEventListener('submit', (e) => {
-    const source = document.querySelector('[data-source]:checked').value;
+    const chosen = document.querySelector('[data-source]:checked') || document.querySelector('input[name=input_method]');
+    const source = chosen.value;
     if (source === 'file' && !input.files.length) { e.preventDefault(); name.textContent = 'Choose a file first'; return; }
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;

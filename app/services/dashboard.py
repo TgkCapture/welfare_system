@@ -8,6 +8,7 @@ is one page for every role.
 """
 import calendar
 from dataclasses import dataclass, field
+from datetime import date
 
 from app.models.ledger import PayoutPurpose, SyncRun, YearSummary
 from app.models.member import Member, PeriodSummary
@@ -38,10 +39,12 @@ def overview(group, user) -> dict:
         'latest': latest,
         'latest_label': f'{calendar.month_name[latest.month]} {latest.year}' if latest else None,
         'trend': [_trend_row(s) for s in reversed(summaries)],
-        'year': (YearSummary.for_group(group.id).order_by(YearSummary.year.desc()).first()
+        # Not a year that hasn't started: the workbook may already have next year's empty sheet
+        'year': (YearSummary.for_group(group.id).filter(YearSummary.year <= date.today().year)
+                 .order_by(YearSummary.year.desc()).first()
                  if can('view_reports') or can('upload_data') else None),
         'members': Member.for_group(group.id).filter_by(is_active=True).count(),
-        'last_run': last_run if can('upload_data') else None,
+        'last_run': last_run if user.can_sync else None,
         'attention': _attention(group, user, last_run),
         'reports': (GeneratedReport.for_group(group.id).filter(GeneratedReport.is_archived.is_(False))
                     .order_by(GeneratedReport.generated_at.desc()).limit(5).all()
@@ -63,7 +66,7 @@ def _trend_row(summary):
 def _attention(group, user, last_run) -> list:
     can = user.has_permission
     items = []
-    if can('upload_data') and last_run and last_run.warnings:
+    if user.can_sync and last_run and last_run.warnings:
         items.append(Attention('triangle-exclamation', f'The last sync raised {len(last_run.warnings)} warning(s).',
                                'main.sync_run', {'run_id': last_run.id}))
     new_names = (last_run.details or {}).get('new_members', []) if last_run else []
