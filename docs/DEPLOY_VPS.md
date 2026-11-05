@@ -124,6 +124,14 @@ The old database is never changed.
 Then start the service:
 
 ```bash
+# SELinux doesn't let systemd read or run files labelled as home-directory
+# files. Label .env as configuration (otherwise "Failed to load environment
+# files: Permission denied", result 'resources') and the venv's programs as
+# programs (otherwise status=203/EXEC), as the old app's venv already is.
+sudo semanage fcontext -a -t etc_t '/home/tgk/projects/welfare-3/\.env'
+sudo semanage fcontext -a -t bin_t '/home/tgk/projects/welfare-3/venv/bin(/.*)?'
+sudo restorecon -v .env && sudo restorecon -R venv/bin
+
 sudo cp deploy/welfare3.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now welfare3
@@ -132,6 +140,22 @@ curl -s http://127.0.0.1:5001/api/health   # "status": "healthy", "version": "3.
 ```
 
 ## 6. nginx and HTTPS
+
+**Until there is a domain** (how it runs now), nginx serves the app on the
+bare IP, `http://145.241.103.17:8008`, and `.env` has `ALLOW_HTTP=1` so
+sign-in works without HTTPS:
+
+```bash
+sudo cp deploy/nginx-mzugoss-8008.conf /etc/nginx/conf.d/mzugoss-8008.conf
+sudo nginx -t && sudo systemctl reload nginx
+sudo firewall-cmd --permanent --add-port=8008/tcp && sudo firewall-cmd --reload
+```
+
+Oracle Cloud also needs an ingress rule for TCP 8008 in the subnet's
+security list.
+
+**With a domain**, use HTTPS instead, then remove `ALLOW_HTTP` from `.env`
+and run `sudo systemctl restart welfare3`:
 
 ```bash
 sudo cp deploy/nginx-mzugoss.conf /etc/nginx/conf.d/mzugoss.conf
