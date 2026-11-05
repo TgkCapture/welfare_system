@@ -10,7 +10,7 @@
 #            VPS_KNOWN_HOSTS  the server's host key line (ssh-keyscan 145.241.103.17)
 #   vars     VPS_HOST         145.241.103.17
 #            VPS_USER         tgk
-#            SITE_URL         https://mzugoss.duckdns.org
+#            SITE_URL         http://145.241.103.17:8008 (https://mzugoss.duckdns.org once it has a domain)
 name: Deploy
 
 on:

@@ -73,7 +73,8 @@ command="cd /home/tgk/projects/welfare-3 && sh deploy/update.sh \"$SSH_ORIGINAL_
 - **Environment variables:**
   - `VPS_HOST`: `145.241.103.17`
   - `VPS_USER`: `tgk`
-  - `SITE_URL`: `https://mzugoss.duckdns.org`
+  - `SITE_URL`: `http://145.241.103.17:8008` for now;
+    `https://mzugoss.duckdns.org` once the domain is set up
 
 ### If a deploy fails
 

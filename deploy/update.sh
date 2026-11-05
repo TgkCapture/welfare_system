@@ -30,6 +30,8 @@ fi
 
 echo "== Installing requirements"
 venv/bin/pip install --quiet -r requirements.txt
+# New programs in the venv get the label SELinux lets systemd run (docs/DEPLOY_VPS.md)
+if command -v restorecon >/dev/null 2>&1; then restorecon -R venv/bin 2>/dev/null || true; fi
 
 echo "== Upgrading the database"
 sh deploy/flask.sh db upgrade
