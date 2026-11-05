@@ -10,7 +10,8 @@
 {% set to_check = (run.warnings|length if run else 0) + new_members|length %}
 
 {% call page_header(month ~ ' ' ~ year, icon='circle-check', sub='Stored and reported. Check it, then share it.') %}
-  {{ button('Upload again', href=url_for('main.upload_dashboard'), icon='rotate', variant='outline', size='sm') }}
+  {% if current_user.can_sync %}{{ button('Sync again', href=url_for('main.upload_dashboard'), icon='rotate',
+                                         variant='outline', size='sm') }}{% endif %}
 {% endcall %}
 {{ cycle_steps(2 if to_check else 3) }}
 
@@ -64,15 +65,19 @@
       {% if run and run.warnings %}
       <h3 class="mb-2 text-sm font-bold">Warnings from the workbook ({{ run.warnings|length }})</h3>
       <ul class="space-y-2 text-sm">
-        {% for w in run.warnings[:5] %}
+        {% for w in run.ordered_warnings[:5] %}
         <li class="flex gap-2"><i class="fas fa-triangle-exclamation mt-1 text-amber-500"></i>
-          <span><span class="text-slate-500">{{ w.where }}:</span> {{ w.message }}</span></li>
+          <span><span class="text-slate-500">{{ w.where }}:</span> {{ w.message }}
+            {% if w.fix %}<span class="block mt-1"><strong>How to fix:</strong> {{ w.fix }}</span>{% endif %}
+          </span></li>
         {% endfor %}
       </ul>
+      {% if current_user.can_sync %}
       <div class="mt-3">
         {{ button('See all ' ~ run.warnings|length if run.warnings|length > 5 else 'Details',
                   href=url_for('main.sync_run', run_id=run.id), variant='outline', size='sm') }}
       </div>
+      {% endif %}
       <p class="form-hint">Warnings don't stop anything: fix them in the workbook and sync again.</p>
       {% endif %}
     {% endcall %}

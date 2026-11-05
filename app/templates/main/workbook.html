@@ -18,19 +18,29 @@
 <div class="grid gap-5 md:grid-cols-2">
   <div class="card">
     <div class="card__header">
-      <h2 class="card__title"><i class="fas fa-download"></i> Standard template</h2>
+      <h2 class="card__title"><i class="fas fa-download"></i> Your workbook</h2>
     </div>
     <div class="card__body">
       <p class="text-sm">
-        A workbook with sheets for Members, Contributions, Payouts, Rates and a Summary that
-        calculates itself. It comes filled in with your members, rates and payout purposes,
-        and dropdowns keep Member IDs and purposes consistent.
+        One workbook for every year: Members, a Contributions sheet per year, Payouts, Rates and
+        a Summary that calculates each year's balance and carries it into the next.
+        {% if stored %}
+        It comes filled in with everything stored from {{ stored[0] }} on: what each member paid,
+        Excess, payouts and the opening balance.
+        {% else %}
+        It comes filled in with your members, rates and payout purposes.
+        {% endif %}
+        Dropdowns keep Member IDs and purposes consistent.
+      </p>
+      <p class="text-sm mt-2">
+        To start a new year, download it up to that year: the new year's sheet comes empty,
+        with every earlier year as it is now.
       </p>
       <form class="flex gap-3 items-end mt-4" method="POST" action="{{ url_for('main.download_template') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group m-0">
-          <label class="form-label" for="year">Year</label>
-          <input type="number" id="year" name="year" value="{{ year }}" min="2000" max="{{ year + 1 }}"
+          <label class="form-label" for="year">{{ 'Up to year' if stored else 'Year' }}</label>
+          <input type="number" id="year" name="year" value="{{ [year, stored[-1]]|max if stored else year }}" min="{{ stored[-1] if stored else 2000 }}" max="{{ year + 1 }}"
                  class="form-control w-28">
         </div>
         <button type="submit" class="btn btn--primary"><i class="fas fa-file-excel"></i> Download</button>

@@ -2,7 +2,9 @@
 """
 File upload and report generation.
 
-Officers with upload_data can upload Excel files and trigger report generation.
+Officers with upload_data can upload Excel files or sync any Google Sheet;
+officers with generate_reports can sync the group's linked Google Sheet.
+Either way the month's report is made from what was stored.
 """
 from datetime import datetime
 import os
@@ -42,7 +44,7 @@ class UploadController:
     # ==================== UPLOAD DASHBOARD ====================
 
     @staticmethod
-    @permission_required('upload_data')
+    @permission_required('upload_data', 'generate_reports')
     def upload_dashboard():
         """Step 1 of the monthly cycle: choose the month and where the data comes from."""
         group = current_group()
@@ -61,6 +63,7 @@ class UploadController:
             month_names=MONTH_NAMES,
             latest_label=f'{MONTH_NAMES[latest.month - 1]} {latest.year}' if latest else None,
             standard=bool(last_run and last_run.layout == 'standard'),
+            sheet_only=not current_user.has_permission('upload_data'),
         )
 
     @staticmethod
@@ -75,14 +78,21 @@ class UploadController:
     # ==================== UPLOAD & GENERATE ====================
 
     @staticmethod
-    @permission_required('upload_data')
+    @permission_required('upload_data', 'generate_reports')
     def upload():
         """Handle Excel file upload and trigger report generation."""
         filepath = None
 
         try:
-            # --- 1. Save uploaded file ---
-            filepath = FileProcessor.process_upload(request)
+            # --- 1. Save uploaded file (generate_reports alone: the group's own sheet) ---
+            saved_url = None
+            if not current_user.has_permission('upload_data'):
+                saved_url = current_group().settings.google_sheet_url
+                if not saved_url:
+                    flash("Your group's Google Sheet isn't linked yet. Ask the Chairperson to add it "
+                          'in Settings.', 'error')
+                    return redirect(url_for('main.upload_dashboard'))
+            filepath = FileProcessor.process_upload(request, sheet_url=saved_url)
 
             # --- 2. Validate year / month ---
             year = request.form.get('year', type=int)

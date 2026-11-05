@@ -17,7 +17,7 @@ from app.services.excel_parser import ExcelParser
 from app.services.file_processor import FileProcessor
 from app.services.sheet_mapping import FINANCIALS, SHEET_MODES, SheetMapping
 from app.services.standard_workbook import StandardWorkbook
-from app.services.workbook_template import build_template
+from app.services.workbook_template import build_template, stored_years, template_years
 
 PURPOSE_MAX_LENGTH = 80
 
@@ -34,6 +34,7 @@ class WorkbookController:
             'main/workbook.html',
             version=current_app.version,
             year=datetime.now().year,
+            stored=stored_years(current_group().id),
             years=YearSummary.for_group().order_by(YearSummary.year.desc()).all(),
             runs=SyncRun.for_group().order_by(SyncRun.synced_at.desc()).limit(10).all(),
         )
@@ -41,27 +42,30 @@ class WorkbookController:
     @staticmethod
     @permission_required('upload_data')
     def download_template():
-        """The standard workbook for a year, pre-filled with the group's members and rates."""
+        """The group's whole standard workbook up to a year, filled in with what's stored."""
         year = request.form.get('year', type=int)
         if not year or not 2000 <= year <= datetime.now().year + 1:
             flash('Please choose a valid year.', 'danger')
             return redirect(url_for('main.workbook'))
 
         group = current_group()
+        years = template_years(group.id, year)
         buffer = build_template(group, year)
         db.session.commit()   # keeps any Member IDs given to members for the template
-        audit.record('workbook.template', f'Downloaded the {year} workbook template', details={'year': year})
+        span = f'{years[0]}-{years[-1]}' if len(years) > 1 else f'{years[0]}'
+        audit.record('workbook.template', f'Downloaded the workbook for {span.replace("-", "–")}',
+                     details={'year': year, 'years': [years[0], years[-1]]})
         return send_file(
             buffer,
             as_attachment=True,
-            download_name=f'{group.slug}_contributions_{year}.xlsx',
+            download_name=f'{group.slug}_contributions_{span}.xlsx',
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
 
     # ==================== SYNC RESULTS ====================
 
     @staticmethod
-    @permission_required('upload_data')
+    @permission_required('upload_data', 'generate_reports')
     def sync_run(run_id):
         """Everything one sync stored, and the warnings it raised."""
         run = SyncRun.get_for_group_or_404(run_id)

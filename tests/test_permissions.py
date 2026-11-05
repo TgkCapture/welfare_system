@@ -30,7 +30,7 @@ def _allowed(response):
 @pytest.mark.parametrize('role,upload,officers,settings,reports', [
     ('Chairperson', True,  True,  True,  True),
     ('Treasurer',   True,  False, False, True),
-    ('Secretary',   False, False, False, True),
+    ('Secretary',   True,  False, False, True),    # the group's linked sheet only
 ])
 def test_pages_follow_role_permissions(client, as_officer, role, upload, officers, settings, reports):
     as_officer(role)
@@ -44,7 +44,7 @@ def test_pages_follow_role_permissions(client, as_officer, role, upload, officer
 @pytest.mark.parametrize('role,sees,hidden', [
     ('Chairperson', ['Upload or sync', 'Recent reports', 'Officers'], []),
     ('Treasurer',   ['Upload or sync', 'Recent reports'],            ['Officers']),
-    ('Secretary',   ['Recent reports'],                              ['Upload or sync', 'Officers']),
+    ('Secretary',   ['Sync and report', 'Recent reports'],           ['Upload or sync', 'Officers']),
 ])
 def test_one_dashboard_shows_what_each_role_may_use(client, as_officer, role, sees, hidden):
     as_officer(role)

@@ -12,6 +12,8 @@ Available commands:
   flask create-group        — create a welfare group with preset roles
   flask create-admin        — create a group's first officer (Chairperson)
   flask create-superadmin   — create a platform superadmin
+  flask list-users, reset-password — find accounts, set a forgotten password
+  flask clear-ledger        — delete a group's members and stored figures, to sync afresh
 """
 import calendar
 import os
@@ -380,6 +382,51 @@ def init_commands(app) -> None:
         click.secho(f'✓ New password set for {user.email}.', fg='green')
         if not user.is_active:
             click.secho('  The account is deactivated; an officer must reactivate it.', fg='yellow')
+
+    # ------------------------------------------------------------------
+    # clear-ledger: start a group's records again from its workbook
+    # ------------------------------------------------------------------
+
+    @app.cli.command('clear-ledger')
+    @click.option('--group', 'slug', required=True, help='The group (slug).')
+    @click.option('--yes', is_flag=True, help="Don't ask to confirm.")
+    def clear_ledger(slug, yes):
+        """Delete a group's members, payments, payouts, balances and sync history.
+
+        For a group about to sync its real workbook after test syncs, so old
+        names and months don't linger. Officers, settings, rules, payout
+        purposes and generated reports stay. Back up the database first.
+        """
+        from app.extensions import db
+        from app.models.group import Group
+        from app.models.ledger import Payout, Rate, SyncRun, YearSummary
+        from app.models.member import Contribution, Member, MemberAlias, MemberYear, PeriodSummary
+        from app.services import audit
+
+        group = Group.query.filter_by(slug=slug.strip().lower()).first()
+        if not group:
+            click.secho(f'✗ No group with slug {slug!r}.', fg='red')
+            return
+        gid = group.id
+        counts = {'members': Member.for_group(gid).count(),
+                  'stored months': PeriodSummary.for_group(gid).count(),
+                  'payouts': Payout.for_group(gid).count(),
+                  'syncs': SyncRun.for_group(gid).count()}
+        click.echo(f'{group.name} ({group.slug}): ' + ', '.join(f'{n} {k}' for k, n in counts.items()))
+        if not yes:
+            typed = click.prompt(f'This deletes them all. Type {group.slug} to go ahead', default='',
+                                 show_default=False)
+            if typed.strip().lower() != group.slug:
+                click.echo('Nothing deleted.')
+                return
+
+        for model in (Contribution, MemberYear, MemberAlias, Payout, PeriodSummary, YearSummary, Rate, SyncRun):
+            model.for_group(gid).delete(synchronize_session=False)
+        Member.for_group(gid).delete(synchronize_session=False)
+        audit.record('ledger.cleared', 'Cleared the members and stored figures from the command line',
+                     group_id=gid, actor='command line', details=counts, commit=False)
+        db.session.commit()
+        click.secho('✓ Cleared. The next sync stores the workbook from scratch.', fg='green')
 
 def _verify_conversion(workbook_path, legacy_totals, purposes):
     """Sync the converted workbook into a throwaway database and compare month totals.

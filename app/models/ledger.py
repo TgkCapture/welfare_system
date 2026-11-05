@@ -79,6 +79,21 @@ class YearSummary(TenantScoped, db.Model):
     synced_at           = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 
+# How a sync's warnings are grouped for officers, most important first:
+# (kind, heading, why it matters). Warnings without a kind go last.
+WARNING_SECTIONS = [
+    ('formula', 'Formulas typed over',
+     "A number typed over a Summary formula stops it adding up, so the workbook's own totals go "
+     'wrong. Fix these first: the Summary differences below usually come from them.'),
+    ('dates', 'Dates changed by dragging',
+     'These change which months members are expected to pay, so they change who shows as unpaid.'),
+    ('summary', "Summary totals that don't match the app",
+     "Reports use the app's figures, worked out from the payments and payouts. The Summary sheet "
+     'should agree with them.'),
+    (None, 'Other things to check', None),
+]
+
+
 class SyncRun(TenantScoped, db.Model):
     """One sync of a workbook, with the warnings it raised."""
     __tablename__ = 'sync_runs'
@@ -89,9 +104,26 @@ class SyncRun(TenantScoped, db.Model):
     synced_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     source    = db.Column(db.String(20), nullable=False, default='upload')    # upload / google_sheets
     layout    = db.Column(db.String(20), nullable=False, default='standard')  # standard / legacy
-    # [{'where': 'Payouts row 4', 'message': '...'}, ...]
+    # [{'where': 'Payouts row 4', 'message': '...', 'fix': '...'?, 'kind': '...'?}, ...]
     warnings  = db.Column(db.JSON, nullable=False, default=list)
     # {'years': [...], 'months': [[2026, 3], ...], 'new_members': [...]}
     details   = db.Column(db.JSON, nullable=False, default=dict)
 
     user = db.relationship('User')
+
+    @property
+    def warning_sections(self) -> list:
+        """The warnings grouped as WARNING_SECTIONS: [(heading, why, [warnings])], empty groups left out."""
+        known = {kind for kind, _, _ in WARNING_SECTIONS if kind}
+        sections = []
+        for kind, heading, why in WARNING_SECTIONS:
+            items = [w for w in self.warnings or []
+                     if (w.get('kind') == kind if kind else w.get('kind') not in known)]
+            if items:
+                sections.append((heading, why, items))
+        return sections
+
+    @property
+    def ordered_warnings(self) -> list:
+        """Every warning, most important first."""
+        return [w for _, _, items in self.warning_sections for w in items]

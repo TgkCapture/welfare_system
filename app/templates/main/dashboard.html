@@ -8,7 +8,8 @@
 {% set cur = brand.currency %}
 
 {% call page_header(brand.name, sub=('Latest month synced: ' ~ latest_label) if latest else 'No contributions synced yet') %}
-  {% if can('upload_data') %}{{ button('Upload or sync', href=url_for('main.upload_dashboard'), icon='file-arrow-up') }}{% endif %}
+  {% if current_user.can_sync %}{{ button('Upload or sync' if can('upload_data') else 'Sync and report',
+                                         href=url_for('main.upload_dashboard'), icon='file-arrow-up') }}{% endif %}
 {% endcall %}
 
 {% if setup %}
@@ -35,6 +36,10 @@
       <div class="flex flex-wrap justify-center gap-2">
         {{ button('Get the workbook template', href=url_for('main.workbook'), icon='download', variant='outline') }}
         {{ button('Upload or sync', href=url_for('main.upload_dashboard'), icon='file-arrow-up') }}
+      </div>
+      {% elif current_user.can_sync %}
+      <div class="flex flex-wrap justify-center gap-2">
+        {{ button('Sync and report', href=url_for('main.upload_dashboard'), icon='file-arrow-up') }}
       </div>
       {% endif %}
     {% endcall %}
