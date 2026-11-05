@@ -19,7 +19,7 @@ from flask_wtf.csrf import generate_csrf
 from app.config import config, with_psycopg
 from app.extensions import csrf, db, limiter, login_manager, migrate
 
-__version__ = "3.0.0"
+__version__ = "3.1.0"
 
 
 def create_app(env: str = None, test_config: dict = None) -> Flask:
