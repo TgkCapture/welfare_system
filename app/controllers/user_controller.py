@@ -12,7 +12,7 @@ from flask import abort, current_app, flash, redirect, render_template, url_for
 from flask_login import current_user
 from werkzeug.security import generate_password_hash
 
-from app.auth.forms import RegisterForm, UserEditForm
+from app.auth.forms import RegisterForm, SetPasswordForm, UserEditForm
 from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.role import Role
@@ -134,6 +134,33 @@ class UserController:
             form=form,
             user=user,
             version=current_app.version,
+        )
+
+    # ==================== SET PASSWORD ====================
+
+    @staticmethod
+    @permission_required('manage_users')
+    def set_password(user_id):
+        """Give an officer a new password, e.g. when they've forgotten theirs."""
+        user = UserController._manageable_officer(user_id)
+        if user.id == current_user.id:
+            flash('Change your own password from your profile page.', 'info')
+            return redirect(url_for('auth.profile'))
+
+        form = SetPasswordForm()
+        if form.validate_on_submit():
+            user.set_password(form.new_password.data)
+            audit.record('officer.password', f'Set a new password for the officer {user.email}',
+                         details={'user_id': user.id}, commit=False)
+            db.session.commit()
+            flash(f'New password set for {user.email}. Give it to them privately; '
+                  'they can change it from their profile.', 'success')
+            return redirect(url_for('main.edit_user', user_id=user.id))
+
+        return render_template(
+            'main/set_password.html', form=form, user=user,
+            action=url_for('main.set_password', user_id=user.id),
+            back=url_for('main.edit_user', user_id=user.id),
         )
 
     # ==================== DELETE ====================

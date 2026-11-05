@@ -10,7 +10,7 @@ from flask import abort, current_app, flash, redirect, render_template, request,
 from sqlalchemy import func
 from werkzeug.security import generate_password_hash
 
-from app.auth.forms import GroupCreateForm, GroupForm, RegisterForm
+from app.auth.forms import GroupCreateForm, GroupForm, RegisterForm, SetPasswordForm
 from app.decorators.permissions import superadmin_required
 from app.extensions import db
 from app.models.group import Group, GroupSettings
@@ -168,6 +168,27 @@ class PlatformController:
                     flash(error, 'danger')
 
         return redirect(url_for('platform.group_detail', group_id=group.id))
+
+    @staticmethod
+    @superadmin_required
+    def set_officer_password(group_id, user_id):
+        """Give any of a group's officers a new password (e.g. a locked-out Chairperson)."""
+        group = PlatformController._group(group_id)
+        user = User.for_group(group.id).filter_by(id=user_id).first_or_404()
+        form = SetPasswordForm()
+        if form.validate_on_submit():
+            user.set_password(form.new_password.data)
+            audit.record('officer.password', f'Platform set a new password for the officer {user.email}',
+                         group_id=group.id, details={'user_id': user.id}, commit=False)
+            db.session.commit()
+            flash(f'New password set for {user.email}. Give it to them privately.', 'success')
+            return redirect(url_for('platform.group_detail', group_id=group.id))
+
+        return render_template(
+            'main/set_password.html', form=form, user=user,
+            action=url_for('platform.set_officer_password', group_id=group.id, user_id=user.id),
+            back=url_for('platform.group_detail', group_id=group.id),
+        )
 
     # ==================== STORAGE ====================
 

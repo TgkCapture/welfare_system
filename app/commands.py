@@ -320,6 +320,67 @@ def init_commands(app) -> None:
         )
 
 
+    # ------------------------------------------------------------------
+    # list-users / reset-password: for when nobody can sign in
+    # ------------------------------------------------------------------
+
+    @app.cli.command('list-users')
+    @click.option('--group', 'slug', default=None, help='Only this group (slug).')
+    def list_users(slug):
+        """List officer and superadmin accounts."""
+        from app.models.group import Group
+        from app.models.user import User
+
+        query = User.query.outerjoin(Group, User.group_id == Group.id)
+        if slug:
+            query = query.filter(Group.slug == slug.strip().lower())
+        users = query.order_by(Group.slug.nullsfirst(), User.email).all()
+        if not users:
+            click.echo('No accounts.')
+            return
+        for u in users:
+            where = 'platform' if u.is_superadmin else (u.group.slug if u.group else '-')
+            role = 'Superadmin' if u.is_superadmin else u.role_name
+            status = 'active' if u.is_active else 'inactive'
+            last = u.last_login.strftime('%Y-%m-%d') if u.last_login else 'never'
+            click.echo(f'{where:<16} {u.email:<40} {role:<14} {status:<9} last sign-in {last}')
+
+    @app.cli.command('reset-password')
+    @click.option('--group', 'slug', default=None,
+                  help="The officer's group (slug); leave out for a superadmin.")
+    @click.option('--email', prompt='Email')
+    @click.option('--password', prompt='New password', hide_input=True, confirmation_prompt=True)
+    def reset_password(slug, email, password):
+        """Set a new password for an officer (or a superadmin, without --group)."""
+        from app.extensions import db
+        from app.models.group import Group
+        from app.models.user import User
+        from app.services import audit
+
+        if len(password) < 8:
+            click.secho('✗ Password must be at least 8 characters.', fg='red')
+            return
+        if slug:
+            group = Group.query.filter_by(slug=slug.strip().lower()).first()
+            if not group:
+                click.secho(f'✗ No group with slug {slug!r}.', fg='red')
+                return
+            user = User.query.filter_by(group_id=group.id, email=email.strip()).first()
+        else:
+            user = User.query.filter_by(group_id=None, is_superadmin=True, email=email.strip()).first()
+        if not user:
+            click.secho(f'✗ No such account. `flask list-users` shows them.', fg='red')
+            return
+
+        user.set_password(password)
+        audit.record('officer.password', f'Set a new password for {user.email} from the command line',
+                     group_id=user.group_id, actor='command line', details={'user_id': user.id},
+                     commit=False)
+        db.session.commit()
+        click.secho(f'✓ New password set for {user.email}.', fg='green')
+        if not user.is_active:
+            click.secho('  The account is deactivated; an officer must reactivate it.', fg='yellow')
+
 def _verify_conversion(workbook_path, legacy_totals, purposes):
     """Sync the converted workbook into a throwaway database and compare month totals.
 

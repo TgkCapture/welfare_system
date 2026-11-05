@@ -78,6 +78,7 @@
       <div class="auth-footer">
         {% if group %}
         Accounts are created by your group's officers.<br>
+        Forgot your password? Ask your chairperson to set a new one.<br>
         Not {{ group.settings.short_name or group.name }}?
         <a href="{{ url_for('auth.login', switch=1) }}">Find your group</a>
         {% else %}

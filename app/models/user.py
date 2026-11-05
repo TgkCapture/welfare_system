@@ -60,6 +60,10 @@ class User(TenantScoped, UserMixin, db.Model):
             query = query.filter(cls.id != exclude_id)
         return db.session.query(query.exists()).scalar()
 
+    def set_password(self, password: str) -> None:
+        from werkzeug.security import generate_password_hash
+        self.password = generate_password_hash(password, method='scrypt')
+
     # ------------------------------------------------------------------
     # Permissions
     # ------------------------------------------------------------------

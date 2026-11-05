@@ -20,6 +20,8 @@ platform.route('/groups/new', methods=['GET', 'POST'], endpoint='create_group')(
 platform.route('/groups/<int:group_id>', methods=['GET', 'POST'], endpoint='group_detail')(PlatformController.group_detail)
 platform.route('/groups/<int:group_id>/toggle', methods=['POST'], endpoint='toggle_group')(PlatformController.toggle_group)
 platform.route('/groups/<int:group_id>/officers', methods=['POST'], endpoint='add_officer')(PlatformController.add_officer)
+platform.route('/groups/<int:group_id>/officers/<int:user_id>/password', methods=['GET', 'POST'],
+               endpoint='set_officer_password')(PlatformController.set_officer_password)
 
 # ==================== SUPPORT SESSIONS AND AUDIT LOG ====================
 platform.route('/groups/<int:group_id>/support', methods=['POST'], endpoint='start_support')(PlatformController.start_support)

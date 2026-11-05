@@ -68,6 +68,9 @@
           <a href="{{ url_for('main.admin_users') }}"
              class="btn btn--outline">Cancel</a>
           {% if user.id != current_user.id %}
+          <a href="{{ url_for('main.set_password', user_id=user.id) }}" class="btn btn--outline">
+            <i class="fas fa-key"></i> Set a new password
+          </a>
           <button type="button" class="btn btn--danger ml-auto" data-modal-open="delUserModal">
             <i class="fas fa-trash"></i> Delete officer
           </button>

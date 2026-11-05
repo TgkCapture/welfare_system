@@ -237,6 +237,9 @@ Sign in as the Chairperson at `/g/mzugoss/login`. The **Setup** page
 - [ ] A test member can see their history by PIN and by personal link.
 - [ ] A report for the latest month generates, and its totals match the sheet.
 - [ ] **Audit log** (`/audit`) shows the sign-ins and changes above.
+- [ ] Locked out? `flask list-users --group mzugoss` lists the accounts and
+      `flask reset-password --group mzugoss --email <email>` sets a new password
+      (with Docker, prefix both with `docker compose exec web`).
 - [ ] **Remove `admin@welfare.org`** if it exists. 2.0.x created that account
       on its own, with a known password. Delete it under **Officers**.
 - [ ] Backups run (section 3).

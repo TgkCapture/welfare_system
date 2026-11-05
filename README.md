@@ -104,6 +104,16 @@ Only `create-superadmin` is required. After that, the superadmin can create
 groups and their first officers at `/platform/` in the browser. Officers who
 can manage officers edit their group's roles at `/admin/roles`.
 
+Forgotten passwords: an officer who manages officers sets a new one from the
+officer's edit page, and a superadmin can do it for any officer from the
+group's page under `/platform/`. Both are recorded in the audit log. When
+nobody can sign in:
+
+```bash
+flask list-users [--group <slug>]                    # every account, its group and role
+flask reset-password --group <slug> --email <email>  # leave out --group for a superadmin
+```
+
 Each group's files are kept in `uploads/<slug>/` and `reports/<slug>/`.
 When upgrading from a version without group folders, run once:
 

@@ -39,7 +39,7 @@
     {% if officers %}
     <table class="data-table">
       <thead>
-        <tr><th>Email</th><th>Role</th><th>Status</th><th>Last login</th></tr>
+        <tr><th>Email</th><th>Role</th><th>Status</th><th>Last login</th><th></th></tr>
       </thead>
       <tbody>
         {% for u in officers %}
@@ -52,6 +52,10 @@
             </span>
           </td>
           <td class="text-sm text-muted">{{ u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else '—' }}</td>
+          <td>
+            <a href="{{ url_for('platform.set_officer_password', group_id=group.id, user_id=u.id) }}"
+               class="btn btn--outline btn--sm"><i class="fas fa-key"></i> New password</a>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

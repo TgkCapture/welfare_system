@@ -227,3 +227,24 @@ class ChangePasswordForm(FlaskForm):
         render_kw={'placeholder': 'Repeat new password'},
     )
     submit = SubmitField('Change Password')
+
+class SetPasswordForm(FlaskForm):
+    """Another officer's new password, set by an officer who manages them (or the platform)."""
+
+    new_password = PasswordField(
+        'New password',
+        validators=[
+            DataRequired(),
+            Length(min=8, message='Password must be at least 8 characters.'),
+        ],
+        render_kw={'autocomplete': 'new-password'},
+    )
+    confirm_password = PasswordField(
+        'Confirm new password',
+        validators=[
+            DataRequired(),
+            EqualTo('new_password', message='Passwords must match.'),
+        ],
+        render_kw={'autocomplete': 'new-password'},
+    )
+    submit = SubmitField('Set password')

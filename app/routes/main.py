@@ -62,6 +62,7 @@ main.route('/admin/storage-status')(DashboardController.storage_status)
 main.route('/admin/users')(UserController.admin_users)
 main.route('/admin/users/create',                   methods=['GET', 'POST'])(UserController.create_user)
 main.route('/admin/users/<int:user_id>/edit',        methods=['GET', 'POST'])(UserController.edit_user)
+main.route('/admin/users/<int:user_id>/password',      methods=['GET', 'POST'])(UserController.set_password)
 main.route('/admin/users/<int:user_id>/delete',      methods=['POST'])(UserController.delete_user)
 main.route('/admin/users/<int:user_id>/toggle',      methods=['POST'])(UserController.toggle_user_active)
 
