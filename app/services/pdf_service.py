@@ -304,6 +304,13 @@ class PDFGenerator:
             story.extend(PDFGenerator._summary_section(data, s))
             story.append(Spacer(1, 16))
 
+            # ── Balances and payouts, the year so far ──────────────────
+            if 'dispensed_to_date' in data:
+                story.extend(PDFGenerator._balance_section(data, s))
+                story.append(Spacer(1, 16))
+                story.extend(PDFGenerator._payouts_section(data, s))
+                story.append(Spacer(1, 16))
+
             # ── Paid members ───────────────────────────────────────────
             story.extend(PDFGenerator._paid_members_section(data, s))
             story.append(Spacer(1, 16))
@@ -394,13 +401,15 @@ class PDFGenerator:
             ['Number of Defaulters',   str(data.get('num_missing', 0))],
         ]
 
-        dispensed = data.get('money_dispensed')
-        if dispensed is not None:
-            rows.append(['Money Dispensed', f"{cur} {PDFGenerator._fmt(dispensed)}"])
+        # Groups with calculated balances get the balance section instead
+        if 'dispensed_to_date' not in data:
+            dispensed = data.get('money_dispensed')
+            if dispensed is not None:
+                rows.append(['Money Dispensed', f"{cur} {PDFGenerator._fmt(dispensed)}"])
 
-        balance = data.get('total_book_balance')
-        if balance is not None:
-            rows.append(['Total Book Balance', f"{cur} {PDFGenerator._fmt(balance)}"])
+            balance = data.get('total_book_balance')
+            if balance is not None:
+                rows.append(['Total Book Balance', f"{cur} {PDFGenerator._fmt(balance)}"])
 
         return [
             Paragraph('SUMMARY STATISTICS', s['rpt_section']),
@@ -410,6 +419,51 @@ class PDFGenerator:
                 style=_summary_table_style(),
             ),
         ]
+
+    @staticmethod
+    def _balance_section(data: dict, s: dict) -> list:
+        """Opening balance, money in and out (this month and the year so far), book balance."""
+        cur, fmt = data.get('currency', 'MWK'), PDFGenerator._fmt
+        month, year = data.get('month', ''), data.get('year', '')
+        so_far = f'Jan–{month[:3]} {year}' if month[:3] != 'Jan' else f'{month} {year}'
+        rows = [
+            ['', f'{month} {year}', so_far],
+            [f'Opening balance, 1 January {year}', '', f"{cur} {fmt(data['opening_balance'])}"],
+            ['Paid in', f"{cur} {fmt(data.get('total_contributions') or 0)}",
+             f"{cur} {fmt(data['contributions_to_date'])}"],
+            ['Money dispensed', f"{cur} {fmt(data.get('money_dispensed') or 0)}",
+             f"{cur} {fmt(data['dispensed_to_date'])}"],
+            [f'Book balance, end of {month} {year}', '', f"{cur} {fmt(data.get('total_book_balance') or 0)}"],
+        ]
+        return [
+            Paragraph('BALANCES', s['rpt_section']),
+            Table(rows, colWidths=[2.6*inch, 1.4*inch, 1.4*inch], style=_blue_header_table_style([
+                ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+                ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ])),
+        ]
+
+    @staticmethod
+    def _payouts_section(data: dict, s: dict) -> list:
+        """Every payout of the year up to the end of the report's month."""
+        year, payouts = data.get('year', ''), data.get('payouts_to_date') or []
+        flowables = [Paragraph(f'MONEY DISPENSED IN {year}', s['rpt_section'])]
+        if not payouts:
+            flowables.append(Paragraph('Nothing paid out so far this year.', s['rpt_body']))
+            return flowables
+        rows = [['Date', 'To', 'Purpose', 'Amount']] + [
+            [p['paid_on'].strftime('%d %b %Y'), Paragraph(escape(p['beneficiary']), s['rpt_body']),
+             Paragraph(escape(p['purpose']), s['rpt_body']), PDFGenerator._fmt(p['amount'])]
+            for p in payouts
+        ] + [['', '', 'Total', PDFGenerator._fmt(data['dispensed_to_date'])]]
+        flowables.append(Table(rows, colWidths=[1.0*inch, 2.0*inch, 1.6*inch, 1.0*inch], repeatRows=1,
+                               style=_blue_header_table_style([
+                                   ('ALIGN', (3, 1), (3, -1), 'RIGHT'),
+                                   ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
+                                   ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                               ])))
+        return flowables
 
     @staticmethod
     def _paid_members_section(data: dict, s: dict) -> list:

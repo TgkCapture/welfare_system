@@ -299,6 +299,16 @@ class ImageGenerator:
             ['Defaulters:',          str(int(data.get('num_missing', 0)))],
         ]
 
+        if 'dispensed_to_date' in data:
+            # The month beside the year so far, as on the PDF
+            year = data.get('year', '')
+            rows += [
+                ['Dispensed this month:', f"{cur} {float(data.get('money_dispensed') or 0):,.2f}"],
+                [f'Dispensed in {year} so far:', f"{cur} {float(data['dispensed_to_date']):,.2f}"],
+                ['Book Balance:', f"{cur} {float(data.get('total_book_balance') or 0):,.2f}"],
+            ]
+            return rows
+
         dispensed = data.get('money_dispensed')
         if dispensed is not None:
             try:

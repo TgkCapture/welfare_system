@@ -133,6 +133,7 @@ class StandardWorkbook:
             StandardWorkbook._read_rates(wb[RATES], data)
         if SUMMARY in wb.sheetnames:
             StandardWorkbook._read_summary(wb[SUMMARY], data)
+            StandardWorkbook._check_summary_formulas(path, data)
         return data
 
     # ------------------------------------------------------------------
@@ -158,6 +159,37 @@ class StandardWorkbook:
                 joined=_month(get('Joined (month)'), data, where, 'Joined (month)') if 'Joined (month)' in cols else None,
                 left=_month(get('Left (month)'), data, where, 'Left (month)') if 'Left (month)' in cols else None,
             ))
+        StandardWorkbook._check_dragged_dates(ws, cols, data)
+
+    @staticmethod
+    def _check_dragged_dates(ws, cols, data):
+        """Warn where a month column counts up a day per row across a month end.
+
+        Dragging a date down in Excel fills 1 Aug, 2 Aug, 3 Aug…, which
+        quietly moves the members further down into the next month.
+        """
+        for header in ('Joined (month)', 'Left (month)'):
+            if header not in cols:
+                continue
+            dated = [(row, get(header)) for row, get in _rows(ws, cols)]
+            dated = [(row, v.date() if isinstance(v, datetime) else v) for row, v in dated
+                     if isinstance(v, (date, datetime))]
+            runs = []
+            for row, value in dated:
+                last = runs[-1][-1] if runs else None
+                if last and row == last[0] + 1 and (value - last[1]).days == 1:
+                    runs[-1].append((row, value))
+                else:
+                    runs.append([(row, value)])
+            for run in runs:
+                (first_row, first), (_, second) = run[0], run[1] if len(run) > 1 else run[0]
+                moved = [r for r, v in run if (v.year, v.month) != (first.year, first.month)]
+                if len(run) >= 3 and moved:
+                    data.warn(f'{MEMBERS} rows {first_row}–{run[-1][0]}',
+                              f'{header} goes up a day per row ({first:%d %b %Y}, {second:%d %b %Y}, …), '
+                              f'as Excel fills a date that is dragged down. So rows {moved[0]}–{moved[-1]} '
+                              f'are in a later month than row {first_row}. If they are all {first:%b %Y}, '
+                              f'type it once and copy it down (Ctrl+D) instead of dragging.')
 
     @staticmethod
     def _read_contributions(ws, year, data):
@@ -233,6 +265,34 @@ class StandardWorkbook:
                 key: _amount(get(header), data, f'{SUMMARY} row {row}, {header}')
                 for header, key in keys.items()
             }
+
+
+    @staticmethod
+    def _check_summary_formulas(path, data):
+        """Warn where a Summary figure that should be a formula has been typed over.
+
+        A typed number doesn't change when payouts or payments are added, so
+        the sheet's totals go stale. Only the first year's opening balance is typed.
+        """
+        wb = load_workbook(path, read_only=True)     # formulas, not the values Excel calculated
+        try:
+            ws = wb[SUMMARY]
+            cols = _columns(ws, ['Year', 'Opening balance'], SUMMARY_HEADERS)
+            first = True
+            for row, get in _rows(ws, cols):
+                if get('Year') in (None, ''):
+                    continue
+                for header in SUMMARY_HEADERS[1:]:
+                    if header == 'Opening balance' and first:
+                        continue
+                    value = get(header)
+                    if isinstance(value, (int, float)) and not isinstance(value, bool):
+                        data.warn(f'{SUMMARY} row {row}, {header}',
+                                  f'Has a typed number ({value:,.0f}) where the formula should be, so it '
+                                  f'no longer updates. Copy the formula back from a newly downloaded template.')
+                first = False
+        finally:
+            wb.close()
 
 
 # ==================== CELL HELPERS ====================

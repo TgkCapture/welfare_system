@@ -9,12 +9,13 @@ Names that match nobody become new members and are reported back, so an
 officer can merge them into an existing member if they are a respelling.
 """
 import calendar
-from datetime import datetime
+from datetime import date, datetime
 
 import pandas as pd
 
 from app.extensions import db
 from app.models.group import Group
+from app.models.ledger import Payout, YearSummary
 from app.services.branding import brand_for
 from app.models.member import (
     PAID, PARTIAL, UNPAID,
@@ -157,6 +158,36 @@ class PeriodStore:
             'report_title':        brand.report_title,
             'currency':            brand.currency,
             'logo_file':           brand.logo_file,
+            **PeriodStore.year_to_date(group_id, year, month, summary),
+        }
+
+    @staticmethod
+    def year_to_date(group_id: int, year: int, month: int, summary=None) -> dict:
+        """The year so far, for groups whose balances the app calculates.
+
+        The old sheets' "Money dispensed" was everything paid out in the year,
+        so a report shows the month and the year so far side by side, and
+        reconciles: opening + paid in so far - paid out so far = book balance.
+        """
+        if summary is None:
+            summary = PeriodSummary.for_group(group_id).filter_by(year=year, month=month).first()
+        year_summary = YearSummary.for_group(group_id).filter_by(year=year).first()
+        if summary is None or summary.source != 'standard' or year_summary is None or summary.book_balance is None:
+            return {}
+        month_end = date(year, month, calendar.monthrange(year, month)[1])
+        payouts = (Payout.for_group(group_id)
+                   .filter(Payout.year == year, Payout.paid_on <= month_end)
+                   .order_by(Payout.paid_on, Payout.id).all())
+        dispensed = sum(p.amount for p in payouts)
+        return {
+            'opening_balance':       year_summary.opening_balance,
+            'contributions_to_date': summary.book_balance - year_summary.opening_balance + dispensed,
+            'dispensed_to_date':     dispensed,
+            'payouts_to_date':       [
+                {'paid_on': p.paid_on, 'beneficiary': p.beneficiary or '', 'purpose': p.purpose or '',
+                 'amount': p.amount}
+                for p in payouts
+            ],
         }
 
     @staticmethod

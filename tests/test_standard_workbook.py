@@ -483,3 +483,88 @@ def test_purposes_are_per_group_and_need_edit_settings(client, group, make_group
     login('chair@example.com')
     assert client.post(f'/settings/payout-purposes/{theirs.id}/toggle').status_code == 404
     assert db.session.get(PayoutPurpose, theirs.id).is_active
+
+
+# ==================== THE YEAR SO FAR ON REPORTS ====================
+
+_PAYOUTS = [(date(2025, 2, 10), 'M001', 'Ann Banda', 'Wedding gift', 1500, 'Chair'),
+            (date(2025, 3, 20), 'M002', 'Ben Phiri', 'Sick patient grant', 2000, 'Chair')]
+
+
+def test_reports_show_the_year_so_far_and_reconcile(app, group, tmp_path):
+    _sync(group, _book(tmp_path, payouts=_PAYOUTS, summary=[(2025, 10000, None, None, None)]))
+
+    figures = {}
+    for month in (1, 2, 3):
+        data = PeriodStore.report_data(group.id, 2025, month)
+        figures[month] = (data['money_dispensed'], data['dispensed_to_date'], data['contributions_to_date'],
+                          data['total_book_balance'], len(data['payouts_to_date']))
+        assert data['opening_balance'] == 10000
+        assert data['opening_balance'] + data['contributions_to_date'] - data['dispensed_to_date'] \
+            == data['total_book_balance']
+
+    # Nothing was paid out in January; March's year so far still includes February's payout
+    assert figures == {1: (0, 0, 2000, 12000, 0), 2: (1500, 1500, 3000, 11500, 1), 3: (2000, 3500, 5500, 12000, 2)}
+
+
+def test_the_pdf_shows_balances_and_the_years_payouts(app, group, tmp_path):
+    from app.services.pdf_service import PDFGenerator, _Styles
+
+    _sync(group, _book(tmp_path, payouts=_PAYOUTS, summary=[(2025, 10000, None, None, None)]))
+    data = PeriodStore.report_data(group.id, 2025, 3)
+
+    _, balances = PDFGenerator._balance_section(data, _Styles.get())
+    assert [row[0] for row in balances._cellvalues] == [
+        '', 'Opening balance, 1 January 2025', 'Paid in', 'Money dispensed', 'Book balance, end of March 2025']
+    assert balances._cellvalues[3][1:] == ['MWK 2,000.00', 'MWK 3,500.00']
+
+    _, payouts = PDFGenerator._payouts_section(data, _Styles.get())
+    assert [row[0] for row in payouts._cellvalues[1:]] == ['10 Feb 2025', '20 Mar 2025', '']
+    assert payouts._cellvalues[-1][-1] == '3,500.00'
+    assert PDFGenerator.generate_contribution_report_pdf(data)[:5] == b'%PDF-'
+
+
+def test_report_previews_show_the_balances(client, group, make_user, login, tmp_path):
+    make_user()
+    login()
+    _upload(client, _book(tmp_path, payouts=_PAYOUTS, summary=[(2025, 10000, None, None, None)]))
+
+    page = client.get('/reports/preview').get_data(as_text=True)
+    assert 'Money dispensed in 2025' in page and 'Ben Phiri' in page and '3,500' in page
+    report = GeneratedReport.query.one()
+    assert 'Money dispensed in 2025' in client.get(f'/reports/{report.id}').get_data(as_text=True)
+
+
+def test_legacy_months_keep_the_sheets_own_figures(app, group, mzugoss_workbook):
+    from app.services.excel_parser import ExcelParser
+
+    PeriodStore.sync(group, ExcelParser.parse_excel(str(mzugoss_workbook), year=2026, month=3))
+    data = PeriodStore.report_data(group.id, 2026, 3)
+    assert 'dispensed_to_date' not in data
+
+
+# ==================== SPREADSHEET SLIPS ====================
+
+def test_a_typed_over_summary_formula_is_a_warning(app, group, tmp_path):
+    run = _sync(group, _book(tmp_path, summary=[(2025, 10000, '=SUM(1)', 125000, '=B2+C2-D2')]))
+
+    messages = _messages(run)
+    assert any(m.startswith('Summary row 2, Payouts: Has a typed number (125,000) where the formula should be')
+               for m in messages)
+    assert not any(m.startswith(('Summary row 2, Opening', 'Summary row 2, Contributions',
+                                 'Summary row 2, Closing')) for m in messages)
+
+
+def test_dates_dragged_down_into_the_next_month_are_a_warning(app, group, tmp_path):
+    members = [('M001', 'Ann Banda', date(2024, 1, 30), None),
+               ('M002', 'Ben Phiri', date(2024, 1, 31), None),
+               ('M003', 'Cara Mwale', date(2024, 2, 1), None),
+               ('M004', 'Dan Zulu', date(2024, 3, 1), None),     # a fresh start: not part of the run
+               ('M005', 'Eve Tembo', date(2024, 3, 2), None),
+               ('M006', 'Fay Gondwe', date(2024, 3, 3), None)]   # counts up, but stays in March
+    run = _sync(group, _book(tmp_path, members=members, contributions={}))
+
+    dragged = [m for m in _messages(run) if 'dragged down' in m]
+    assert len(dragged) == 1
+    assert dragged[0].startswith('Members rows 2–4: Joined (month) goes up a day per row (30 Jan 2024, 31 Jan 2024')
+    assert 'So rows 4–4 are in a later month than row 2.' in dragged[0]

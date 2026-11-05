@@ -59,6 +59,7 @@ class ReportController:
             report=report,
             month=month,
             year=report.year,
+            ytd=PeriodStore.year_to_date(group.id, report.year, report.month),
             run=run,
             new_members=ReportController._new_members(run),
             paid_url=paid_url if group.settings.public_paid_enabled else None,
@@ -102,6 +103,7 @@ class ReportController:
             'main/report_preview_specific.html',
             version=current_app.version,
             report=report,
+            ytd=PeriodStore.year_to_date(report.group_id, report.year, report.month),
             month_names=MONTH_NAMES,
             current_date=datetime.now(),
         )

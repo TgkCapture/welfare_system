@@ -2,6 +2,7 @@
 {% extends 'base.html' %}
 {% from 'components/ui.html' import page_header, card, stat, button, badge %}
 {% from 'main/_cycle_steps.html' import cycle_steps %}
+{% from 'main/_balances.html' import balances with context %}
 {% block title %}{{ month }} {{ year }} — {{ brand.name }}{% endblock %}
 
 {% block content %}
@@ -19,9 +20,10 @@
   {{ stat('{:,.0f}'.format(report.total_contributions or 0), cur ~ ' received', icon='coins') }}
   {% if report.total_book_balance is not none %}
     {{ stat('{:,.0f}'.format(report.total_book_balance), cur ~ ' balance', icon='scale-balanced', tone='purple',
-            meta=('paid out ' ~ '{:,.0f}'.format(report.money_dispensed)) if report.money_dispensed else None) }}
+            meta=('paid out this month ' ~ '{:,.0f}'.format(report.money_dispensed)) if report.money_dispensed else None) }}
   {% endif %}
 </div>
+{% if ytd %}{{ balances(ytd, report, month) }}{% endif %}
 
 <div class="grid gap-5 lg:grid-cols-2">
   {# ── Check ── #}

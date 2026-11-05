@@ -1,5 +1,6 @@
 <!-- app/templates/main/report_preview_specific.html -->
 {% extends 'base.html' %}
+{% from 'main/_balances.html' import balances with context %}
 {% block title %}Report — {{ month_names[report.month-1] }} {{ report.year }} — {{ brand.name }}{% endblock %}
 
 {% block content %}
@@ -62,7 +63,7 @@
     <div class="stat-card__icon stat-card__icon--cyan"><i class="fas fa-hand-holding-usd"></i></div>
     <div>
       <div class="stat-card__value text-xl">{{ brand.currency }} {{ "%.2f"|format(report.money_dispensed) }}</div>
-      <div class="stat-card__label">Money Dispensed</div>
+      <div class="stat-card__label">Money Dispensed this month</div>
     </div>
   </div>
   {% endif %}
@@ -76,6 +77,8 @@
   </div>
   {% endif %}
 </div>
+
+{% if ytd %}{{ balances(ytd, report, month_names[report.month - 1]) }}{% endif %}
 
 <!-- Actions -->
 <div class="card mb-5">
