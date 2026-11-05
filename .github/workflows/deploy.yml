@@ -1,0 +1,76 @@
+# Deploy to the Oracle server: push a tag (git tag -a v3.0.1 -m ... && git push origin v3.0.1),
+# or run it by hand from the Actions tab with a tag or branch.
+#
+# The tests run first. Then GitHub connects with a key that can only run
+# deploy/update.sh on the server (see docs/CI_CD.md), which backs up,
+# installs, upgrades the database, restarts and checks health.
+#
+# Settings (repository → Settings → Environments → production):
+#   secrets  VPS_SSH_KEY      the deploy key's private half
+#            VPS_KNOWN_HOSTS  the server's host key line (ssh-keyscan 145.241.103.17)
+#   vars     VPS_HOST         145.241.103.17
+#            VPS_USER         tgk
+#            SITE_URL         https://mzugoss.duckdns.org
+name: Deploy
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag or branch to deploy
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: ${{ vars.SITE_URL }}
+    env:
+      REF: ${{ github.event.inputs.ref || github.ref_name }}
+    steps:
+      - name: Set up the deploy key
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Update the server to ${{ env.REF }}
+        env:
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_USER: ${{ vars.VPS_USER }}
+        # The key's forced command runs deploy/update.sh with what is sent here
+        run: ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes "$VPS_USER@$VPS_HOST" "$REF"
+
+      - name: Check the live site
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          for _ in $(seq 1 10); do
+            if curl -fsS "$SITE_URL/api/health" | tee /dev/stderr | grep -q '"healthy"'; then exit 0; fi
+            sleep 6
+          done
+          echo "The site isn't healthy at $SITE_URL/api/health" >&2
+          exit 1
+
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

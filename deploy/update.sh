@@ -10,6 +10,10 @@
 set -eu
 
 REF="${1:-main}"
+# A tag, branch or commit name only: this may come from the deploy key's forced command
+case "$REF" in
+    -*|*[!A-Za-z0-9._/-]*|'') echo "Not a version name: $REF" >&2; exit 2 ;;
+esac
 SERVICE="${SERVICE:-welfare3}"
 PORT="${PORT:-5001}"
 PREVIOUS="$(git rev-parse --short HEAD)"
