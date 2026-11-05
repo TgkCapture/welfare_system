@@ -134,6 +134,10 @@ class DevelopmentConfig(BaseConfig):
     @staticmethod
     def init_app(app):
         BaseConfig.init_app(app)
+        if not app.config['SESSION_COOKIE_SECURE']:
+            app.logger.warning('ALLOW_HTTP is on: sign-in works over plain HTTP and passwords can be '
+                               'read on the network. Turn it off once the site has HTTPS.')
+
         if app.config['SECRET_KEY'] == 'change-me-in-production':
             import warnings
             warnings.warn(
@@ -171,7 +175,12 @@ class ProductionConfig(BaseConfig):
     # init_app(), not at class-definition / import time.
     SQLALCHEMY_DATABASE_URI = database_url()
 
-    SESSION_COOKIE_SECURE = True   # only transmit cookie over HTTPS
+    # Cookies only travel over HTTPS. ALLOW_HTTP=1 lifts that for a short
+    # trial on a server without a certificate yet: passwords then cross the
+    # network readable, so never leave it on.
+    _ALLOW_HTTP = os.environ.get('ALLOW_HTTP', '').lower() in ('1', 'true', 'yes')
+    SESSION_COOKIE_SECURE  = not _ALLOW_HTTP
+    REMEMBER_COOKIE_SECURE = not _ALLOW_HTTP
 
     @staticmethod
     def init_app(app):

@@ -8,6 +8,11 @@ Both upgrade paths below were rehearsed on databases created by the real
 2.0.0 (`origin/main`) and 2.0.2 (`origin/develop`) code. Officers kept their
 accounts and passwords, and they signed in afterwards.
 
+**On the Oracle Cloud server, follow [DEPLOY_VPS.md](DEPLOY_VPS.md).** It
+installs 3.0.0 beside the old app (Path B on a copy of the database, without
+Docker, which that server is too small for) and refers back here for
+setting up the group and the checks.
+
 Plan for about two hours, at a quiet time. Members can't look anything up
 while the site is down.
 
@@ -93,8 +98,10 @@ leave the copy half changed, so start again from a fresh copy.
 1. Stop the old app (however it's run: `systemctl stop …`, the terminal
    running `python run.py`, and so on).
 2. Back up, and copy the backups off the server:
-   - the database file. 2.0.x keeps it at `instance/db.sqlite3` (set in
-     `instance/config.py`) unless `DATABASE_URL` says otherwise.
+   - the database file, unless `DATABASE_URL` names another:
+     `instance/welfare_dev.db` in 2.0.2, `instance/db.sqlite3` in 2.0.0
+     (set in `instance/config.py`). On the Oracle server it is
+     `/home/tgk/projects/welfare_system/instance/welfare_dev.db`.
    - `uploads/`, `reports/` and `logs/`
    - `instance/config.py`, `.env` and the `credentials/` key file
 3. Write down the commit that's running (`git rev-parse HEAD`), so you can
@@ -166,7 +173,7 @@ below would run against that instead.
 git fetch && git checkout <the 3.0.0 tag or branch>
 pip install -r requirements.txt
 export FLASK_APP=run.py
-export DATABASE_URL=sqlite:////full/path/to/instance/db.sqlite3   # the file backed up in section 2
+export DATABASE_URL=sqlite:////full/path/to/instance/welfare_dev.db   # the file backed up in section 2
 flask db current                   # no revision listed: the live file has no version yet
 sqlite3 "${DATABASE_URL#sqlite:///}" "select count(*) from users"   # your officers are there
 flask db stamp 365dc0d4aa41        # once only: before 3.0.0 there were no migrations

@@ -64,7 +64,9 @@ Back up with `docker compose exec -T db pg_dump -U welfare welfare > backup.sql`
 `/api/health` reports the version and whether the database answers.
 
 Moving the live Mzugoss site from 2.0.x: see
-[docs/MZUGOSS_RUNBOOK.md](docs/MZUGOSS_RUNBOOK.md).
+[docs/MZUGOSS_RUNBOOK.md](docs/MZUGOSS_RUNBOOK.md). Setting up a VPS (nginx, a
+domain, HTTPS, backups and updates; with or without Docker) is in
+[docs/DEPLOY_VPS.md](docs/DEPLOY_VPS.md).
 
 ## ⚡ Installation (development)
 

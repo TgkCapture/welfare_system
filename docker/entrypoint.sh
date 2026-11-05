@@ -5,7 +5,7 @@ set -e
 
 if [ "${SKIP_MIGRATIONS:-0}" != "1" ]; then
     echo "Upgrading the database…"
-    flask db upgrade
+    ENABLE_AUTO_CLEANUP=false flask db upgrade
 fi
 
 exec "$@"
