@@ -335,7 +335,7 @@ class StandardSync:
             balance = (
                 openings[year]
                 + sum(t for (y, m), (t, _, _) in self.month_totals.items() if y == year and m <= month)
-                + (self.excess_totals[year] if month == 12 else 0.0)   # excess counted at year end
+                + self.excess_totals[year]      # Excess is money in hand, whenever in the year it came
                 - sum(p.amount for p in self.payouts if p.year == year and p.paid_on <= month_end)
             )
             summary = PeriodSummary.for_group(self.group.id).filter_by(year=year, month=month).first()

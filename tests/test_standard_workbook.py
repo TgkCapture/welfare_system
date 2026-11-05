@@ -245,6 +245,10 @@ def test_excess_is_credit_for_next_years_first_months(app, group, tmp_path):
 
     balances = {y.year: y for y in YearSummary.for_group(group.id)}
     assert balances[2025].total_contributions == 5500              # 4,000 + 1,500 excess
+    # The excess is money in hand from the start of its year, not only at the end
+    jan_2025 = PeriodSummary.for_group(group.id).filter_by(year=2025, month=1).one()
+    assert jan_2025.book_balance == 3500                           # 2,000 paid + 1,500 excess
+    assert PeriodStore.report_data(group.id, 2025, 1)['contributions_to_date'] == 3500
     jan = PeriodSummary.for_group(group.id).filter_by(year=2026, month=1).one()
     assert (jan.contributors_count, jan.defaulters_count) == (2, 0)
     paid = {p['name']: (p['amount'], p['credit']) for p in PeriodStore.paid_members(group.id, 2026, 1)}
