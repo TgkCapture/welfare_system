@@ -4,36 +4,40 @@ Report lifecycle management: archive, restore, delete, cleanup, regenerate.
 """
 import os
 import shutil
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from flask import current_app, flash, redirect, url_for
-from flask_login import current_user, login_required
+from flask_login import current_user
 
+from app.decorators.permissions import permission_required
 from app.extensions import db
 from app.models.report import GeneratedReport, ReportAccessLog
+from app.models.tenancy import current_group
+from app.services import audit
 from app.services.file_cleanup import FileCleanupService
+from app.services.group_storage import group_folder
 from app.controllers.report_controller import ReportController
+from app.services.pdf_service import PDFGenerator
+from app.services.period_store import PeriodStore
 
 
 class ReportManagement:
-    """Admin / clerk operations on existing reports."""
+    """Officer operations on existing reports."""
 
     # ==================== ARCHIVE / RESTORE ====================
 
     @staticmethod
-    @login_required
+    @permission_required('manage_reports')
     def archive_report(report_id):
-        """Soft-delete a report (admins only)."""
-        if not current_user.is_admin:
-            flash('Only admins can archive reports.', 'error')
-            return redirect(url_for('report.list'))
-
-        report = GeneratedReport.query.get_or_404(report_id)
+        """Soft-delete a report (manage_reports)."""
+        report = GeneratedReport.get_for_group_or_404(report_id)
 
         try:
             report.is_archived = True
             report.archived_at = datetime.utcnow()
             db.session.commit()
+            audit.record('report.archive', f'Archived the {report.month}/{report.year} report',
+                         details={'report_id': report.id})
 
             flash(
                 f'Report {report.month}/{report.year} has been archived.',
@@ -47,19 +51,17 @@ class ReportManagement:
         return redirect(url_for('report.list'))
 
     @staticmethod
-    @login_required
+    @permission_required('manage_reports')
     def restore_report(report_id):
-        """Restore an archived report (admins only)."""
-        if not current_user.is_admin:
-            flash('Only admins can restore reports.', 'error')
-            return redirect(url_for('report.list'))
-
-        report = GeneratedReport.query.get_or_404(report_id)
+        """Restore an archived report (manage_reports)."""
+        report = GeneratedReport.get_for_group_or_404(report_id)
 
         try:
             report.is_archived = False
             report.archived_at = None
             db.session.commit()
+            audit.record('report.restore', f'Restored the {report.month}/{report.year} report',
+                         details={'report_id': report.id})
 
             flash(
                 f'Report {report.month}/{report.year} has been restored.',
@@ -75,14 +77,10 @@ class ReportManagement:
     # ==================== DELETE ====================
 
     @staticmethod
-    @login_required
+    @permission_required('manage_reports')
     def delete_report(report_id):
-        """Permanently delete a report and its file (admins only)."""
-        if not current_user.is_admin:
-            flash('Only admins can delete reports.', 'error')
-            return redirect(url_for('report.list'))
-
-        report = GeneratedReport.query.get_or_404(report_id)
+        """Permanently delete a report and its file (manage_reports)."""
+        report = GeneratedReport.get_for_group_or_404(report_id)
 
         try:
             # Remove file from disk first — if this fails, abort before
@@ -90,9 +88,11 @@ class ReportManagement:
             if os.path.exists(report.file_path):
                 os.remove(report.file_path)
 
-            ReportAccessLog.query.filter_by(report_id=report_id).delete()
+            ReportAccessLog.for_group().filter_by(report_id=report_id).delete()
             db.session.delete(report)
             db.session.commit()
+            audit.record('report.delete', f'Deleted the {report.month}/{report.year} report',
+                         details={'report_id': report_id})
 
             flash(
                 f'Report {report.month}/{report.year} has been permanently deleted.',
@@ -108,63 +108,71 @@ class ReportManagement:
     # ==================== REGENERATE ====================
 
     @staticmethod
-    @login_required
+    @permission_required('generate_reports')
     def regenerate_report(report_id):
-        """Copy an existing report file as a new record (admin & clerk).
+        """Build the report again as a new record (generate_reports).
 
-        NOTE: This duplicates the PDF on disk — it does NOT re-parse
-        the source Excel file.  True regeneration requires storing the
-        raw contribution data per report, which is on the roadmap.
-        Until then the method is honestly named 'duplicate' in the UI.
+        The PDF is made afresh from the month's stored contributions, so it
+        reflects the latest sync. A month synced before contributions were
+        stored has nothing to rebuild from, so its PDF is copied instead.
         """
-        if not (current_user.is_admin or current_user.is_clerk):
-            flash('Only admins and clerks can regenerate reports.', 'error')
-            return redirect(url_for('report.list'))
+        report = GeneratedReport.get_for_group_or_404(report_id)
+        data = PeriodStore.report_data(report.group_id, report.year, report.month)
 
-        report = GeneratedReport.query.get_or_404(report_id)
-
-        if not os.path.exists(report.file_path):
+        if data is None and not os.path.exists(report.file_path):
             flash('Source report file not found on disk.', 'error')
             return redirect(
-                url_for('main.report_preview_specific', report_id=report_id)
+                url_for('report.preview_specific', report_id=report_id)
             )
 
         try:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            new_filename = f"copy_{timestamp}_{report.filename}"
-            new_filepath = os.path.join(
-                current_app.config['REPORT_FOLDER'],
-                new_filename,
-            )
-
-            shutil.copy2(report.file_path, new_filepath)
+            if data is not None:
+                new_filepath = PDFGenerator.save_contribution_report(data, group_folder('reports'))
+                totals = {
+                    'total_contributions': data['total_contributions'],
+                    'contributors_count':  data['num_contributors'],
+                    'defaulters_count':    data['num_missing'],
+                    'money_dispensed':     data['money_dispensed'],
+                    'total_book_balance':  data['total_book_balance'],
+                }
+                message = (f'The {report.month}/{report.year} report was rebuilt from the latest '
+                           'synced contributions.')
+            else:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                new_filepath = os.path.join(group_folder('reports'), f"copy_{timestamp}_{report.filename}")
+                shutil.copy2(report.file_path, new_filepath)
+                totals = {
+                    'total_contributions': report.total_contributions,
+                    'contributors_count':  report.contributors_count,
+                    'defaulters_count':    report.defaulters_count,
+                    'money_dispensed':     report.money_dispensed,
+                    'total_book_balance':  report.total_book_balance,
+                }
+                message = (f'A copy of the {report.month}/{report.year} report has been created '
+                           '(its month has no stored contributions to rebuild from).')
 
             new_report = GeneratedReport(
+                group_id=report.group_id,
                 month=report.month,
                 year=report.year,
                 report_type=report.report_type,
-                filename=new_filename,
+                filename=os.path.basename(new_filepath),
                 file_path=new_filepath,
                 generated_by=current_user.id,
                 file_size=os.path.getsize(new_filepath),
-                total_contributions=report.total_contributions,
-                contributors_count=report.contributors_count,
-                defaulters_count=report.defaulters_count,
-                money_dispensed=report.money_dispensed,
-                total_book_balance=report.total_book_balance,
+                **totals,
             )
 
             db.session.add(new_report)
             db.session.commit()
 
             ReportController._log_access(new_report.id, 'regenerate')
+            audit.record('report.regenerate', f'Rebuilt the {report.month}/{report.year} report',
+                         details={'report_id': new_report.id, 'from_report_id': report.id})
 
-            flash(
-                f'A copy of the {report.month}/{report.year} report has been created.',
-                'success'
-            )
+            flash(message, 'success')
             return redirect(
-                url_for('main.report_preview_specific', report_id=new_report.id)
+                url_for('report.preview_specific', report_id=new_report.id)
             )
 
         except Exception as e:
@@ -176,38 +184,17 @@ class ReportManagement:
     # ==================== BULK CLEANUP ====================
 
     @staticmethod
-    @login_required
+    @permission_required('manage_reports')
     def cleanup_reports():
-        """Archive old DB records and delete stale files (admins only)."""
-        if not current_user.is_admin:
-            flash('Only admins can run report cleanup.', 'error')
-            return redirect(url_for('main.dashboard'))
-
+        """Delete the group's expired files and archive their reports (manage_reports)."""
         try:
-            days_to_keep = current_app.config.get('REPORT_RETENTION_DAYS', 7)
-
-            # 1. Remove stale files from disk
-            file_result = FileCleanupService.cleanup_old_files(
-                days_to_keep=days_to_keep
-            )
-
-            # 2. Auto-archive old DB records whose files have been removed
-            cutoff = datetime.utcnow() - timedelta(days=days_to_keep)
-            old_reports = GeneratedReport.query.filter(
-                GeneratedReport.generated_at < cutoff,
-                GeneratedReport.is_archived == False,
-            ).all()
-
-            for r in old_reports:
-                r.is_archived = True
-                r.archived_at = datetime.utcnow()
-
-            db.session.commit()
-
+            result = FileCleanupService.cleanup_group(current_group())
+            audit.record('storage.cleanup', f'Cleaned up old report files: {result["deleted_count"]} removed, '
+                         f'{result["reports_archived"]} reports archived')
             flash(
                 f'Cleanup complete: '
-                f'{file_result.get("deleted_count", 0)} files removed, '
-                f'{len(old_reports)} reports archived.',
+                f'{result["deleted_count"]} files removed, '
+                f'{result["reports_archived"]} reports archived.',
                 'success'
             )
 

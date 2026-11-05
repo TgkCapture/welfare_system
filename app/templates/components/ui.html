@@ -1,0 +1,118 @@
+{#
+  app/templates/components/ui.html — the shared building blocks for pages.
+
+  {% from 'components/ui.html' import page_header, card, stat, button, badge, empty_state,
+                                        field, copy_field, status %}
+
+  Blocks that wrap content take it via {% call %}:
+    {% call page_header('Members', icon='users', sub='63 members') %}
+      {{ button('Add', href=url_for(...), icon='plus') }}
+    {% endcall %}
+    {% call card('Contributions', icon='calendar-check') %} … {% endcall %}
+#}
+
+{# A page title with an optional subtitle; the caller's content becomes the actions. #}
+{% macro page_header(title, icon=None, sub=None) %}
+<div class="page-header">
+  <div>
+    <h1 class="page-header__title">{% if icon %}<i class="fas fa-{{ icon }}"></i>{% endif %} {{ title }}</h1>
+    {% if sub %}<p class="page-header__sub">{{ sub }}</p>{% endif %}
+  </div>
+  {% if caller %}<div class="page-header__actions">{{ caller() }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{# A card with an optional title bar. padded=False for tables that run edge to edge. #}
+{% macro card(title=None, icon=None, extra=None, padded=True, class='') %}
+<div class="card {{ class }}">
+  {% if title %}
+  <div class="card__header">
+    <h2 class="card__title">{% if icon %}<i class="fas fa-{{ icon }}"></i>{% endif %} {{ title }}</h2>
+    {% if extra %}{{ extra }}{% endif %}
+  </div>
+  {% endif %}
+  {% if padded %}<div class="card__body">{{ caller() }}</div>{% else %}{{ caller() }}{% endif %}
+</div>
+{% endmacro %}
+
+{# A number with a label. tone: blue (brand), green, amber, cyan, purple, red. #}
+{% macro stat(value, label, icon='chart-bar', tone='blue', meta=None, href=None) %}
+{% set tag = 'a' if href else 'div' %}
+<{{ tag }} class="stat-card {{ 'hover:border-brand hover:text-inherit transition' if href }}" {% if href %}href="{{ href }}"{% endif %}>
+  <div class="stat-card__icon stat-card__icon--{{ tone }}"><i class="fas fa-{{ icon }}"></i></div>
+  <div class="min-w-0">
+    <div class="stat-card__value">{{ value }}</div>
+    <div class="stat-card__label">{{ label }}</div>
+    {% if meta %}<div class="stat-card__meta">{{ meta }}</div>{% endif %}
+  </div>
+</{{ tag }}>
+{% endmacro %}
+
+{# A link styled as a button, or a submit button when href is None. #}
+{% macro button(label, href=None, icon=None, variant='primary', size=None, name=None, value=None, confirm=None) %}
+{% set classes = 'btn btn--' ~ variant ~ (' btn--' ~ size if size else '') %}
+{% if href %}
+<a href="{{ href }}" class="{{ classes }}">{% if icon %}<i class="fas fa-{{ icon }}"></i>{% endif %} {{ label }}</a>
+{% else %}
+<button type="submit" class="{{ classes }}" {% if name %}name="{{ name }}" value="{{ value }}"{% endif %}
+        {% if confirm %}data-confirm="{{ confirm }}"{% endif %}>{% if icon %}<i class="fas fa-{{ icon }}"></i>{% endif %} {{ label }}</button>
+{% endif %}
+{% endmacro %}
+
+{# tone: primary, success, danger, warning, neutral #}
+{% macro badge(label, tone='neutral', icon=None) %}
+<span class="badge badge--{{ tone }}">{% if icon %}<i class="fas fa-{{ icon }}"></i>{% endif %}{{ label }}</span>
+{% endmacro %}
+
+{% macro status(active, on='Active', off='Inactive') %}
+<span class="status-dot status-dot--{{ 'active' if active else 'inactive' }}">{{ on if active else off }}</span>
+{% endmacro %}
+
+{% macro empty_state(title, text=None, icon='inbox') %}
+<div class="empty-state">
+  <i class="fas fa-{{ icon }}"></i>
+  <h3>{{ title }}</h3>
+  {% if text %}<p>{{ text }}</p>{% endif %}
+  {% if caller %}{{ caller() }}{% endif %}
+</div>
+{% endmacro %}
+
+{# A WTForms field with its label, hint and errors. #}
+{% macro field(f, icon=None, hint=None) %}
+<div class="form-group">
+  {% if f.type in ('BooleanField',) %}
+    <label class="check-label">{{ f() }} {{ f.label.text }}</label>
+  {% else %}
+    <label class="form-label" for="{{ f.id }}">{% if icon %}<i class="fas fa-{{ icon }}"></i>{% endif %} {{ f.label.text }}</label>
+    {{ f(class="form-control" + (" is-invalid" if f.errors else ""), **kwargs) }}
+  {% endif %}
+  {% if hint %}<p class="form-hint">{{ hint }}</p>{% endif %}
+  {% for e in f.errors %}<p class="form-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</p>{% endfor %}
+</div>
+{% endmacro %}
+
+{# A read-only value with a Copy button (links, codes). #}
+{% macro copy_field(value, label='Copy', aria='Link') %}
+<div class="flex gap-2">
+  <input type="text" class="form-control" value="{{ value }}" readonly aria-label="{{ aria }}">
+  <button type="button" class="btn btn--primary btn--sm" data-copy="{{ value }}"><i class="fas fa-copy"></i> {{ label }}</button>
+</div>
+{% endmacro %}
+
+{# Flashed messages, as dismissible banners. #}
+{% macro flashes() %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-stack" role="status">
+    {% for category, message in messages %}
+    {% set tone = {'error': 'danger', 'message': 'info'}.get(category, category) %}
+    <div class="flash flash--{{ tone }}">
+      <i class="fas fa-{{ {'success': 'check-circle', 'danger': 'exclamation-circle', 'warning': 'exclamation-triangle'}.get(tone, 'info-circle') }}"></i>
+      <span class="flash__msg">{{ message }}</span>
+      <button type="button" class="flash__close" aria-label="Dismiss" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}
+{% endmacro %}

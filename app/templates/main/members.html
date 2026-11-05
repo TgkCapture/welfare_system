@@ -1,0 +1,78 @@
+<!-- app/templates/main/members.html -->
+{% extends 'base.html' %}
+{% block title %}Members — {{ brand.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-users"></i> Members</h1>
+    <p class="page-header__sub">
+      {% if run %}New names from the sync of {{ run.synced_at.strftime('%d %b %Y %H:%M') }}
+      {% else %}{{ total }} member(s), from your synced workbooks{% endif %}
+    </p>
+  </div>
+  <div class="page-header__actions">
+    {% if run or q %}
+    <a href="{{ url_for('main.members') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-times"></i> Show all
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+{% if run %}
+<div class="card mb-5">
+  <div class="card__body text-sm">
+    These names didn't match anyone, so they were added as new members. If one is a different
+    spelling of an existing member, open it and merge it into them.
+  </div>
+</div>
+{% endif %}
+
+<form class="flex gap-3 mb-5 max-w-lg" method="GET" action="{{ url_for('main.members') }}">
+  <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Search by name or Member ID"
+         aria-label="Search members">
+  <button type="submit" class="btn btn--primary"><i class="fas fa-search"></i></button>
+</form>
+
+<div class="card">
+  <div class="table-wrap">
+    {% if members %}
+    <table class="data-table">
+      <thead>
+        <tr><th>ID</th><th>Name</th><th>Joined</th><th>Left</th><th>PIN</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for m in members %}
+        <tr class="{{ '' if m.is_active else 'text-muted' }}">
+          <td class="text-sm">{{ m.code or '—' }}</td>
+          <td>
+            <strong>{{ m.display_name }}</strong>
+            {% if m.aliases %}<span class="text-sm text-muted">· also {{ m.aliases|length }} other spelling(s)</span>{% endif %}
+          </td>
+          <td class="text-sm">{{ m.joined_on.strftime('%b %Y') if m.joined_on else '—' }}</td>
+          <td class="text-sm">{{ m.left_on.strftime('%b %Y') if m.left_on else '—' }}</td>
+          <td>
+            {% if m.pin_hash %}<span class="badge badge--success">Set</span>
+            {% else %}<span class="badge badge--neutral">None</span>{% endif %}
+          </td>
+          <td>
+            <span class="status-dot status-dot--{{ 'active' if m.is_active else 'inactive' }}">
+              {{ 'Active' if m.is_active else 'Retired' }}
+            </span>
+          </td>
+          <td><a href="{{ url_for('main.member', member_id=m.id) }}" class="btn btn--outline btn--sm">Open</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="fas fa-users"></i>
+      <h3>{{ 'No matches' if q or run else 'No members yet' }}</h3>
+      <p>{{ 'Try another search.' if q else 'Members are added when a workbook is uploaded or synced.' }}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

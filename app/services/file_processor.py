@@ -2,12 +2,18 @@
 """
 File upload processing.
 
+Uploaded workbooks and Google Sheets exports are written to the current
+group's upload folder under a unique name, and removed once the report
+has been generated (they hold member data and nothing reads them later).
 """
 import os
+import uuid
 from datetime import datetime
 
 from flask import current_app
 from werkzeug.utils import secure_filename
+
+from app.services.group_storage import group_folder
 
 
 ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv'}
@@ -22,40 +28,42 @@ class FileProcessor:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def process_upload(request) -> str:
-        """Dispatch to the correct handler based on form input method.
-        """
-        use_sheets = (
+    def uses_google_sheets(request) -> bool:
+        return (
             request.form.get('input_method') == 'sheets'
             or request.form.get('use_google_sheets') == 'on'
         )
 
-        if use_sheets:
+    @staticmethod
+    def process_upload(request) -> str:
+        """Dispatch to the correct handler based on form input method.
+        """
+        if FileProcessor.uses_google_sheets(request):
             return FileProcessor._process_google_sheets(request)
         return FileProcessor._process_file_upload(request)
 
     @staticmethod
     def cleanup_file(filepath: str) -> None:
-        """Delete *filepath* if it is a Google Sheets temp file.
-        """
-        if not filepath:
+        """Delete a processed upload from the group's upload folder."""
+        if not filepath or not os.path.exists(filepath):
             return
-
-        basename = os.path.basename(filepath)
-        is_temp  = basename.startswith(GOOGLE_SHEETS_TMP_PREFIX)
-
-        if is_temp and os.path.exists(filepath):
-            try:
-                os.remove(filepath)
-                current_app.logger.info(f"FileProcessor: removed temp file {filepath}")
-            except Exception as e:
-                current_app.logger.warning(
-                    f"FileProcessor: could not remove temp file {filepath}: {e}"
-                )
+        try:
+            os.remove(filepath)
+            current_app.logger.info(f"FileProcessor: removed processed upload {filepath}")
+        except Exception as e:
+            current_app.logger.warning(
+                f"FileProcessor: could not remove upload {filepath}: {e}"
+            )
 
     # ------------------------------------------------------------------
     # Private handlers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _unique_path(name: str) -> str:
+        """A path in the group's upload folder that no other upload can share."""
+        stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        return os.path.join(group_folder('uploads'), f"{stamp}_{uuid.uuid4().hex[:8]}_{name}")
 
     @staticmethod
     def _process_file_upload(request) -> str:
@@ -76,7 +84,7 @@ class FileProcessor:
                 f"Please upload one of: {', '.join(sorted(ALLOWED_EXTENSIONS))}."
             )
 
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+        filepath = FileProcessor._unique_path(filename)
         file.save(filepath)
 
         current_app.logger.info(f"FileProcessor: saved upload to {filepath}")
@@ -86,8 +94,9 @@ class FileProcessor:
     def _process_google_sheets(request) -> str:
         """Fetch a Google Sheet and persist it as a temp .xlsx file.
         """
+        from app.extensions import db
+        from app.models.tenancy import current_group
         from app.services.google_sheets_service import GoogleSheetsService
-        from app.models.setting import Setting
 
         sheet_url = request.form.get('sheet_url', '').strip()
         year      = request.form.get('year', type=int)
@@ -97,12 +106,17 @@ class FileProcessor:
         if not year:
             raise ValueError("Year is required when importing from Google Sheets.")
 
-        # Persist so the settings page stays in sync
-        Setting.set_value('google_sheets_url', sheet_url)
+        # Remember it as the group's sheet so the settings page stays in sync
+        current_group().settings.google_sheet_url = sheet_url
+        db.session.commit()
 
         service = GoogleSheetsService()
         service.init_app(current_app._get_current_object())
-        excel_data = service.get_sheet_as_excel(sheet_url, sheet_name=str(year))
+        # The whole workbook (needed for the standard layout); else just the year's sheet
+        group = current_group()
+        excel_data = (service.get_workbook_as_excel(sheet_url)
+                      or service.get_sheet_as_excel(sheet_url, sheet_name=str(year),
+                                                    cache_scope=f'group-{group.id}'))
 
         if excel_data is None:
             raise ValueError(
@@ -110,10 +124,7 @@ class FileProcessor:
                 "Please check the URL and that the service account has access."
             )
 
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename  = f"{GOOGLE_SHEETS_TMP_PREFIX}{year}_{timestamp}.xlsx"
-        filepath  = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-
+        filepath = FileProcessor._unique_path(f"{GOOGLE_SHEETS_TMP_PREFIX}{year}.xlsx")
         with open(filepath, 'wb') as fh:
             fh.write(excel_data.getvalue())
 

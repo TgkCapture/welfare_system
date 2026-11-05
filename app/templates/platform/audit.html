@@ -1,0 +1,37 @@
+<!-- app/templates/platform/audit.html — every group's audit log -->
+{% extends 'base.html' %}
+{% from 'components/ui.html' import page_header, empty_state %}
+{% from 'components/_audit.html' import audit_timeline, audit_pager %}
+{% block title %}Audit log — Platform{% endblock %}
+
+{% block content %}
+{% call page_header('Audit log', icon='clipboard-list', sub='Every group, and platform-wide events') %}
+  <form method="GET" action="{{ url_for('platform.audit_log') }}" class="flex flex-wrap gap-2">
+    <select name="group" class="form-control w-auto" aria-label="Group" onchange="this.form.submit()">
+      <option value="">All groups</option>
+      {% for g in groups %}
+      <option value="{{ g.id }}" {{ 'selected' if g.id == group_id }}>{{ g.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="area" class="form-control w-auto" aria-label="Show" onchange="this.form.submit()">
+      <option value="">Everything</option>
+      {% for key, label in areas.items() %}
+      <option value="{{ key }}" {{ 'selected' if key == area }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <noscript><button type="submit" class="btn btn--outline btn--sm">Show</button></noscript>
+  </form>
+{% endcall %}
+
+<div class="card">
+  <div class="card__body px-6 py-5">
+    {% if page.items %}
+      {{ audit_timeline(page.items, icons, show_group=True) }}
+      {{ audit_pager(page, 'platform.audit_log', group=group_id, area=area) }}
+    {% else %}
+      {{ empty_state('Nothing here yet', icon='clipboard-list') }}
+    {% endif %}
+  </div>
+</div>
+<p class="form-hint mt-4">Times are in UTC.</p>
+{% endblock %}

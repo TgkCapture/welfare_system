@@ -1,0 +1,24 @@
+<!-- app/templates/public/access_code.html — the group access code, asked once per visit -->
+{% extends 'public/_layout.html' %}
+{% block title %}Who has paid — {{ brand.name }}{% endblock %}
+
+{% block content %}
+<div class="card max-w-md mx-auto my-8">
+  <div class="card__body">
+    <h1 class="text-xl font-extrabold mb-2"><i class="fas fa-lock"></i> Group code</h1>
+    <p class="text-sm text-muted mb-4">
+      Enter the code your officers shared in the group. You'll only need it once on this device.
+    </p>
+    {% if wrong %}
+    <p class="form-error" role="alert"><i class="fas fa-exclamation-circle"></i> That code isn't right. Check it and try again.</p>
+    {% endif %}
+    <form method="POST" action="{{ url_for('group.paid', slug=group.slug) }}" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="text" name="code" class="form-control uppercase tracking-[.2em] text-xl text-center" maxlength="20" required autofocus
+             autocomplete="off" autocapitalize="characters" spellcheck="false"
+             aria-label="Group code">
+      <button type="submit" class="btn btn--primary w-full mt-3">Continue</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

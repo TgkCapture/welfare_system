@@ -4,11 +4,12 @@ PDF generation using ReportLab.
 
 Two documents are produced here:
 
-  generate_welfare_rules_pdf()        — static rules document, public
+  generate_welfare_rules_pdf()        — a group's rules document, from its rule sections
   generate_contribution_report_pdf()  — per-month financial report
 
 Both return raw ``bytes`` so the caller can stream them directly via
-``make_response`` or write them to disk.
+``make_response`` or write them to disk.  ``save_contribution_report()``
+writes the contribution report to the report folder and returns its path.
 
 Design notes:
   - All styles are defined once in ``_Styles`` and shared across both
@@ -20,16 +21,21 @@ Design notes:
 """
 import io
 import logging
+import os
+import re
+import uuid
 from datetime import datetime
 
 import pandas as pd
 from flask import current_app
+from markupsafe import escape
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import (
+    Image,
     PageBreak,
     Paragraph,
     SimpleDocTemplate,
@@ -194,153 +200,54 @@ class PDFGenerator:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def generate_welfare_rules_pdf() -> bytes:
-        """Generate the static welfare rules document.
+    def generate_welfare_rules_pdf(brand, sections) -> bytes:
+        """Build a group's welfare rules document from its rule sections.
 
-        Returns:
-            Raw PDF bytes.
+        *sections* are RuleSection rows in order; their bodies use the rules
+        markup, which turns into the same bold, italic and lists as on the
+        web page.
 
         Raises:
             Exception: on any ReportLab failure.
         """
+        from app.services.rules_markup import parse
+
         try:
             buf = io.BytesIO()
             doc = SimpleDocTemplate(
                 buf, pagesize=A4,
                 rightMargin=60, leftMargin=60,
                 topMargin=60,   bottomMargin=60,
-                title='Mzugoss Welfare Rules',
+                title=f'{brand.name} welfare rules',
             )
 
             s     = _Styles.get()
-            story = []
-
-            # ── Title block ────────────────────────────────────────────
-            story.append(Paragraph('Mzugoss Welfare Rules & Guidelines', s['title']))
-            version = getattr(current_app, 'version', '1.0')
-            story.append(Paragraph(
-                f"Last updated: {datetime.now().strftime('%Y-%m-%d')} "
-                f"&nbsp;|&nbsp; Version {version}",
-                s['body'],
-            ))
-            story.append(Spacer(1, 16))
-
-            # ── Quick-summary fee table ────────────────────────────────
-            story.append(Paragraph('Quick Summary', s['heading']))
-            fee_data = [
-                ['Service',             'Amount',   'Period'],
-                ['Monthly Contribution','K1,000',   'per month'],
-                ['Funeral Support',     'K50,000',  'per incident'],
-                ['Wedding Support',     'K80,000',  'per wedding'],
-                ['Sickness Support',    'K15,000',  'per admission'],
-                ['Member Death Support','K80,000',  'per member'],
+            story = PDFGenerator._logo(brand.logo_file) + [
+                Paragraph(f'{escape(brand.name)} — welfare rules', s['title']),
+                Paragraph(f"Printed {datetime.now().strftime('%d %B %Y')}", s['body']),
+                Spacer(1, 16),
             ]
-            story.append(
-                Table(
-                    fee_data,
-                    colWidths=[2.6*inch, 1.4*inch, 1.4*inch],
-                    style=_blue_header_table_style([
-                        ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
-                    ]),
-                )
-            )
-            story.append(Spacer(1, 12))
-            story.append(Paragraph(
-                '<b>Important:</b> Only contributing members are eligible '
-                'for welfare benefits. Members who do not contribute '
-                'regularly cannot receive welfare money.',
-                s['important'],
-            ))
-            story.append(Spacer(1, 16))
 
-            # ── Section builder ────────────────────────────────────────
-            def section(title, subtitle, paragraphs):
-                story.append(Paragraph(title,    s['heading']))
-                story.append(Paragraph(subtitle, s['subheading']))
-                for line in paragraphs:
-                    style = s['bullet'] if line.startswith('•') else s['body']
-                    story.append(Paragraph(line, style))
+            if not sections:
+                story.append(Paragraph('No rules have been written yet.', s['body']))
+            for section in sections:
+                story.append(Paragraph(escape(section.title), s['heading']))
+                if section.subtitle:
+                    story.append(Paragraph(escape(section.subtitle), s['subheading']))
+                for block in parse(section.body):
+                    if block.kind == 'ul':
+                        story.extend(Paragraph(f'• {item}', s['bullet']) for item in block.items)
+                    elif block.kind == 'ol':
+                        story.extend(Paragraph(f'{n}. {item}', s['bullet'])
+                                     for n, item in enumerate(block.items, start=1))
+                    elif block.kind == 'note':
+                        story.append(Paragraph(f'<i>{block.items[0]}</i>', s['body']))
+                    else:
+                        story.append(Paragraph(str(block.items[0]), s['body']))
                 story.append(Spacer(1, 14))
 
-            section(
-                'Funeral Support Rules',
-                'Financial assistance during bereavement',
-                [
-                    'Money is released only for immediate family members:',
-                    '• Mother, Father, Sister, Brother',
-                    '• Legal Guardian, Spouse, Children',
-                    '<b>Amount:</b> K50,000 per funeral incident.',
-                    '<i>Documentation may be required to verify relationship.</i>',
-                ],
-            )
-
-            section(
-                'Deceased Member Support',
-                'Support for when a contributing member passes away',
-                [
-                    '<b>Amount:</b> K80,000 for the member\'s family.',
-                    'This applies when a regularly contributing member dies. '
-                    'The K80,000 is provided to support the family.',
-                ],
-            )
-
-            story.append(PageBreak())
-
-            section(
-                'Contribution Rules',
-                'Monthly contributions and penalties',
-                [
-                    '<b>1. Monthly Contribution:</b> K1,000 per month.',
-                    '<b>2. Late-payment Penalty:</b> 5% per month.',
-                    '<i>Example: 2 months late = 10% penalty.</i>',
-                    '<b>3. Back Payments:</b> Missed months must be paid for the exact period missed.',
-                    '<b>4. Benefit Calculation:</b> Months contributed = times eligible for support.',
-                    '<i>Example: 3 months contribution = 3 times eligible.</i>',
-                ],
-            )
-
-            section(
-                'Sickness Support',
-                'Medical and hospitalisation assistance',
-                [
-                    'Provided for members admitted to hospital for multiple days.',
-                    'Outpatient visits and minor illnesses are <b>not</b> covered.',
-                    '<b>Amount:</b> K15,000 per hospital admission.',
-                    '<i>Hospital admission records may be required.</i>',
-                ],
-            )
-
-            section(
-                'Wedding Support',
-                'Celebratory financial assistance',
-                [
-                    '<b>Amount:</b> K80,000 per wedding ceremony.',
-                    'Available once per member for their own wedding ceremony.',
-                ],
-            )
-
-            # ── Key points ─────────────────────────────────────────────
-            story.append(Paragraph('Key Points to Remember', s['heading']))
-            key_points = [
-                '• Regular contributions ensure eligibility for all benefits.',
-                '• Pay on time to avoid the 5% monthly penalty.',
-                '• Sickness support: K15,000 for hospital admissions.',
-                '• Wedding support: K80,000 — one-time per member.',
-                '• Funeral support: K50,000 for immediate family.',
-                '• Deceased-member support: K80,000 for the family.',
-                '• No welfare money is paid to non-contributors.',
-            ]
-            for kp in key_points:
-                story.append(Paragraph(kp, s['bullet']))
-            story.append(Spacer(1, 20))
-
-            # ── Footer ─────────────────────────────────────────────────
-            for line in [
-                'Confidential — For Mzugoss Members Only',
-                f"Generated: {datetime.now().strftime('%Y-%m-%d at %H:%M')}",
-                'For clarifications, contact the welfare committee.',
-            ]:
-                story.append(Paragraph(line, s['footer']))
+            story.append(Spacer(1, 10))
+            story.append(Paragraph(f'For {escape(brand.name)} members.', s['footer']))
 
             doc.build(story)
             pdf = buf.getvalue()
@@ -383,11 +290,11 @@ class PDFGenerator:
             )
 
             s     = _Styles.get()
-            story = []
+            story = PDFGenerator._logo(data.get('logo_file'))
 
             # ── Title ──────────────────────────────────────────────────
             story.append(Paragraph(
-                'MZUGOSS CLASS OF 2018 — MONTHLY CONTRIBUTIONS REPORT',
+                escape(data.get('report_title') or 'Monthly contributions report').upper(),
                 s['rpt_title'],
             ))
             story.append(Paragraph(f'Report for {month} {year}', s['rpt_section']))
@@ -396,6 +303,13 @@ class PDFGenerator:
             # ── Summary ────────────────────────────────────────────────
             story.extend(PDFGenerator._summary_section(data, s))
             story.append(Spacer(1, 16))
+
+            # ── Balances and payouts, the year so far ──────────────────
+            if 'dispensed_to_date' in data:
+                story.extend(PDFGenerator._balance_section(data, s))
+                story.append(Spacer(1, 16))
+                story.extend(PDFGenerator._payouts_section(data, s))
+                story.append(Spacer(1, 16))
 
             # ── Paid members ───────────────────────────────────────────
             story.extend(PDFGenerator._paid_members_section(data, s))
@@ -430,26 +344,72 @@ class PDFGenerator:
                 f'Failed to generate contribution report PDF: {e}'
             ) from e
 
+    @staticmethod
+    def save_contribution_report(data: dict, report_folder: str) -> str:
+        """Generate the contribution report and write it to *report_folder*.
+
+        Returns:
+            Absolute path to the saved PDF file.
+        """
+        pdf = PDFGenerator.generate_contribution_report_pdf(data)
+
+        timestamp  = datetime.now().strftime('%Y%m%d%H%M%S')
+        month_safe = re.sub(r'[^A-Za-z0-9]+', '', str(data.get('month', ''))) or 'unknown'
+        # The random part keeps two reports made in the same second from sharing a file
+        filename   = (
+            f"contributions_report"
+            f"_{data.get('year', '')}_{month_safe}_{timestamp}_{uuid.uuid4().hex[:6]}.pdf"
+        )
+        report_path = os.path.join(report_folder, filename)
+
+        os.makedirs(report_folder, exist_ok=True)
+        with open(report_path, 'wb') as fh:
+            fh.write(pdf)
+
+        logger.info(f'Saved contribution report PDF to {report_path}')
+        return report_path
+
     # ------------------------------------------------------------------
     # Private section builders
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _logo(path) -> list:
+        """The group's logo, centred above the title, if it has one."""
+        if not path or not os.path.isfile(path):
+            return []
+        try:
+            from PIL import Image as PILImage
+            with PILImage.open(path) as img:
+                width, height = img.size
+            size = 0.9 * inch
+            scale = size / max(width, height)
+            logo = Image(path, width=width * scale, height=height * scale)
+            logo.hAlign = 'CENTER'
+            return [logo, Spacer(1, 8)]
+        except Exception as e:
+            logger.warning(f'Could not add the logo to a PDF: {e}')
+            return []
+
+    @staticmethod
     def _summary_section(data: dict, s: dict) -> list:
         """Build the summary statistics table flowables."""
+        cur = data.get('currency', 'MWK')
         rows = [
-            ['Total Contributions',    f"MWK {data.get('total_contributions', 0):,.2f}"],
+            ['Total Contributions',    f"{cur} {data.get('total_contributions', 0):,.2f}"],
             ['Number of Contributors', str(data.get('num_contributors', 0))],
             ['Number of Defaulters',   str(data.get('num_missing', 0))],
         ]
 
-        dispensed = data.get('money_dispensed')
-        if dispensed is not None:
-            rows.append(['Money Dispensed', f"MWK {PDFGenerator._fmt(dispensed)}"])
+        # Groups with calculated balances get the balance section instead
+        if 'dispensed_to_date' not in data:
+            dispensed = data.get('money_dispensed')
+            if dispensed is not None:
+                rows.append(['Money Dispensed', f"{cur} {PDFGenerator._fmt(dispensed)}"])
 
-        balance = data.get('total_book_balance')
-        if balance is not None:
-            rows.append(['Total Book Balance', f"MWK {PDFGenerator._fmt(balance)}"])
+            balance = data.get('total_book_balance')
+            if balance is not None:
+                rows.append(['Total Book Balance', f"{cur} {PDFGenerator._fmt(balance)}"])
 
         return [
             Paragraph('SUMMARY STATISTICS', s['rpt_section']),
@@ -459,6 +419,51 @@ class PDFGenerator:
                 style=_summary_table_style(),
             ),
         ]
+
+    @staticmethod
+    def _balance_section(data: dict, s: dict) -> list:
+        """Opening balance, money in and out (this month and the year so far), book balance."""
+        cur, fmt = data.get('currency', 'MWK'), PDFGenerator._fmt
+        month, year = data.get('month', ''), data.get('year', '')
+        so_far = f'Jan–{month[:3]} {year}' if month[:3] != 'Jan' else f'{month} {year}'
+        rows = [
+            ['', f'{month} {year}', so_far],
+            [f'Opening balance, 1 January {year}', '', f"{cur} {fmt(data['opening_balance'])}"],
+            ['Paid in', f"{cur} {fmt(data.get('total_contributions') or 0)}",
+             f"{cur} {fmt(data['contributions_to_date'])}"],
+            ['Money dispensed', f"{cur} {fmt(data.get('money_dispensed') or 0)}",
+             f"{cur} {fmt(data['dispensed_to_date'])}"],
+            [f'Book balance, end of {month} {year}', '', f"{cur} {fmt(data.get('total_book_balance') or 0)}"],
+        ]
+        return [
+            Paragraph('BALANCES', s['rpt_section']),
+            Table(rows, colWidths=[2.6*inch, 1.4*inch, 1.4*inch], style=_blue_header_table_style([
+                ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+                ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ])),
+        ]
+
+    @staticmethod
+    def _payouts_section(data: dict, s: dict) -> list:
+        """Every payout of the year up to the end of the report's month."""
+        year, payouts = data.get('year', ''), data.get('payouts_to_date') or []
+        flowables = [Paragraph(f'MONEY DISPENSED IN {year}', s['rpt_section'])]
+        if not payouts:
+            flowables.append(Paragraph('Nothing paid out so far this year.', s['rpt_body']))
+            return flowables
+        rows = [['Date', 'To', 'Purpose', 'Amount']] + [
+            [p['paid_on'].strftime('%d %b %Y'), Paragraph(escape(p['beneficiary']), s['rpt_body']),
+             Paragraph(escape(p['purpose']), s['rpt_body']), PDFGenerator._fmt(p['amount'])]
+            for p in payouts
+        ] + [['', '', 'Total', PDFGenerator._fmt(data['dispensed_to_date'])]]
+        flowables.append(Table(rows, colWidths=[1.0*inch, 2.0*inch, 1.6*inch, 1.0*inch], repeatRows=1,
+                               style=_blue_header_table_style([
+                                   ('ALIGN', (3, 1), (3, -1), 'RIGHT'),
+                                   ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
+                                   ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                               ])))
+        return flowables
 
     @staticmethod
     def _paid_members_section(data: dict, s: dict) -> list:
@@ -478,7 +483,7 @@ class PDFGenerator:
             flowables.append(Paragraph('No paid members for this period.', s['rpt_body']))
             return flowables
 
-        rows = [['Name', 'Amount (MWK)']]
+        rows = [['Name', f"Amount ({data.get('currency', 'MWK')})"]]
         for _, row in paid_df.iterrows():
             rows.append([
                 str(row[name_col]),

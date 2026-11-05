@@ -78,11 +78,28 @@ class GoogleSheetsService:
     # Public API
     # ------------------------------------------------------------------
 
+    def service_account_email(self) -> Optional[str]:
+        """The platform's service account email, which groups share their sheets with."""
+        try:
+            # The running app's settings, not values cached on this shared instance
+            blob = current_app.config.get('GOOGLE_CREDENTIALS_JSON')
+            if not blob:
+                path = current_app.config.get('GOOGLE_CREDENTIALS_PATH')
+                if not path or not __import__('os').path.exists(path):
+                    return None
+                with open(path, encoding='utf-8') as fh:
+                    blob = fh.read()
+            return json.loads(blob).get('client_email')
+        except Exception as e:
+            logger.warning(f'Could not read the service account email: {e}')
+            return None
+
     def get_sheet_data(
         self,
         sheet_url: str,
         sheet_name: Optional[str] = None,
         force_refresh: bool = False,
+        cache_scope: Optional[str] = None,
     ) -> Optional[pd.DataFrame]:
         """Fetch a worksheet as a DataFrame.
 
@@ -93,7 +110,8 @@ class GoogleSheetsService:
             logger.error(f"Invalid Google Sheets URL: {sheet_url}")
             return None
 
-        cache_key = f"{sheet_url}:{sheet_name}"
+        # Scoped per group, so one group's cached data is never served to another
+        cache_key = f"{cache_scope}:{sheet_url}:{sheet_name}"
 
         if not force_refresh:
             cached = self._get_cached(cache_key)
@@ -137,13 +155,33 @@ class GoogleSheetsService:
 
         return None
 
+    def get_workbook_as_excel(self, sheet_url: str) -> Optional[BytesIO]:
+        """Export the whole spreadsheet (every tab, with calculated values) as .xlsx.
+
+        Returns None on any error, so callers can fall back to one sheet.
+        """
+        if not self._validate_url(sheet_url):
+            return None
+        client = self._get_client()
+        if client is None:
+            return None
+        try:
+            spreadsheet = client.open_by_url(sheet_url)
+            content = spreadsheet.export(format=gspread.utils.ExportFormat.EXCEL)
+            logger.info(f"Exported workbook '{spreadsheet.title}' as Excel")
+            return BytesIO(content)
+        except Exception as e:
+            logger.warning(f"Could not export the whole workbook: {e}")
+            return None
+
     def get_sheet_as_excel(
         self,
         sheet_url: str,
         sheet_name: Optional[str] = None,
+        cache_scope: Optional[str] = None,
     ) -> Optional[BytesIO]:
         """Return the sheet data as an in-memory Excel (.xlsx) file."""
-        df = self.get_sheet_data(sheet_url, sheet_name)
+        df = self.get_sheet_data(sheet_url, sheet_name, cache_scope=cache_scope)
         if df is None:
             return None
 

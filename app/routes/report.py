@@ -10,6 +10,7 @@ Controllers are now split across three classes — imports reflect that.
 """
 from flask import Blueprint
 
+from app.controllers.welfare_controller import WelfareController
 from app.controllers.report_controller import ReportController
 from app.controllers.report_management import ReportManagement
 from app.controllers.report_api import ReportAPI
@@ -28,7 +29,7 @@ report.route('/download/<int:report_id>', endpoint='download_specific')(ReportCo
 report.route('/paid-members/download', endpoint='download_paid_members')(ReportController.download_paid_members)
 report.route('/paid-members/download/<int:report_id>', endpoint='download_paid_members_specific')(ReportController.download_paid_members)
 
-report.route('/welfare-rules/download', endpoint='download_welfare_rules')(ReportController.download_welfare_rules_pdf)
+report.route('/welfare-rules/download', endpoint='download_welfare_rules')(WelfareController.download_welfare_rules_pdf)
 
 # ==================== PAID MEMBERS VIEW ====================
 report.route('/paid-members',                   endpoint='paid_members')(ReportController.paid_members_view)

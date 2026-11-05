@@ -1,0 +1,178 @@
+<!-- app/templates/main/member_detail.html -->
+{% extends 'base.html' %}
+{% from 'main/_member_history.html' import history_table %}
+{% block title %}{{ member.display_name }} — Members{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-user"></i> {{ member.display_name }}</h1>
+    <p class="page-header__sub">
+      {{ 'Member ID ' ~ member.code if member.code else 'No Member ID yet' }}
+      · Joined {{ member.joined_on.strftime('%b %Y') if member.joined_on else 'from the start' }}
+      {% if member.left_on %}· Left {{ member.left_on.strftime('%b %Y') }}{% endif %}
+      · <span class="status-dot status-dot--{{ 'active' if member.is_active else 'inactive' }}">
+          {{ 'Active' if member.is_active else 'Retired' }}</span>
+    </p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.members') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Members
+    </a>
+  </div>
+</div>
+
+{% if new_pin %}
+<div class="card mb-5 border-2 !border-emerald-500">
+  <div class="card__body">
+    <p><strong>New PIN for {{ member.display_name }}:</strong></p>
+    <div class="flex gap-3 items-center my-2">
+      <code class="text-3xl tracking-[.3em]">{{ new_pin }}</code>
+      <button type="button" class="btn btn--outline btn--sm" data-copy="{{ new_pin }}">
+        <i class="fas fa-copy"></i> Copy
+      </button>
+    </div>
+    <p class="form-hint">
+      Send it to the member privately. It is shown only now: the app keeps just a scrambled form, so
+      if it's lost, make a new one.
+    </p>
+  </div>
+</div>
+{% endif %}
+
+<div class="card mb-5">
+  <div class="card__header">
+    <h2 class="card__title"><i class="fas fa-calendar-check"></i> Contributions</h2>
+  </div>
+  {{ history_table(history, months) }}
+</div>
+
+<div class="grid gap-5 md:grid-cols-2">
+
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-link"></i> Personal link</h2>
+    </div>
+    <div class="card__body">
+      <p class="text-sm">Opens this member's own history, without an account. Anyone with the link can see it,
+        so send it to the member only.</p>
+      {% if member.is_active %}
+      <div class="flex gap-2 my-3">
+        <input type="text" class="form-control" value="{{ history_url }}" readonly aria-label="Personal link">
+        <button type="button" class="btn btn--primary btn--sm" data-copy="{{ history_url }}">
+          <i class="fas fa-copy"></i> Copy
+        </button>
+      </div>
+      {% else %}
+      <p class="text-sm text-muted">Retired members' links don't open.</p>
+      {% endif %}
+      <form method="POST" action="{{ url_for('main.regenerate_link', member_id=member.id) }}"
+            data-confirm="Make a new link? The current link will stop working.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn--outline btn--sm"><i class="fas fa-redo"></i> New link</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-key"></i> PIN</h2>
+      <span class="badge {{ 'badge--success' if member.pin_hash else 'badge--neutral' }}">
+        {{ 'Set' if member.pin_hash else 'Not set' }}</span>
+    </div>
+    <div class="card__body">
+      <p class="text-sm">With a PIN, the member can also look up their history by name on the group's page.</p>
+      {% if member.pin_locked_until %}
+      <p class="text-sm text-red-600">Locked after too many wrong tries. A new PIN unlocks it.</p>
+      {% endif %}
+      <div class="flex gap-2 mt-3">
+        <form method="POST" action="{{ url_for('main.set_pin', member_id=member.id) }}"
+              {% if member.pin_hash %}data-confirm="Make a new PIN? The current PIN will stop working."{% endif %}>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn--primary btn--sm">
+            <i class="fas fa-key"></i> {{ 'New PIN' if member.pin_hash else 'Make a PIN' }}
+          </button>
+        </form>
+        {% if member.pin_hash %}
+        <form method="POST" action="{{ url_for('main.clear_pin', member_id=member.id) }}"
+              data-confirm="Remove the PIN? The member can then only use their personal link.">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn--outline btn--sm">Remove PIN</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-signature"></i> Name</h2>
+    </div>
+    <div class="card__body">
+      <form class="flex gap-2" method="POST" action="{{ url_for('main.rename', member_id=member.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="name" value="{{ member.display_name }}" class="form-control" maxlength="150"
+               aria-label="Name">
+        <button type="submit" class="btn btn--primary btn--sm">Rename</button>
+      </form>
+      <p class="text-sm mt-4"><strong>Other spellings</strong> (sheet rows with these match this member):</p>
+      {% for alias in member.aliases %}
+      <form class="inline-flex gap-1 items-center my-1 mr-2" method="POST" action="{{ url_for('main.remove_alias', member_id=member.id, alias_id=alias.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <span class="badge badge--neutral">{{ alias.normalised_name }}</span>
+        <button type="submit" class="btn btn--outline btn--sm" title="Remove" aria-label="Remove {{ alias.normalised_name }}">
+          <i class="fas fa-times"></i></button>
+      </form>
+      {% else %}
+      <p class="text-sm text-muted">None.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-object-group"></i> Merge</h2>
+    </div>
+    <div class="card__body">
+      <p class="text-sm">If this is the same person as another member (e.g. a different spelling), merge
+        this record into theirs. Payments, credit and payouts move across and this record is removed.</p>
+      {% if duplicates %}
+      <p class="text-sm"><strong>Possibly the same person:</strong>
+        {% for d in duplicates %}<a href="{{ url_for('main.member', member_id=d.id) }}">{{ d.display_name }}</a>{{ ', ' if not loop.last }}{% endfor %}</p>
+      {% endif %}
+      <form class="flex gap-2 mt-3" method="POST" action="{{ url_for('main.merge_member', member_id=member.id) }}"
+            data-confirm="Merge {{ member.display_name }} into the chosen member? This can't be undone.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <select name="into" class="form-control" required aria-label="Merge into">
+          <option value="">Merge into…</option>
+          {% if duplicates %}
+          <optgroup label="Possibly the same person">
+            {% for d in duplicates %}<option value="{{ d.id }}">{{ d.display_name }}{{ ' (' ~ d.code ~ ')' if d.code }}</option>{% endfor %}
+          </optgroup>
+          {% endif %}
+          <optgroup label="Everyone else">
+            {% for o in others %}<option value="{{ o.id }}">{{ o.display_name }}{{ ' (' ~ o.code ~ ')' if o.code }}</option>{% endfor %}
+          </optgroup>
+        </select>
+        <button type="submit" class="btn btn--warning btn--sm">Merge</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-user-slash"></i> Status</h2>
+    </div>
+    <div class="card__body">
+      <p class="text-sm">Retiring keeps their history but stops their personal link and PIN from working.
+        To stop counting them as owing, set their Left month in the workbook.</p>
+      <form class="mt-3" method="POST" action="{{ url_for('main.toggle_member', member_id=member.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn--sm {{ 'btn--outline' if member.is_active else 'btn--success' }}">
+          {{ 'Retire' if member.is_active else 'Restore' }}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

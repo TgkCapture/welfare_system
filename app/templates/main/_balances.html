@@ -1,0 +1,42 @@
+{# app/templates/main/_balances.html — a month's balances beside the year so far, as on the PDF #}
+{% macro balances(ytd, report, month_name) %}
+{% set cur = brand.currency %}
+{% set money = '{:,.0f}' %}
+<div class="card mb-5">
+  <div class="card__header">
+    <h2 class="card__title"><i class="fas fa-scale-balanced"></i> Balances</h2>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th></th><th class="text-right">{{ month_name }} {{ report.year }}</th><th class="text-right">{{ report.year }} so far</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Opening balance, 1 January {{ report.year }}</td><td></td>
+            <td class="text-right">{{ cur }} {{ money.format(ytd.opening_balance) }}</td></tr>
+        <tr><td>Paid in</td>
+            <td class="text-right">{{ cur }} {{ money.format(report.total_contributions or 0) }}</td>
+            <td class="text-right">{{ cur }} {{ money.format(ytd.contributions_to_date) }}</td></tr>
+        <tr><td>Money dispensed</td>
+            <td class="text-right">{{ cur }} {{ money.format(report.money_dispensed or 0) }}</td>
+            <td class="text-right">{{ cur }} {{ money.format(ytd.dispensed_to_date) }}</td></tr>
+        <tr class="font-bold"><td>Book balance, end of {{ month_name }}</td><td></td>
+            <td class="text-right">{{ cur }} {{ money.format(report.total_book_balance or 0) }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  {% if ytd.payouts_to_date %}
+  <div class="card__body">
+    <h3 class="mb-2 text-sm font-bold">Money dispensed in {{ report.year }}</h3>
+    <ul class="divide-y divide-slate-200 text-sm">
+      {% for p in ytd.payouts_to_date %}
+      <li class="flex justify-between gap-3 py-2">
+        <span>{{ p.paid_on.strftime('%d %b') }} · {{ p.beneficiary or '—' }}{% if p.purpose %} <span class="text-muted">({{ p.purpose }})</span>{% endif %}</span>
+        <span class="whitespace-nowrap">{{ cur }} {{ money.format(p.amount) }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}

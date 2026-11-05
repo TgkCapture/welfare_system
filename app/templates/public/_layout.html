@@ -1,0 +1,43 @@
+{# app/templates/public/_layout.html — the light layout for a group's public pages (phones first) #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>{% block title %}{{ brand.name }}{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <style>:root { --brand-rgb: {{ brand.rgb }}; --brand-dark-rgb: {{ brand.dark_rgb }}; }</style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  {% set ep = request.endpoint %}
+  <header class="public-header no-print">
+    <div class="public-header__inner">
+      <a href="{{ url_for('group.landing', slug=group.slug) }}" class="public-header__name flex items-center gap-2.5">
+        {% if brand.logo %}<img src="{{ url_for('group.logo', slug=group.slug, v=brand.logo) }}" alt=""
+                                class="h-8 w-8 rounded-md bg-white object-contain p-0.5">{% endif %}
+        {{ brand.name }}</a>
+      <nav class="public-nav" aria-label="Group pages">
+        <a href="{{ url_for('group.rules', slug=group.slug) }}" class="{{ 'is-active' if ep == 'group.rules' }}">Rules</a>
+        {% if group.settings.public_paid_enabled %}
+        <a href="{{ url_for('group.paid', slug=group.slug) }}" class="{{ 'is-active' if ep == 'group.paid' }}">Who has paid</a>
+        {% endif %}
+        <a href="{{ url_for('group.check', slug=group.slug) }}" class="{{ 'is-active' if ep == 'group.check' }}">My contributions</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="public-main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="public-footer">
+    {% block footer %}{% endblock %}
+  </footer>
+  <script src="{{ url_for('static', filename='js/base.js') }}"></script>
+</body>
+</html>

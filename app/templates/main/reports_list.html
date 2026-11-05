@@ -1,6 +1,6 @@
 <!-- app/templates/main/reports_list.html -->
 {% extends 'base.html' %}
-{% block title %}Reports — Mzugoss Welfare{% endblock %}
+{% block title %}Reports — {{ brand.name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -9,7 +9,7 @@
     <p class="page-header__sub">Browse, preview and download reports</p>
   </div>
   <div class="page-header__actions">
-    {% if user_role in ['admin','clerk'] %}
+    {% if current_user.has_permission('upload_data') %}
     <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn--primary btn--sm">
       <i class="fas fa-plus"></i> New Report
     </a>
@@ -20,7 +20,7 @@
 <!-- Filters -->
 <div class="filter-bar">
   <div class="filter-bar__left">
-    <select id="fYear" class="form-control" style="width:auto;">
+    <select id="fYear" class="form-control w-auto">
       <option value="">All years</option>
       {% set seen = [] %}
       {% for r in reports %}{% if r.year not in seen %}
@@ -28,14 +28,14 @@
         <option value="{{ r.year }}">{{ r.year }}</option>
       {% endif %}{% endfor %}
     </select>
-    <select id="fMonth" class="form-control" style="width:auto;">
+    <select id="fMonth" class="form-control w-auto">
       <option value="">All months</option>
       {% for i in range(1,13) %}
         <option value="{{ i }}">{{ month_names[i-1] }}</option>
       {% endfor %}
     </select>
-    {% if current_user.is_admin %}
-    <select id="fStatus" class="form-control" style="width:auto;">
+    {% if current_user.has_permission('manage_reports') %}
+    <select id="fStatus" class="form-control w-auto">
       <option value="">All status</option>
       <option value="active">Active</option>
       <option value="archived">Archived</option>
@@ -62,13 +62,13 @@
       {% if r.is_archived %}
         <span class="badge badge--neutral"><i class="fas fa-archive"></i> Archived</span>
       {% else %}
-        <span class="badge badge--success"><i class="fas fa-circle" style="font-size:.5rem;"></i> Active</span>
+        <span class="badge badge--success"><i class="fas fa-circle text-[.5rem]"></i> Active</span>
       {% endif %}
     </div>
 
     <div class="report-card__stats">
       <div class="rstat">
-        <div class="rstat__val">MWK {{ "%.0f"|format(r.total_contributions) }}</div>
+        <div class="rstat__val">{{ brand.currency }} {{ "%.0f"|format(r.total_contributions) }}</div>
         <div class="rstat__lbl">Contributions</div>
       </div>
       <div class="rstat">
@@ -94,21 +94,25 @@
       <a href="{{ r.download_url }}" class="btn btn--primary btn--sm">
         <i class="fas fa-download"></i> Download
       </a>
-      {% if user_role in ['admin','clerk'] %}
+      {% if current_user.has_permission('generate_reports') or current_user.has_permission('manage_reports') %}
       <div class="report-card__more">
         <button class="btn btn--outline btn--sm btn--icon more-btn"
                 aria-haspopup="true" aria-expanded="false">
           <i class="fas fa-ellipsis-v"></i>
         </button>
         <div class="more-menu">
+          {% if current_user.has_permission('generate_reports') %}
           <form method="POST" action="{{ url_for('report.regenerate', report_id=r.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="more-menu__item">
               <i class="fas fa-redo"></i> Regenerate
             </button>
           </form>
-          {% if current_user.is_admin %}
+          {% endif %}
+          {% if current_user.has_permission('manage_reports') %}
           {% if r.is_archived %}
           <form method="POST" action="{{ url_for('report.restore', report_id=r.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="more-menu__item">
               <i class="fas fa-undo"></i> Restore
             </button>
@@ -116,6 +120,7 @@
           {% else %}
           <form method="POST" action="{{ url_for('report.archive', report_id=r.id) }}"
                 data-confirm="Archive this report?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="more-menu__item">
               <i class="fas fa-archive"></i> Archive
             </button>
@@ -123,6 +128,7 @@
           {% endif %}
           <form method="POST" action="{{ url_for('report.delete', report_id=r.id) }}"
                 data-confirm="Permanently delete this report?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="more-menu__item more-menu__item--danger">
               <i class="fas fa-trash"></i> Delete
             </button>
@@ -136,18 +142,22 @@
   {% endfor %}
 </div>
 
-{% if current_user.is_admin %}
-<div class="card" style="margin-top:1.5rem;">
+{% if current_user.has_permission('manage_reports') %}
+<div class="card mt-6">
   <div class="card__header">
     <h2 class="card__title"><i class="fas fa-cog"></i> Report Management</h2>
   </div>
-  <div class="card__body" style="display:flex;gap:.75rem;flex-wrap:wrap;">
+  <div class="card__body flex gap-3 flex-wrap">
     <form method="POST" action="{{ url_for('report.cleanup') }}"
-          data-confirm="Run report cleanup? Old files will be archived.">
+          data-confirm="Run report cleanup? Report files past your group's retention period are deleted and those reports archived.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn--warning btn--sm">
         <i class="fas fa-broom"></i> Cleanup Old Reports
       </button>
     </form>
+    <a href="{{ url_for('main.cleanup_files') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-hdd"></i> Storage
+    </a>
     <a href="{{ url_for('report.stats') }}" class="btn btn--outline btn--sm">
       <i class="fas fa-chart-bar"></i> Statistics
     </a>
@@ -164,7 +174,7 @@
     <i class="fas fa-file-excel"></i>
     <h3>No reports yet</h3>
     <p>No contribution reports have been generated.</p>
-    {% if user_role in ['admin','clerk'] %}
+    {% if current_user.has_permission('upload_data') %}
     <a href="{{ url_for('main.upload_dashboard') }}" class="btn btn--primary btn--sm">
       <i class="fas fa-plus"></i> Generate first report
     </a>
@@ -173,83 +183,6 @@
 </div>
 {% endif %}
 
-<style>
-.filter-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem;
-}
-.filter-bar__left { display: flex; gap: .625rem; flex-wrap: wrap; }
-.filter-bar .form-control { font-size: .875rem; padding: .425rem .75rem; }
-
-.reports-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
-  gap: 1rem;
-}
-.report-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  overflow: hidden;
-  transition: box-shadow var(--t), transform var(--t);
-}
-.report-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
-
-.report-card__header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--border);
-}
-.report-card__period {
-  display: flex; align-items: center; gap: .5rem;
-  font-weight: 800; font-size: 1rem;
-}
-.report-card__period i { color: var(--clr-primary); }
-
-.report-card__stats {
-  display: grid; grid-template-columns: repeat(3,1fr);
-  padding: 1rem 1.25rem; gap: .5rem;
-}
-.rstat { text-align: center; }
-.rstat__val { font-size: 1.125rem; font-weight: 800; color: var(--txt-primary); }
-.rstat__lbl { font-size: .75rem; color: var(--txt-muted); }
-
-.report-card__meta {
-  display: flex; gap: .875rem; flex-wrap: wrap;
-  padding: 0 1.25rem .875rem;
-}
-.report-card__meta span { display: flex; align-items: center; gap: .3rem; }
-
-.report-card__actions {
-  display: flex; align-items: center; gap: .5rem;
-  padding: .875rem 1.25rem;
-  border-top: 1px solid var(--border);
-  background: var(--clr-slate-50);
-}
-.report-card__more { position: relative; margin-left: auto; }
-.more-btn { position: relative; }
-.more-menu {
-  display: none;
-  position: absolute; right: 0; top: calc(100% + .375rem);
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-xl);
-  z-index: 100; min-width: 10rem; overflow: hidden;
-}
-.report-card__more.is-open .more-menu { display: block; }
-.more-menu__item {
-  display: flex; align-items: center; gap: .625rem;
-  padding: .625rem 1rem;
-  font-size: .875rem; color: var(--txt-secondary);
-  width: 100%; text-align: left;
-  transition: background var(--t), color var(--t);
-}
-.more-menu__item:hover { background: var(--clr-slate-50); color: var(--txt-primary); }
-.more-menu__item--danger { color: var(--clr-danger); }
-.more-menu__item--danger:hover { background: var(--clr-danger-pale); }
-.report-card[style*="display:none"] { display: none !important; }
-</style>
 
 {% block extra_js %}
 <script>

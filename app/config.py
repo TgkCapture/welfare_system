@@ -4,9 +4,9 @@ Application configuration.
 
 Three environments are provided:
 
-  DevelopmentConfig  — SQLite, debug on, relaxed security
+  DevelopmentConfig  — SQLite (or DATABASE_URL), debug on, relaxed security
   TestingConfig      — in-memory SQLite, CSRF/login disabled
-  ProductionConfig   — requires env vars, strict security
+  ProductionConfig   — requires env vars (Postgres recommended), strict security
 
 Select via the FLASK_ENV environment variable (handled in create_app).
 
@@ -17,6 +17,24 @@ import os
 from datetime import timedelta
 
 
+def database_url(default=''):
+    """Return DATABASE_URL, pointed at the psycopg 3 driver for Postgres."""
+    return with_psycopg(os.environ.get('DATABASE_URL', default))
+
+
+def with_psycopg(url):
+    """Point a Postgres URL at the psycopg 3 driver.
+
+    Hosts often hand out ``postgres://`` or ``postgresql://`` URLs, which
+    SQLAlchemy would read as the older psycopg2 driver. create_app applies
+    this after every config source, so instance/config.py may use either.
+    """
+    for prefix in ('postgres://', 'postgresql://'):
+        if url and url.startswith(prefix):
+            return 'postgresql+psycopg://' + url[len(prefix):]
+    return url
+
+
 class BaseConfig:
     """Shared settings inherited by all environments."""
 
@@ -25,6 +43,9 @@ class BaseConfig:
 
     # ── SQLAlchemy ────────────────────────────────────────────────────
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Replace connections the database server has closed (Postgres restarts,
+    # idle timeouts) instead of failing the next request
+    SQLALCHEMY_ENGINE_OPTIONS = {'pool_pre_ping': True}
 
     # ── Session ───────────────────────────────────────────────────────
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
@@ -38,6 +59,8 @@ class BaseConfig:
     UPLOAD_FOLDER = os.path.join(_base_dir, 'uploads')
     REPORT_FOLDER = os.path.join(_base_dir, 'reports')
     LOGS_FOLDER   = os.path.join(_base_dir, 'logs')
+    # Group logos: kept apart from uploads and reports, which expire
+    BRANDING_FOLDER = os.path.join(_base_dir, 'instance', 'branding')
 
     ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv'}
 
@@ -59,10 +82,26 @@ class BaseConfig:
     DEFAULT_SHEET_URL       = os.environ.get('DEFAULT_SHEET_URL', '')
     SHEETS_CACHE_TTL        = int(os.environ.get('SHEETS_CACHE_TTL', 300))
 
-    # ── Reports ───────────────────────────────────────────────────────
-    CLERKS_SEE_ALL_REPORTS = (
-        os.environ.get('CLERKS_SEE_ALL_REPORTS', 'false').lower() == 'true'
-    )
+    # ── Rate limiting (app/services/limits.py) ────────────────────────
+    # Failed attempts per client IP. The in-memory store is per process:
+    # with several workers each keeps its own count, so point this at a
+    # shared store (e.g. redis://) to make the limits exact.
+    RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
+    # Wrong passwords (sign-in, password change) and unknown group codes
+    LOGIN_RATE_LIMIT      = os.environ.get('LOGIN_RATE_LIMIT', '10 per minute;50 per hour')
+    # Wrong access codes, PINs and personal history links
+    PUBLIC_LOOKUP_RATE_LIMIT = os.environ.get('PUBLIC_LOOKUP_RATE_LIMIT', '10 per minute;30 per hour')
+
+    # ── Reverse proxy ─────────────────────────────────────────────────
+    # How many proxies (nginx, a load balancer) sit in front of the app.
+    # Their X-Forwarded-For/-Proto/-Host headers are trusted that many hops
+    # deep, so rate limits and the audit log see each visitor's own address.
+    # Leave at 0 when the app is reached directly: the headers can be forged.
+    TRUSTED_PROXIES = int(os.environ.get('TRUSTED_PROXIES', 0))
+
+    # ── Platform support sessions ─────────────────────────────────────
+    # How long a superadmin's read-only look at a group lasts
+    SUPPORT_SESSION_MINUTES = int(os.environ.get('SUPPORT_SESSION_MINUTES', 60))
 
     # ── Month names (convenience) ─────────────────────────────────────
     MONTH_NAMES = [
@@ -74,7 +113,7 @@ class BaseConfig:
     @staticmethod
     def init_app(app):
         """Create required directories on first run."""
-        for key in ('UPLOAD_FOLDER', 'REPORT_FOLDER', 'LOGS_FOLDER'):
+        for key in ('UPLOAD_FOLDER', 'REPORT_FOLDER', 'LOGS_FOLDER', 'BRANDING_FOLDER'):
             path = app.config.get(key)
             if path:
                 os.makedirs(path, exist_ok=True)
@@ -85,8 +124,7 @@ class DevelopmentConfig(BaseConfig):
 
     DEBUG = True
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        'DATABASE_URL',
+    SQLALCHEMY_DATABASE_URI = database_url(
         f"sqlite:///{os.path.join(BaseConfig._base_dir, 'instance', 'welfare_dev.db')}",
     )
 
@@ -96,6 +134,10 @@ class DevelopmentConfig(BaseConfig):
     @staticmethod
     def init_app(app):
         BaseConfig.init_app(app)
+        if not app.config['SESSION_COOKIE_SECURE']:
+            app.logger.warning('ALLOW_HTTP is on: sign-in works over plain HTTP and passwords can be '
+                               'read on the network. Turn it off once the site has HTTPS.')
+
         if app.config['SECRET_KEY'] == 'change-me-in-production':
             import warnings
             warnings.warn(
@@ -117,8 +159,10 @@ class TestingConfig(BaseConfig):
     UPLOAD_FOLDER = '/tmp/welfare_test_uploads'
     REPORT_FOLDER = '/tmp/welfare_test_reports'
     LOGS_FOLDER   = '/tmp/welfare_test_logs'
+    BRANDING_FOLDER = '/tmp/welfare_test_branding'
 
     ENABLE_AUTO_CLEANUP = False   # never start the scheduler in tests
+    RATELIMIT_ENABLED   = False   # tests that check limits turn it back on
 
 
 class ProductionConfig(BaseConfig):
@@ -129,9 +173,14 @@ class ProductionConfig(BaseConfig):
 
     # Plain assignment — missing DATABASE_URL is caught at runtime in
     # init_app(), not at class-definition / import time.
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', '')
+    SQLALCHEMY_DATABASE_URI = database_url()
 
-    SESSION_COOKIE_SECURE = True   # only transmit cookie over HTTPS
+    # Cookies only travel over HTTPS. ALLOW_HTTP=1 lifts that for a short
+    # trial on a server without a certificate yet: passwords then cross the
+    # network readable, so never leave it on.
+    _ALLOW_HTTP = os.environ.get('ALLOW_HTTP', '').lower() in ('1', 'true', 'yes')
+    SESSION_COOKIE_SECURE  = not _ALLOW_HTTP
+    REMEMBER_COOKIE_SECURE = not _ALLOW_HTTP
 
     @staticmethod
     def init_app(app):

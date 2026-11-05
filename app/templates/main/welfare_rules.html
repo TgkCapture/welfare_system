@@ -1,15 +1,21 @@
 <!-- app/templates/main/welfare_rules.html -->
 {% extends 'base.html' %}
-{% block title %}Welfare Rules — Mzugoss Welfare{% endblock %}
+{% from 'main/_rules.html' import render_sections %}
+{% block title %}Welfare Rules — {{ brand.name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div class="page-header__text">
-    <h1 class="page-header__title"><i class="fas fa-book-open"></i> Welfare Rules &amp; Guidelines</h1>
-    <p class="page-header__sub">Understanding contributions, benefits and penalties</p>
+    <h1 class="page-header__title"><i class="fas fa-book-open"></i> Welfare rules</h1>
+    <p class="page-header__sub">{{ brand.name }}</p>
   </div>
   <div class="page-header__actions">
-    <a href="{{ url_for('report.download_welfare_rules') }}" class="btn btn--primary btn--sm">
+    {% if current_user.has_permission('edit_rules') %}
+    <a href="{{ url_for('main.rules_editor') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-edit"></i> Edit rules
+    </a>
+    {% endif %}
+    <a href="{{ url_for('main.download_welfare_rules_pdf') }}" class="btn btn--primary btn--sm">
       <i class="fas fa-download"></i> Download PDF
     </a>
     <button class="btn btn--outline btn--sm" onclick="window.print()">
@@ -18,280 +24,16 @@
   </div>
 </div>
 
-<!-- Quick summary cards -->
-<div class="rules-summary">
-  {% set cards = [
-    ('fas fa-money-bill-wave', 'blue',   'Monthly Contribution', 'K1,000',  'per month'),
-    ('fas fa-cross',          'amber',  'Funeral Support',      'K50,000', 'per incident'),
-    ('fas fa-ring',           'purple', 'Wedding Support',      'K80,000', 'per wedding'),
-    ('fas fa-hospital',       'cyan',   'Sickness Support',     'K15,000', 'per admission'),
-    ('fas fa-user-minus',     'green',  'Member Death Support', 'K80,000', 'for family'),
-  ] %}
-  {% for icon, color, label, amount, period in cards %}
-  <div class="summary-pill">
-    <div class="summary-pill__icon summary-pill__icon--{{ color }}"><i class="{{ icon }}"></i></div>
-    <div>
-      <div class="summary-pill__label">{{ label }}</div>
-      <div class="summary-pill__amount">{{ amount }}</div>
-      <div class="summary-pill__period">{{ period }}</div>
-    </div>
-  </div>
-  {% endfor %}
-</div>
-
-<!-- Important notice -->
-<div class="rules-notice">
-  <i class="fas fa-exclamation-triangle"></i>
-  <div>
-    <strong>Important:</strong> Only contributing members are eligible for welfare benefits.
-    Members who do not contribute regularly cannot receive any welfare money.
+<div class="card no-print mb-5">
+  <div class="card__body text-sm flex gap-2 items-center flex-wrap">
+    <span>Members can read these at</span>
+    <code>{{ url_for('group.rules', slug=brand.slug, _external=True) }}</code>
+    <button type="button" class="btn btn--outline btn--sm"
+            data-copy="{{ url_for('group.rules', slug=brand.slug, _external=True) }}">
+      <i class="fas fa-copy"></i> Copy link
+    </button>
   </div>
 </div>
 
-<!-- Rule sections -->
-<div class="rules-sections">
-
-  {% macro rule_section(icon, color, title, subtitle) %}
-  <section class="rule-section">
-    <div class="rule-section__header">
-      <div class="rule-section__icon rule-section__icon--{{ color }}"><i class="{{ icon }}"></i></div>
-      <div>
-        <h2 class="rule-section__title">{{ title }}</h2>
-        <p class="rule-section__sub text-muted text-sm">{{ subtitle }}</p>
-      </div>
-    </div>
-    <div class="rule-section__body">
-      {{ caller() }}
-    </div>
-  </section>
-  {% endmacro %}
-
-  <!-- Funeral -->
-  {% call rule_section('fas fa-cross','amber','Funeral Support Rules','Financial assistance during bereavement') %}
-    <p style="margin-bottom:.875rem;">Money is released only for <strong>immediate family members</strong>:</p>
-    <div class="family-grid">
-      {% for rel in ['Mother','Father','Sister','Brother','Legal Guardian','Husband / Wife','Children'] %}
-      <div class="family-chip"><i class="fas fa-user-check"></i> {{ rel }}</div>
-      {% endfor %}
-    </div>
-    <div class="amount-highlight amount-highlight--amber">
-      <span class="amount-highlight__val">K50,000</span>
-      <span class="amount-highlight__per">per funeral incident</span>
-    </div>
-  {% endcall %}
-
-  <!-- Deceased member -->
-  {% call rule_section('fas fa-user-minus','green','Deceased Member Support','When a contributing member passes away') %}
-    <div class="amount-highlight amount-highlight--green">
-      <span class="amount-highlight__val">K80,000</span>
-      <span class="amount-highlight__per">support for the member's family</span>
-    </div>
-    <p class="text-sm text-muted" style="margin-top:.75rem;">
-      This applies specifically when a <em>regularly contributing</em> member dies.
-    </p>
-  {% endcall %}
-
-  <!-- Contribution rules -->
-  {% call rule_section('fas fa-chart-line','blue','Contribution Rules','Monthly contributions, penalties and benefits') %}
-    <ol class="numbered-rules">
-      <li>
-        <strong>Monthly Contribution:</strong> K1,000 per month.
-      </li>
-      <li>
-        <strong>Late Payment Penalty:</strong> 5% per month on the outstanding contribution.
-        <div class="example-box">
-          <i class="fas fa-calculator"></i>
-          Example: 2 months late = 10% penalty → pay K1,100 instead of K1,000
-        </div>
-      </li>
-      <li>
-        <strong>Back Payments:</strong> Missed months must be paid for the exact period they were missed.
-      </li>
-      <li>
-        <strong>Benefits Calculation:</strong> Months contributed = times eligible for support.
-        <div class="example-box">
-          <i class="fas fa-lightbulb"></i>
-          Example: 6 months contributed = eligible for support up to 6 times
-        </div>
-      </li>
-    </ol>
-  {% endcall %}
-
-  <!-- Sickness -->
-  {% call rule_section('fas fa-heartbeat','cyan','Sickness Support','Medical and hospitalisation assistance') %}
-    <p style="margin-bottom:.875rem;">
-      Support is provided for members <strong>admitted to hospital for multiple days</strong>.
-      Outpatient visits are not covered.
-    </p>
-    <div class="amount-highlight amount-highlight--cyan">
-      <span class="amount-highlight__val">K15,000</span>
-      <span class="amount-highlight__per">per hospital admission</span>
-    </div>
-  {% endcall %}
-
-  <!-- Wedding -->
-  {% call rule_section('fas fa-glass-cheers','purple','Wedding Support','Celebratory financial assistance') %}
-    <div class="amount-highlight amount-highlight--purple">
-      <span class="amount-highlight__val">K80,000</span>
-      <span class="amount-highlight__per">per wedding ceremony (once per member)</span>
-    </div>
-  {% endcall %}
-
-</div><!-- /rules-sections -->
-
-<!-- Key points -->
-<div class="card" style="margin-top:1.5rem;">
-  <div class="card__header">
-    <h2 class="card__title"><i class="fas fa-key"></i> Key Points to Remember</h2>
-  </div>
-  <div class="card__body">
-    <ul class="key-points">
-      {% set points = [
-        ('fas fa-hand-holding-usd', 'Contribute regularly to stay eligible for all benefits.'),
-        ('fas fa-calendar-times',   'Pay on time — 5% monthly penalty applies to late payments.'),
-        ('fas fa-balance-scale',    'Benefits are proportional to contributions: more months = more support.'),
-        ('fas fa-user-minus',       'K80,000 is provided to the family when a member dies.'),
-        ('fas fa-users',            'Funeral support covers mother, father, siblings, spouse and children.'),
-        ('fas fa-hospital-user',    'K15,000 for hospital admissions lasting multiple days.'),
-      ] %}
-      {% for icon, text in points %}
-      <li class="key-point">
-        <div class="key-point__icon"><i class="{{ icon }}"></i></div>
-        <span>{{ text }}</span>
-      </li>
-      {% endfor %}
-    </ul>
-  </div>
-</div>
-
-<div class="rules-footer">
-  <i class="fas fa-info-circle"></i>
-  For any clarifications, please contact the welfare committee.
-</div>
-
-<style>
-.rules-summary {
-  display: flex; gap: .875rem; flex-wrap: wrap; margin-bottom: 1.5rem;
-}
-.summary-pill {
-  display: flex; align-items: center; gap: .875rem;
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: var(--r-xl); padding: .875rem 1.125rem;
-  flex: 1; min-width: 10rem;
-}
-.summary-pill__icon {
-  width: 2.5rem; height: 2.5rem;
-  border-radius: var(--r-md);
-  display: grid; place-items: center;
-  font-size: 1rem; flex-shrink: 0;
-}
-.summary-pill__icon--blue   { background: var(--clr-primary-pale); color: var(--clr-primary); }
-.summary-pill__icon--amber  { background: var(--clr-warning-pale); color: var(--clr-warning); }
-.summary-pill__icon--purple { background: #ede9fe; color: #7c3aed; }
-.summary-pill__icon--cyan   { background: var(--clr-info-pale); color: var(--clr-info); }
-.summary-pill__icon--green  { background: var(--clr-success-pale); color: var(--clr-success); }
-.summary-pill__label  { font-size: .75rem; color: var(--txt-muted); }
-.summary-pill__amount { font-size: 1.125rem; font-weight: 800; color: var(--txt-primary); }
-.summary-pill__period { font-size: .75rem; color: var(--txt-muted); }
-
-.rules-notice {
-  display: flex; align-items: flex-start; gap: .875rem;
-  padding: 1rem 1.25rem;
-  background: var(--clr-warning-pale); border: 1px solid #fcd34d;
-  border-radius: var(--r-xl); color: #92400e;
-  margin-bottom: 1.5rem; font-size: .9375rem;
-}
-.rules-notice i { flex-shrink: 0; font-size: 1.25rem; margin-top: .125rem; }
-
-.rules-sections { display: flex; flex-direction: column; gap: 1.25rem; }
-.rule-section {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  overflow: hidden;
-}
-.rule-section__header {
-  display: flex; align-items: center; gap: 1rem;
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--clr-slate-50);
-}
-.rule-section__icon {
-  width: 2.75rem; height: 2.75rem;
-  border-radius: var(--r-lg);
-  display: grid; place-items: center;
-  font-size: 1.125rem; flex-shrink: 0;
-}
-.rule-section__icon--amber  { background: var(--clr-warning-pale); color: var(--clr-warning); }
-.rule-section__icon--green  { background: var(--clr-success-pale); color: var(--clr-success); }
-.rule-section__icon--blue   { background: var(--clr-primary-pale); color: var(--clr-primary); }
-.rule-section__icon--cyan   { background: var(--clr-info-pale); color: var(--clr-info); }
-.rule-section__icon--purple { background: #ede9fe; color: #7c3aed; }
-.rule-section__title { font-size: 1.0625rem; font-weight: 800; }
-.rule-section__body  { padding: 1.25rem 1.5rem; }
-
-.family-grid {
-  display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem;
-}
-.family-chip {
-  display: inline-flex; align-items: center; gap: .375rem;
-  padding: .35rem .75rem;
-  background: var(--clr-success-pale); color: #065f46;
-  border-radius: var(--r-full); font-size: .8125rem; font-weight: 600;
-}
-
-.amount-highlight {
-  display: inline-flex; align-items: baseline; gap: .5rem;
-  padding: .875rem 1.25rem; border-radius: var(--r-xl);
-  margin-top: .75rem;
-}
-.amount-highlight--amber  { background: var(--clr-warning-pale); }
-.amount-highlight--green  { background: var(--clr-success-pale); }
-.amount-highlight--cyan   { background: var(--clr-info-pale); }
-.amount-highlight--purple { background: #ede9fe; }
-.amount-highlight__val    { font-size: 1.75rem; font-weight: 900; }
-.amount-highlight--amber  .amount-highlight__val { color: #92400e; }
-.amount-highlight--green  .amount-highlight__val { color: #065f46; }
-.amount-highlight--cyan   .amount-highlight__val { color: #164e63; }
-.amount-highlight--purple .amount-highlight__val { color: #5b21b6; }
-.amount-highlight__per    { font-size: .875rem; color: var(--txt-muted); }
-
-.numbered-rules { padding-left: 1.25rem; display: flex; flex-direction: column; gap: .875rem; }
-.numbered-rules li { font-size: .9375rem; }
-.example-box {
-  display: flex; align-items: center; gap: .625rem;
-  margin-top: .5rem; padding: .625rem .875rem;
-  background: var(--clr-slate-50); border-radius: var(--r-md);
-  font-size: .8125rem; color: var(--txt-secondary);
-  border-left: 3px solid var(--clr-primary);
-}
-
-.key-points { display: flex; flex-direction: column; gap: .75rem; }
-.key-point  { display: flex; align-items: center; gap: .875rem; }
-.key-point__icon {
-  width: 2rem; height: 2rem;
-  background: var(--clr-primary-pale); color: var(--clr-primary);
-  border-radius: var(--r-md);
-  display: grid; place-items: center;
-  font-size: .8125rem; flex-shrink: 0;
-}
-
-.rules-footer {
-  display: flex; align-items: center; gap: .625rem;
-  padding: 1rem 1.25rem; margin-top: 1.25rem;
-  background: var(--clr-slate-50);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  font-size: .875rem; color: var(--txt-muted);
-}
-
-@media (max-width: 600px) {
-  .rules-summary { flex-direction: column; }
-  .summary-pill  { flex: auto; }
-}
-@media print {
-  .topnav, .site-footer, .page-header__actions { display: none !important; }
-  .rules-sections { gap: 1rem; }
-}
-</style>
+{{ render_sections(sections) }}
 {% endblock %}

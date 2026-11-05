@@ -1,77 +1,23 @@
 /* base.js — global UI behaviour for every page */
 'use strict';
 
-/* ── User dropdown ──────────────────────────────────────────────────── */
-(function initUserMenu() {
-  const menu   = document.getElementById('userMenu');
-  const btn    = document.getElementById('userMenuBtn');
-  const drop   = document.getElementById('userDropdown');
-  if (!menu || !btn || !drop) return;
+/* ── Sidebar (off-canvas on small screens) ──────────────────────────── */
+(function initSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  const toggles = document.querySelectorAll('[data-sidebar-toggle]');
+  if (!sidebar) return;
 
-  function open()  {
-    menu.classList.add('is-open');
-    btn.setAttribute('aria-expanded', 'true');
-    drop.setAttribute('aria-hidden', 'false');
-  }
-  function close() {
-    menu.classList.remove('is-open');
-    btn.setAttribute('aria-expanded', 'false');
-    drop.setAttribute('aria-hidden', 'true');
+  function setOpen(open) {
+    sidebar.classList.toggle('is-open', open);
+    if (overlay) overlay.hidden = !open;
+    toggles.forEach((t) => t.setAttribute('aria-expanded', String(open)));
+    document.body.style.overflow = open ? 'hidden' : '';
   }
 
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    menu.classList.contains('is-open') ? close() : open();
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!menu.contains(e.target)) close();
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') close();
-  });
-})();
-
-/* ── Mobile drawer ──────────────────────────────────────────────────── */
-(function initMobileNav() {
-  const hamburger = document.getElementById('hamburgerBtn');
-  const nav       = document.getElementById('mobileNav');
-  const overlay   = document.getElementById('mobileOverlay');
-  const closeBtn  = document.getElementById('mobileNavClose');
-  if (!hamburger || !nav) return;
-
-  function openNav() {
-    nav.classList.add('is-open');
-    overlay && overlay.classList.add('is-open');
-    hamburger.setAttribute('aria-expanded', 'true');
-    nav.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-  }
-  function closeNav() {
-    nav.classList.remove('is-open');
-    overlay && overlay.classList.remove('is-open');
-    hamburger.setAttribute('aria-expanded', 'false');
-    nav.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-  }
-
-  hamburger.addEventListener('click', openNav);
-  closeBtn  && closeBtn.addEventListener('click', closeNav);
-  overlay   && overlay.addEventListener('click', closeNav);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNav(); });
-})();
-
-/* ── Flash auto-dismiss (after 6 s) ────────────────────────────────── */
-(function initFlashDismiss() {
-  document.querySelectorAll('.flash').forEach((el) => {
-    setTimeout(() => {
-      el.style.transition = 'opacity .4s ease, transform .4s ease';
-      el.style.opacity    = '0';
-      el.style.transform  = 'translateY(-6px)';
-      setTimeout(() => el.remove(), 420);
-    }, 6000);
-  });
+  toggles.forEach((t) => t.addEventListener('click', () => setOpen(!sidebar.classList.contains('is-open'))));
+  overlay && overlay.addEventListener('click', () => setOpen(false));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
 })();
 
 /* ── Password show/hide toggle ──────────────────────────────────────── */
@@ -137,14 +83,24 @@
 /* ── Inline form confirmation (data-confirm) ────────────────────────── */
 document.addEventListener('submit', (e) => {
   const form = e.target;
-  const msg  = form.dataset.confirm;
+  // The clicked button's message wins, so one form can confirm only some actions
+  const msg  = (e.submitter && e.submitter.dataset.confirm) || form.dataset.confirm;
   if (msg && !confirm(msg)) e.preventDefault();
 });
 
-/* ── Active nav link highlight (fallback for pages that set it) ─────── */
-(function highlightActiveLink() {
-  const path = window.location.pathname;
-  document.querySelectorAll('.topnav__link, .mobile-nav__link').forEach((a) => {
-    if (a.getAttribute('href') === path) a.classList.add('is-active');
-  });
-})();
+/* ── Copy to clipboard (data-copy="text") ─────────────────────────── */
+document.addEventListener('click', async (e) => {
+  const button = e.target.closest('[data-copy]');
+  if (!button) return;
+  const label = button.innerHTML;
+  try {
+    await navigator.clipboard.writeText(button.dataset.copy);
+    button.innerHTML = '<i class="fas fa-check"></i> Copied';
+  } catch {
+    // No clipboard access (e.g. plain http): select the text so it can be copied by hand
+    const input = button.parentElement.querySelector('input');
+    if (input) { input.select(); }
+    button.innerHTML = 'Press Ctrl+C';
+  }
+  setTimeout(() => { button.innerHTML = label; }, 2000);
+});

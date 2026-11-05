@@ -1,200 +1,175 @@
-<!-- app/templates/main/dashboard.html -->
+<!-- app/templates/main/dashboard.html — one dashboard; each part shows if the officer's role allows it -->
 {% extends 'base.html' %}
-
-{% block title %}Dashboard - Mzugoss Welfare{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-{% endblock %}
+{% from 'components/ui.html' import page_header, card, stat, button, badge, empty_state, copy_field %}
+{% block title %}Dashboard — {{ brand.name }}{% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
-    <!-- Welcome Section -->
-    <div class="welcome-section">
-        <div class="welcome-content">
-            <h1 class="welcome-title">
-                Welcome back, {{ current_user.email.split('@')[0]|title }}!
-            </h1>
-            <p class="welcome-subtitle">
-                Generate contribution reports for your welfare group
-            </p>
-        </div>
-        <div class="welcome-icon">
-            <i class="fas fa-chart-line"></i>
-        </div>
+{% set can = current_user.has_permission %}
+{% set cur = brand.currency %}
+
+{% call page_header(brand.name, sub=('Latest month synced: ' ~ latest_label) if latest else 'No contributions synced yet') %}
+  {% if can('upload_data') %}{{ button('Upload or sync', href=url_for('main.upload_dashboard'), icon='file-arrow-up') }}{% endif %}
+{% endcall %}
+
+{% if setup %}
+<div class="card mb-6 border-brand/30">
+  <div class="flex flex-wrap items-center gap-4 p-5">
+    <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-brand-pale text-lg text-brand"><i class="fas fa-list-check"></i></span>
+    <div class="min-w-0 flex-1">
+      <h2 class="font-bold">Set up your group: {{ setup.done }} of {{ setup.total }} done</h2>
+      <div class="my-2 h-1.5 max-w-sm overflow-hidden rounded-full bg-slate-200">
+        <div class="h-full rounded-full bg-emerald-500" style="width: {{ (100 * setup.done / setup.total)|round|int }}%"></div>
+      </div>
+      {% if setup.next %}<p class="text-sm text-slate-600">Next: {{ setup.next.title }}</p>{% endif %}
     </div>
-
-    <!-- Upload Card -->
-    <div class="upload-card glass-card">
-        <div class="card-header-section">
-            <div class="card-icon">
-                <i class="fas fa-file-excel"></i>
-            </div>
-            <div class="card-title-section">
-                <h2 class="card-title">Generate Contribution Report</h2>
-                <p class="card-subtitle">Upload Excel file or connect Google Sheets</p>
-            </div>
-        </div>
-
-        <!-- Stats Preview -->
-        <div class="stats-preview">
-            <div class="stat-item">
-                <i class="fas fa-calendar"></i>
-                <span id="selectedMonthYear">{{ month_names[month-1] }} {{ year }}</span>
-            </div>
-        </div>
-
-        <form action="{{ url_for('main.upload') }}" method="POST" enctype="multipart/form-data" class="upload-form" id="uploadForm">
-            <!-- Input Method Toggle -->
-            <div class="input-method-toggle">
-                <div class="toggle-header">
-                    <h4>Choose Input Method</h4>
-                </div>
-                <div class="toggle-options">
-                    <label class="toggle-option {% if not sheet_url %}active{% endif %}" for="file_upload_toggle">
-                        <input type="radio" name="input_method" id="file_upload_toggle" value="file" {% if not sheet_url %}checked{% endif %}>
-                        <div class="toggle-content">
-                            <i class="fas fa-file-upload"></i>
-                            <span>File Upload</span>
-                        </div>
-                    </label>
-                    
-                    <label class="toggle-option {% if sheet_url %}active{% endif %}" for="sheets_toggle">
-                        <input type="radio" name="input_method" id="sheets_toggle" value="sheets" {% if sheet_url %}checked{% endif %}>
-                        <div class="toggle-content">
-                            <i class="fab fa-google"></i>
-                            <span>Google Sheets</span>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
-            <!-- File Upload Section -->
-            <div class="form-section {% if not sheet_url %}active{% endif %}" id="file_upload_section">
-                <div class="file-upload-area" id="dropArea">
-                    <div class="upload-placeholder" id="uploadPlaceholder">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <h3>Drop your Excel file here</h3>
-                        <p>or click to browse files</p>
-                        <span class="file-types">Supports .xlsx, .xls</span>
-                    </div>
-                    <div class="file-preview" id="filePreview" style="display: none;">
-                        <i class="fas fa-file-excel"></i>
-                        <div class="file-info">
-                            <h4 id="fileName"></h4>
-                            <span class="file-size" id="fileSize"></span>
-                        </div>
-                        <button type="button" class="remove-file" id="removeFile">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <input type="file" name="file" id="file-upload" accept=".xlsx,.xls" 
-                        {% if sheet_url %}disabled{% else %}required{% endif %}>
-                </div>
-            </div>
-
-            <!-- Google Sheets Section -->
-            <div class="form-section {% if sheet_url %}active{% endif %}" id="sheets_section">
-                <div class="sheets-input-group">
-                    <label for="sheet_url">Google Sheets URL</label>
-                    <div class="input-with-icon">
-                        <i class="fab fa-google"></i>
-                        <input type="url" class="form-control" id="sheet_url" name="sheet_url" 
-                            value="{{ sheet_url }}" placeholder="https://docs.google.com/spreadsheets/d/..." 
-                            {% if not sheet_url %}disabled{% else %}required{% endif %}>
-                    </div>
-                    <small class="form-hint">
-                        Make sure the Google Sheet is shared with "Anyone with the link can view"
-                    </small>
-                </div>
-            </div>
-
-            <!-- Date Selection -->
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="year">Report Year</label>
-                    <select name="year" id="year" class="form-control" required>
-                        {% set current_year = year %}
-                        {% for y in range(2018, current_year + 1) %}
-                            <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="month">Report Month</label>
-                    <select name="month" id="month" class="form-control" required>
-                        {% for m in range(1, 13) %}
-                            <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ month_names[m-1] }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-
-            <!-- Submit Button -->
-            <button type="submit" class="btn btn-primary btn-upload" id="submitBtn">
-                <i class="fas fa-file-import"></i>
-                <span class="btn-text">Generate Report</span>
-                <div class="btn-loading" style="display: none;">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>Processing...</span>
-                </div>
-            </button>
-        </form>
-
-        <!-- Current Settings -->
-        {% if sheet_url %}
-        <div class="current-settings">
-            <div class="settings-header">
-                <i class="fas fa-cog"></i>
-                <span>Current Settings</span>
-            </div>
-            <div class="settings-content">
-                <p>
-                    <i class="fab fa-google"></i>
-                    Using Google Sheet: 
-                    <a href="{{ sheet_url }}" target="_blank" class="sheet-link">
-                        {{ sheet_url|truncate(50) }}
-                    </a>
-                </p>
-                <a href="{{ url_for('main.settings') }}" class="settings-link">
-                    <i class="fas fa-edit"></i>
-                    Change settings
-                </a>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- Quick Stats (if available) -->
-    {% if recent_reports %}
-    <div class="recent-reports">
-        <h3 class="section-title">Recent Reports</h3>
-        <div class="reports-grid">
-            {% for report in recent_reports %}
-            <div class="report-card">
-                <div class="report-header">
-                    <span class="report-date">{{ report.month }} {{ report.year }}</span>
-                    <span class="report-status success">Generated</span>
-                </div>
-                <div class="report-stats">
-                    <div class="report-stat">
-                        <span class="stat-value">MWK {{ "%.2f"|format(report.total) }}</span>
-                        <span class="stat-label">Total</span>
-                    </div>
-                    <div class="report-stat">
-                        <span class="stat-value">{{ report.contributors }}</span>
-                        <span class="stat-label">Contributors</span>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
+    {{ button('Continue setup', href=url_for('main.setup'), icon='arrow-right') }}
+  </div>
 </div>
-{% endblock %}
+{% endif %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% if not latest %}
+  {% call card(class='mb-6') %}
+    {% call empty_state('Nothing synced yet', 'Once a month of contributions is uploaded or synced from Google Sheets, '
+                        'who has paid and the balances appear here.', icon='file-excel') %}
+      {% if can('upload_data') %}
+      <div class="flex flex-wrap justify-center gap-2">
+        {{ button('Get the workbook template', href=url_for('main.workbook'), icon='download', variant='outline') }}
+        {{ button('Upload or sync', href=url_for('main.upload_dashboard'), icon='file-arrow-up') }}
+      </div>
+      {% endif %}
+    {% endcall %}
+  {% endcall %}
+{% else %}
+  <div class="stats-grid">
+    {{ stat(latest.contributors_count, 'paid in ' ~ latest_label, icon='circle-check', tone='green',
+            meta='of ' ~ (latest.contributors_count + latest.defaulters_count) ~ ' members counted') }}
+    {{ stat(latest.defaulters_count, 'not paid', icon='circle-xmark', tone='red' if latest.defaulters_count else 'green',
+            href=url_for('main.members') if can('manage_members') else None) }}
+    {{ stat('{:,.0f}'.format(latest.total_contributions), cur ~ ' received', icon='coins', tone='blue',
+            meta=('paid out ' ~ cur ~ ' ' ~ '{:,.0f}'.format(latest.money_dispensed)) if latest.money_dispensed else None) }}
+    {% if year %}
+      {{ stat('{:,.0f}'.format(year.closing_balance), cur ~ ' balance, end of ' ~ year.year, icon='scale-balanced',
+              tone='purple', meta='calculated from the workbook') }}
+    {% elif latest.book_balance is not none %}
+      {{ stat('{:,.0f}'.format(latest.book_balance), cur ~ ' book balance', icon='scale-balanced', tone='purple',
+              meta='as the sheet shows it') }}
+    {% else %}
+      {{ stat(members, 'active members', icon='users', tone='cyan') }}
+    {% endif %}
+  </div>
+{% endif %}
+
+<div class="grid gap-5 lg:grid-cols-5">
+  <div class="space-y-5 lg:col-span-3">
+
+    {% if trend %}
+    {% call card('Last ' ~ trend|length ~ ' months', icon='chart-column') %}
+      <div class="space-y-3">
+        {% for row in trend %}
+        <div class="grid grid-cols-[3.5rem_1fr_auto] items-center gap-3 text-sm">
+          <span class="text-slate-500">{{ row.label }}</span>
+          <div class="h-3 overflow-hidden rounded-full bg-red-100" title="{{ row.paid }} paid, {{ row.unpaid }} not paid">
+            <div class="h-full rounded-full bg-brand" style="width: {{ row.percent }}%"></div>
+          </div>
+          <span class="w-28 text-right tabular-nums">
+            <strong>{{ row.percent }}%</strong>
+            <span class="text-slate-500">· {{ '{:,.0f}'.format(row.total) }}</span>
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="form-hint mt-4">Share of members who paid each month, and the money received ({{ cur }}).</p>
+    {% endcall %}
+    {% endif %}
+
+    {% if can('view_reports') %}
+    {% call card('Recent reports', icon='file-lines', padded=False,
+                 extra=button('All reports', href=url_for('report.list'), variant='outline', size='sm')) %}
+      {% if reports %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Month</th><th>Paid</th><th>Received</th><th></th></tr></thead>
+          <tbody>
+            {% for r in reports %}
+            <tr>
+              <td><strong>{{ ['', 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][r.month] }} {{ r.year }}</strong>
+                <div class="text-xs text-slate-500">{{ r.generated_at.strftime('%d %b %Y') }}</div></td>
+              <td>{{ r.contributors_count }}</td>
+              <td>{{ cur }} {{ '{:,.0f}'.format(r.total_contributions or 0) }}</td>
+              <td class="text-right">{{ button('Open', href=url_for('report.preview_specific', report_id=r.id), variant='outline', size='sm') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        {{ empty_state('No reports yet', 'Reports are made when a month is uploaded or synced.', icon='file-lines') }}
+      {% endif %}
+    {% endcall %}
+    {% endif %}
+  </div>
+
+  <div class="space-y-5 lg:col-span-2">
+    {% if attention %}
+    {% call card('Needs attention', icon='bell', padded=False) %}
+      <ul class="divide-y divide-slate-200">
+        {% for item in attention %}
+        <li>
+          <a href="{{ url_for(item.endpoint, **item.args) }}" class="flex items-start gap-3 px-5 py-3.5 text-slate-700 hover:bg-slate-50 hover:text-slate-900">
+            <span class="mt-0.5 {{ {'warning': 'text-amber-500', 'primary': 'text-brand'}.get(item.tone, 'text-slate-400') }}">
+              <i class="fas fa-{{ item.icon }}"></i></span>
+            <span class="flex-1 text-sm">{{ item.text }}</span>
+            <i class="fas fa-chevron-right mt-1 text-xs text-slate-400"></i>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    {% endcall %}
+    {% endif %}
+
+    {% if last_run %}
+    {% call card('Last sync', icon='rotate') %}
+      <div class="flex items-center justify-between gap-3 text-sm">
+        <span>
+          {{ last_run.synced_at.strftime('%d %b %Y, %H:%M') }}
+          <span class="block text-xs text-slate-500">
+            {{ 'Standard workbook' if last_run.layout == 'standard' else 'Older layout' }}
+            · {{ last_run.details.get('months', [])|length }} month(s)
+            {% if last_run.user %}· {{ last_run.user.email }}{% endif %}
+          </span>
+        </span>
+        {% if last_run.warnings %}{{ badge(last_run.warnings|length ~ ' warning(s)', 'warning') }}
+        {% else %}{{ badge('No warnings', 'success') }}{% endif %}
+      </div>
+      <div class="mt-3">{{ button('Details', href=url_for('main.sync_run', run_id=last_run.id), variant='outline', size='sm') }}</div>
+    {% endcall %}
+    {% endif %}
+
+    {% call card("Members' page", icon='globe') %}
+      <p class="mb-3 text-sm text-slate-600">Share this link in the group: rules, who has paid, and each member's own contributions.</p>
+      {{ copy_field(public_url, aria="Members' page link") }}
+      {% if can('edit_settings') %}
+        <a href="{{ url_for('main.public_pages') }}" class="mt-3 inline-block text-sm">Group code and options</a>
+      {% endif %}
+    {% endcall %}
+
+    {% call card('Shortcuts', icon='bolt', padded=False) %}
+      <div class="grid grid-cols-2 gap-px bg-slate-200">
+        {% set shortcuts = [
+          ('upload_data',    'main.workbook',      'file-excel',     'Workbook'),
+          ('manage_members', 'main.members',       'users',          'Members'),
+          (None,             'main.welfare_rules', 'book-open',      'Rules'),
+          ('manage_users',   'main.admin_users',   'users-gear',     'Officers'),
+          ('edit_settings',  'main.settings',      'gear',           'Settings'),
+          ('view_reports',   'report.list',        'file-lines',     'Reports'),
+        ] %}
+        {% for perm, endpoint, icon, label in shortcuts if perm is none or can(perm) %}
+        <a href="{{ url_for(endpoint) }}" class="flex items-center gap-2.5 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900">
+          <i class="fas fa-{{ icon }} text-brand"></i>{{ label }}
+        </a>
+        {% endfor %}
+      </div>
+    {% endcall %}
+  </div>
+</div>
 {% endblock %}

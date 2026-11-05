@@ -1,6 +1,6 @@
 <!-- app/templates/main/paid_members.html -->
 {% extends 'base.html' %}
-{% block title %}Paid Members — {{ month }} {{ year }} — Mzugoss Welfare{% endblock %}
+{% block title %}Paid Members — {{ month }} {{ year }} — {{ brand.name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -9,10 +9,10 @@
     <p class="page-header__sub">{{ month }} {{ year }} — {{ total_paid }} member(s) paid</p>
   </div>
   <div class="page-header__actions">
-    <a href="{{ url_for('report.preview') }}" class="btn btn--outline btn--sm">
-      <i class="fas fa-arrow-left"></i> Back to Preview
+    <a href="{{ url_for('report.preview_specific', report_id=report.id) }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Back to Report
     </a>
-    <a href="{{ url_for('report.download_paid_members') }}" class="btn btn--primary btn--sm">
+    <a href="{{ url_for('report.download_paid_members_specific', report_id=report.id) }}" class="btn btn--primary btn--sm">
       <i class="fas fa-download"></i> Download PNG
     </a>
   </div>
@@ -26,13 +26,13 @@
   </div>
   <div class="summary-strip__divider"></div>
   <div class="summary-strip__item">
-    <span class="summary-strip__val">MWK {{ "%.2f"|format(total_contributions) }}</span>
+    <span class="summary-strip__val">{{ brand.currency }} {{ "%.2f"|format(total_contributions) }}</span>
     <span class="summary-strip__lbl">Total Collected</span>
   </div>
   {% if total_paid > 0 %}
   <div class="summary-strip__divider"></div>
   <div class="summary-strip__item">
-    <span class="summary-strip__val">MWK {{ "%.2f"|format(total_contributions / total_paid) }}</span>
+    <span class="summary-strip__val">{{ brand.currency }} {{ "%.2f"|format(total_contributions / total_paid) }}</span>
     <span class="summary-strip__lbl">Average</span>
   </div>
   {% endif %}
@@ -44,7 +44,7 @@
     <table class="data-table">
       <thead>
         <tr>
-          <th style="width:3rem;">#</th>
+          <th class="w-12">#</th>
           <th>Member Name</th>
           <th>Amount</th>
           <th>Status</th>
@@ -54,9 +54,9 @@
         {% for m in paid_members %}
         <tr>
           <td class="text-muted text-sm">{{ loop.index }}</td>
-          <td style="font-weight:600;">{{ m.name }}</td>
+          <td class="font-semibold">{{ m.name }}</td>
           <td>
-            <span class="amount-pill">MWK {{ "%.2f"|format(m.amount) }}</span>
+            <span class="amount-pill">{{ brand.currency }} {{ "%.2f"|format(m.amount) }}</span>
           </td>
           <td>
             <span class="badge badge--success">
@@ -68,9 +68,9 @@
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="2" style="font-weight:700;padding:.875rem 1rem;">Total</td>
-          <td style="font-weight:700;padding:.875rem 1rem;">
-            MWK {{ "%.2f"|format(total_contributions) }}
+          <td class="font-bold px-4 py-3.5" colspan="2">Total</td>
+          <td class="font-bold px-4 py-3.5">
+            {{ brand.currency }} {{ "%.2f"|format(total_contributions) }}
           </td>
           <td></td>
         </tr>
@@ -86,23 +86,4 @@
   {% endif %}
 </div>
 
-<style>
-.summary-strip {
-  display: flex; align-items: center;
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: var(--r-xl); padding: 1.25rem 1.5rem;
-  margin-bottom: 1.25rem; gap: 1.5rem; flex-wrap: wrap;
-}
-.summary-strip__item { display: flex; flex-direction: column; gap: .2rem; }
-.summary-strip__val  { font-size: 1.375rem; font-weight: 800; color: var(--txt-primary); }
-.summary-strip__lbl  { font-size: .8125rem; color: var(--txt-muted); }
-.summary-strip__divider { width: 1px; height: 2.5rem; background: var(--border); }
-.amount-pill {
-  display: inline-block;
-  background: var(--clr-success-pale); color: #065f46;
-  padding: .2rem .625rem; border-radius: var(--r-full);
-  font-size: .875rem; font-weight: 600;
-}
-tfoot tr td { border-top: 2px solid var(--border); background: var(--clr-slate-50); }
-</style>
 {% endblock %}

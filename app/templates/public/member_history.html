@@ -1,0 +1,24 @@
+<!-- app/templates/public/member_history.html — a member's own history (personal link or name + PIN) -->
+{% extends 'public/_layout.html' %}
+{% from 'main/_member_history.html' import history_table %}
+{% block title %}My contributions — {{ brand.name }}{% endblock %}
+
+{% block content %}
+<h1 class="page-header__title mb-1">{{ member.display_name }}</h1>
+<p class="text-sm text-muted mb-5">Your contributions, month by month.</p>
+
+{% if history and history[0].credit_out %}
+<div class="card mb-4">
+  <div class="card__body text-sm">
+    You have <strong>{{ '{:,.0f}'.format(history[0].credit_out) }}</strong> in credit, which covers your
+    first months of {{ history[0].year + 1 }}.
+  </div>
+</div>
+{% endif %}
+
+<div class="card">{{ history_table(history, months) }}</div>
+
+<p class="form-hint mt-4">
+  This page is private to you: don't share it. If something looks wrong, contact your group's treasurer.
+</p>
+{% endblock %}

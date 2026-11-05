@@ -1,0 +1,35 @@
+{# app/templates/main/_rules.html — welfare rule sections (officer and public pages) #}
+{% macro render_blocks(blocks) %}
+  {% for block in blocks %}
+    {% if block.kind == 'ul' %}
+      <ul class="rule-list">{% for item in block.items %}<li>{{ item }}</li>{% endfor %}</ul>
+    {% elif block.kind == 'ol' %}
+      <ol class="rule-list rule-list--numbered">{% for item in block.items %}<li>{{ item }}</li>{% endfor %}</ol>
+    {% elif block.kind == 'note' %}
+      <div class="rule-note"><i class="fas fa-info-circle"></i> <span>{{ block.items[0] }}</span></div>
+    {% else %}
+      <p class="rule-text">{{ block.items[0] }}</p>
+    {% endif %}
+  {% endfor %}
+{% endmacro %}
+
+{% macro render_sections(sections) %}
+<div class="rules-sections">
+  {% for section, blocks in sections %}
+  <section class="rule-section">
+    <div class="rule-section__header">
+      <h2 class="rule-section__title">{{ section.title }}</h2>
+      {% if section.subtitle %}<p class="rule-section__sub">{{ section.subtitle }}</p>{% endif %}
+    </div>
+    <div class="rule-section__body">{{ render_blocks(blocks) }}</div>
+  </section>
+  {% else %}
+  <div class="empty-state">
+    <i class="fas fa-book-open"></i>
+    <h3>No rules written yet</h3>
+    <p>The group's officers haven't added the welfare rules yet.</p>
+  </div>
+  {% endfor %}
+</div>
+{% endmacro %}
+

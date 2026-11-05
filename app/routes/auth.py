@@ -10,11 +10,10 @@ from app.controllers.profile_controller import ProfileController
 auth = Blueprint('auth', __name__, url_prefix='/auth')
 
 # ==================== AUTH ====================
+# Group finder — officers sign in at /g/<slug>/login, superadmins at
+# /platform/login. No public registration: members do not have accounts.
 auth.route('/login',  methods=['GET', 'POST'])(AuthController.login)
 auth.route('/logout')(AuthController.logout)
-
-# Public self-registration (creates viewer accounts only)
-auth.route('/register', methods=['GET', 'POST'])(AuthController.public_register)
 
 # ==================== PROFILE ====================
 auth.route('/profile', methods=['GET'])(ProfileController.profile)

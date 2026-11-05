@@ -1,50 +1,8 @@
-<!-- app/templates/login.html -->
+<!-- app/templates/auth/login.html -->
 {% extends 'base.html' %}
-{% block title %}Log In — Mzugoss Welfare{% endblock %}
+{% block title %}Log In — {{ brand.name if group else 'Platform Administration' }}{% endblock %}
 
 {% block extra_css %}
-<style>
-.auth-wrap {
-  min-height: calc(100vh - var(--nav-h) - 4rem);
-  display: flex; align-items: center; justify-content: center;
-  padding: 2rem 1rem;
-}
-.auth-card {
-  width: 100%; max-width: 26rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--r-2xl);
-  box-shadow: var(--shadow-xl);
-  overflow: hidden;
-}
-.auth-card__top {
-  padding: 2rem 2rem 1.5rem;
-  background: linear-gradient(135deg, var(--clr-primary) 0%, var(--clr-primary-light) 100%);
-  text-align: center; color: #fff;
-}
-.auth-card__icon {
-  width: 3.5rem; height: 3.5rem;
-  background: rgba(255,255,255,.2);
-  border-radius: var(--r-xl);
-  display: grid; place-items: center;
-  font-size: 1.5rem; margin: 0 auto .875rem;
-}
-.auth-card__title   { font-size: 1.5rem; font-weight: 800; }
-.auth-card__sub     { font-size: .9rem; opacity: .85; margin-top: .25rem; }
-.auth-card__body    { padding: 1.75rem 2rem 2rem; }
-.auth-opts {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 1.25rem;
-}
-.forgot-link { font-size: .8125rem; color: var(--clr-primary); }
-.forgot-link:hover { text-decoration: underline; }
-.auth-footer {
-  text-align: center; margin-top: 1.5rem;
-  padding-top: 1.25rem; border-top: 1px solid var(--border);
-  font-size: .875rem; color: var(--txt-muted);
-}
-.auth-footer a { font-weight: 600; }
-</style>
 {% endblock %}
 
 {% block content %}
@@ -52,13 +10,18 @@
   <div class="auth-card">
 
     <div class="auth-card__top">
-      <div class="auth-card__icon"><i class="fas fa-sign-in-alt"></i></div>
-      <h1 class="auth-card__title">Welcome back</h1>
-      <p class="auth-card__sub">Sign in to your account</p>
+      {% if group and brand.logo %}
+        <img src="{{ url_for('group.logo', slug=group.slug, v=brand.logo) }}" alt=""
+             class="mx-auto mb-3 h-16 w-16 rounded-xl bg-white object-contain p-1">
+      {% else %}
+        <div class="auth-card__icon"><i class="fas fa-sign-in-alt"></i></div>
+      {% endif %}
+      <h1 class="auth-card__title">{{ brand.name if group else 'Platform Administration' }}</h1>
+      <p class="auth-card__sub">{{ 'Officer sign in' if group else 'Superadmin sign in' }}</p>
     </div>
 
     <div class="auth-card__body">
-      <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
+      <form method="POST" action="{{ action }}" novalidate>
         {{ form.hidden_tag() }}
 
         <!-- Email -->
@@ -99,13 +62,12 @@
           {% endfor %}
         </div>
 
-        <!-- Remember + forgot -->
+        <!-- Remember -->
         <div class="auth-opts">
           <label class="check-label">
             {{ form.remember(id=form.remember.id) }}
             Remember me
           </label>
-          <a href="#" class="forgot-link">Forgot password?</a>
         </div>
 
         <button type="submit" class="btn btn--primary btn--full btn--lg">
@@ -114,8 +76,14 @@
       </form>
 
       <div class="auth-footer">
-        Don't have an account?
-        <a href="{{ url_for('auth.public_register') }}">Create one here</a>
+        {% if group %}
+        Accounts are created by your group's officers.<br>
+        Forgot your password? Ask your chairperson to set a new one.<br>
+        Not {{ group.settings.short_name or group.name }}?
+        <a href="{{ url_for('auth.login', switch=1) }}">Find your group</a>
+        {% else %}
+        <a href="{{ url_for('auth.login') }}">Officer sign in</a>
+        {% endif %}
       </div>
     </div>
 

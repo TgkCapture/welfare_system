@@ -7,13 +7,17 @@ ReportAccessLog  — audit trail: who accessed which report and when.
 """
 from datetime import datetime
 
-from app.extensions import db   # FIX: was `from app import db` — use extensions
+from app.extensions import db
+from app.models.tenancy import TenantScoped
 
 
-class GeneratedReport(db.Model):
+class GeneratedReport(TenantScoped, db.Model):
     __tablename__ = 'generated_reports'
 
     id           = db.Column(db.Integer, primary_key=True)
+    group_id     = db.Column(
+        db.Integer, db.ForeignKey('groups.id'), nullable=False, index=True
+    )
     month        = db.Column(db.Integer, nullable=False)
     year         = db.Column(db.Integer, nullable=False)
     report_type  = db.Column(
@@ -21,8 +25,9 @@ class GeneratedReport(db.Model):
     )
     filename     = db.Column(db.String(255), nullable=False)
     file_path    = db.Column(db.String(500), nullable=False)
+    # None once the officer's account is deleted; the report stays
     generated_by = db.Column(
-        db.Integer, db.ForeignKey('users.id'), nullable=False, index=True
+        db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True
     )
     generated_at = db.Column(
         db.DateTime, nullable=False, default=datetime.utcnow
@@ -67,6 +72,7 @@ class GeneratedReport(db.Model):
         """Serialise to a JSON-safe dict for API responses."""
         return {
             'id':                  self.id,
+            'group_id':            self.group_id,
             'month':               self.month,
             'month_name':          self.month_name,
             'year':                self.year,
@@ -92,7 +98,7 @@ class GeneratedReport(db.Model):
         )
 
 
-class ReportAccessLog(db.Model):
+class ReportAccessLog(TenantScoped, db.Model):
     """Audit trail for report access events."""
     __tablename__ = 'report_access_logs'
 
@@ -100,13 +106,16 @@ class ReportAccessLog(db.Model):
     ACTIONS = ('generate', 'preview', 'download', 'regenerate', 'export')
 
     id          = db.Column(db.Integer, primary_key=True)
+    group_id    = db.Column(
+        db.Integer, db.ForeignKey('groups.id'), nullable=False, index=True
+    )
     report_id   = db.Column(
         db.Integer, db.ForeignKey('generated_reports.id'),
         nullable=False, index=True
     )
     user_id     = db.Column(
-        db.Integer, db.ForeignKey('users.id'),
-        nullable=False, index=True
+        db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'),
+        nullable=True, index=True
     )
     accessed_at = db.Column(
         db.DateTime, nullable=False, default=datetime.utcnow

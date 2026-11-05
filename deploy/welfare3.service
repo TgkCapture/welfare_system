@@ -1,0 +1,29 @@
+# systemd service for 3.0.0 on a server without Docker (docs/DEPLOY_VPS.md, step 5).
+#
+#   sudo cp deploy/welfare3.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now welfare3
+#
+# One worker with threads: it fits a small server (about 150 MB), and the
+# sign-in rate limits, kept in the worker's memory, then cover every request.
+# Settings come from .env in the app's folder (KEY=value lines, no quotes).
+
+[Unit]
+Description=Welfare contribution system 3.x
+After=network.target
+
+[Service]
+Type=simple
+User=tgk
+Group=tgk
+WorkingDirectory=/home/tgk/projects/welfare-3
+EnvironmentFile=/home/tgk/projects/welfare-3/.env
+Environment=FLASK_ENV=production FLASK_APP=run.py
+ExecStart=/home/tgk/projects/welfare-3/venv/bin/gunicorn "app:create_app()" \
+    --bind 127.0.0.1:5001 --workers 1 --threads 4 --timeout 120 \
+    --max-requests 1000 --max-requests-jitter 100 \
+    --access-logfile - --error-logfile -
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

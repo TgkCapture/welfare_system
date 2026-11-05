@@ -80,6 +80,15 @@ class ErrorController:
         return render_template('errors/413.html', message=message), 413
 
     @staticmethod
+    def too_many_requests(error):
+        """429 — rate limit exceeded (e.g. repeated login attempts)."""
+        logger.warning(f"429 Too Many Requests: {request.method} {request.path}")
+        message = 'Too many attempts. Please wait a minute and try again.'
+        if ErrorController._wants_json():
+            return jsonify({'error': 'Too Many Requests', 'message': message}), 429
+        return render_template('errors/429.html', message=message), 429
+
+    @staticmethod
     def internal_server_error(error):
         """500 — unhandled exception surfaced by Flask."""
         # Log with full traceback so the root cause is visible in logs
@@ -145,5 +154,6 @@ class ErrorController:
         app.register_error_handler(404, ErrorController.not_found)
         app.register_error_handler(405, ErrorController.method_not_allowed)
         app.register_error_handler(413, ErrorController.request_entity_too_large)
+        app.register_error_handler(429, ErrorController.too_many_requests)
         app.register_error_handler(500, ErrorController.internal_server_error)
         app.register_error_handler(Exception, ErrorController.handle_unexpected_error)

@@ -4,7 +4,6 @@ Profile management extracted from AuthController.
 """
 import csv
 import io
-import json
 from datetime import datetime
 
 from flask import (
@@ -19,6 +18,7 @@ from app.auth.forms import ChangePasswordForm, ProfileForm
 from app.models.user import User
 from app.models.setting import Setting
 from app.models.report import GeneratedReport
+from app.services import audit, limits
 
 
 class ProfileController:
@@ -30,9 +30,8 @@ class ProfileController:
     @login_required
     def profile():
         """Render the profile page with stats, activity and preference forms."""
-        user = User.query.get(current_user.id)
+        user = db.session.get(User, current_user.id)  # own account
         stats = ProfileController._get_user_statistics(user)
-        recent_activity = ProfileController._get_user_activity(user)
 
         notification_preferences = (
             Setting.get_value(f'user_{user.id}_notifications', 'true') == 'true'
@@ -48,7 +47,6 @@ class ProfileController:
             password_form=password_form,
             profile_form=profile_form,
             **stats,
-            recent_activity=recent_activity,
             notification_preferences=notification_preferences,
             theme_preference=theme_preference,
             version=current_app.version,
@@ -60,22 +58,21 @@ class ProfileController:
     @login_required
     def update_profile():
         """Handle profile info update (email + preferences)."""
-        user = User.query.get(current_user.id)
+        user = db.session.get(User, current_user.id)  # own account
         email = request.form.get('email', '').strip()
 
         if not email:
             flash('Email is required.', 'danger')
             return redirect(url_for('auth.profile'))
 
-        # Ensure email is not already taken by a *different* account
-        conflict = User.query.filter(
-            User.email == email,
-            User.id != user.id
-        ).first()
-        if conflict:
+        # Ensure email is not already taken by a *different* account in the group
+        if User.email_taken(email, user.group_id, exclude_id=user.id):
             flash('That email address is already in use.', 'danger')
             return redirect(url_for('auth.profile'))
 
+        if email != user.email:
+            audit.record('officer.profile', f'Changed their sign-in email from {user.email} to {email}',
+                         commit=False)
         user.email = email
 
         notification_preferences = request.form.get('notification_preferences') == 'on'
@@ -94,9 +91,10 @@ class ProfileController:
 
     @staticmethod
     @login_required
+    @limits.login
     def change_password():
         """Handle password change form submission."""
-        user = User.query.get(current_user.id)
+        user = db.session.get(User, current_user.id)  # own account
 
         current_password = request.form.get('current_password', '')
         new_password = request.form.get('new_password', '')
@@ -107,6 +105,7 @@ class ProfileController:
             return redirect(url_for('auth.profile'))
 
         if not check_password_hash(user.password, current_password):
+            limits.failed()
             flash('Current password is incorrect.', 'danger')
             return redirect(url_for('auth.profile'))
 
@@ -119,6 +118,7 @@ class ProfileController:
             return redirect(url_for('auth.profile'))
 
         user.password = generate_password_hash(new_password, method='scrypt')
+        audit.record('auth.password', 'Changed their password', commit=False)
         db.session.commit()
         flash('Password updated. Please log in again.', 'success')
         return redirect(url_for('auth.logout'))
@@ -128,18 +128,13 @@ class ProfileController:
     @staticmethod
     @login_required
     def activity_log():
-        """Render the full activity log for the current user."""
-        user = User.query.get(current_user.id)
-        activity_data = Setting.get_value(f'user_{user.id}_activity', '[]')
-
-        try:
-            activities = json.loads(activity_data)
-        except (json.JSONDecodeError, TypeError):
-            activities = ProfileController._get_user_activity(user)
+        """The current officer's own entries in the audit log, newest first."""
+        user = db.session.get(User, current_user.id)  # own account
+        page = audit.events(user_id=user.id, all_groups=True, page=request.args.get('page', 1, type=int))
 
         return render_template(
             'auth/activity_log.html',
-            activities=activities,
+            page=page, icons=audit.ICONS,
             user=user,
             now=datetime.now(),
             version=current_app.version,
@@ -151,14 +146,14 @@ class ProfileController:
     @login_required
     def export_data():
         """Export the current user's profile data as a CSV download."""
-        user = User.query.get(current_user.id)
+        user = db.session.get(User, current_user.id)  # own account
 
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(['Data Type', 'Field', 'Value'])
 
         writer.writerow(['Profile', 'Email', user.email])
-        writer.writerow(['Profile', 'Role', user.role])
+        writer.writerow(['Profile', 'Role', user.role_name])
         writer.writerow(['Profile', 'Account Created', user.created_at])
         writer.writerow(['Profile', 'Last Login', user.last_login or 'Never'])
         writer.writerow([
@@ -188,19 +183,31 @@ class ProfileController:
     @staticmethod
     @login_required
     def delete_account():
-        """Allow a non-admin user to permanently delete their own account."""
-        if current_user.is_admin:
-            flash('Admin accounts cannot be deleted through this interface.', 'danger')
+        """Allow an officer to permanently delete their own account."""
+        from app.controllers.user_controller import UserController
+
+        if current_user.is_superadmin:
+            flash('Superadmin accounts cannot be deleted through this interface.', 'danger')
+            return redirect(url_for('auth.profile'))
+
+        if UserController._would_remove_last_manager(current_user, keeps_access=False):
+            flash(
+                'You are the last officer who can manage officers. '
+                'Give another officer that permission before deleting your account.',
+                'danger',
+            )
             return redirect(url_for('auth.profile'))
 
         if request.form.get('confirm_text', '') != 'DELETE':
             flash('Please type "DELETE" to confirm account deletion.', 'danger')
             return redirect(url_for('auth.profile'))
 
-        user = User.query.get(current_user.id)
+        user = db.session.get(User, current_user.id)  # own account
 
         try:
-            # Log out AFTER the delete succeeds, not before
+            # Log out AFTER the delete succeeds, not before. The entry goes in
+            # the same commit; the database clears its link to the account.
+            audit.record('officer.delete', f'{user.email} deleted their own account', commit=False)
             db.session.delete(user)
             db.session.commit()
             logout_user()
@@ -221,33 +228,11 @@ class ProfileController:
         days_active = max((datetime.now() - user.created_at).days, 0) + 1
 
         # Real count from the database instead of guessing from session
-        reports_generated = 0
-        if user.role in ('admin', 'clerk'):
-            reports_generated = GeneratedReport.query.filter_by(
-                generated_by=user.id
-            ).count()
+        reports_generated = GeneratedReport.for_group(user.group_id).filter_by(
+            generated_by=user.id
+        ).count()
 
         return {
             'reports_generated': reports_generated,
             'days_active': days_active,
         }
-
-    @staticmethod
-    def _get_user_activity(user):
-        """Build a minimal activity list from known timestamps."""
-        activities = []
-
-        if user.last_login:
-            activities.append({
-                'icon': 'sign-in-alt',
-                'description': 'Last login',
-                'timestamp': user.last_login.strftime('%B %d, %Y %I:%M %p'),
-            })
-
-        activities.append({
-            'icon': 'user-plus',
-            'description': 'Account created',
-            'timestamp': user.created_at.strftime('%B %d, %Y'),
-        })
-
-        return activities

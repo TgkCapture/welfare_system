@@ -1,0 +1,140 @@
+<!-- app/templates/platform/group_detail.html -->
+{% extends 'base.html' %}
+{% from 'platform/_field.html' import field %}
+{% from 'components/_audit.html' import audit_timeline %}
+{% block title %}{{ group.name }} — Platform{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-layer-group"></i> {{ group.name }}</h1>
+    <p class="page-header__sub">
+      <a href="{{ url_for('group.login', slug=group.slug) }}">/g/{{ group.slug }}/login</a>
+      ·
+      <span class="status-dot status-dot--{{ 'active' if group.is_active else 'inactive' }}">
+        {{ 'Active' if group.is_active else 'Suspended' }}
+      </span>
+    </p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('platform.dashboard') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Platform
+    </a>
+    <form method="POST" action="{{ url_for('platform.toggle_group', group_id=group.id) }}"
+          data-confirm="{{ ('Reactivate ' ~ group.name ~ '?') if not group.is_active
+                           else ('Suspend ' ~ group.name ~ '? Its officers will be signed out and its pages closed.') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn--sm {{ 'btn--warning' if group.is_active else 'btn--success' }}">
+        <i class="fas fa-{{ 'pause' if group.is_active else 'play' }}"></i>
+        {{ 'Suspend' if group.is_active else 'Reactivate' }}
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title"><i class="fas fa-users-cog"></i> Officers</h2>
+  </div>
+  <div class="table-wrap">
+    {% if officers %}
+    <table class="data-table">
+      <thead>
+        <tr><th>Email</th><th>Role</th><th>Status</th><th>Last login</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for u in officers %}
+        <tr>
+          <td>{{ u.email }}</td>
+          <td><span class="role-badge role-badge--{{ u.badge_class }}">{{ u.role_name }}</span></td>
+          <td>
+            <span class="status-dot status-dot--{{ 'active' if u.is_active else 'inactive' }}">
+              {{ 'Active' if u.is_active else 'Inactive' }}
+            </span>
+          </td>
+          <td class="text-sm text-muted">{{ u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else '—' }}</td>
+          <td>
+            <a href="{{ url_for('platform.set_officer_password', group_id=group.id, user_id=u.id) }}"
+               class="btn btn--outline btn--sm"><i class="fas fa-key"></i> New password</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="p-6">This group has no officers. Add one below.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid gap-5 md:grid-cols-2 mt-5">
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-user-plus"></i> Add officer</h2>
+    </div>
+    <div class="card__body">
+      <p class="form-hint mt-0">
+        For a new group's extra officers, or when a group has lost access to every officer who can manage officers.
+      </p>
+      <form method="POST" action="{{ url_for('platform.add_officer', group_id=group.id) }}" novalidate>
+        {{ officer_form.hidden_tag() }}
+        {{ field(officer_form.email, 'envelope') }}
+        {{ field(officer_form.password, 'lock', hint='Minimum 8 characters') }}
+        {{ field(officer_form.confirm_password, 'lock') }}
+        {{ field(officer_form.role, 'user-tag') }}
+        <button type="submit" class="btn btn--primary"><i class="fas fa-user-plus"></i> Add officer</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-pen"></i> Rename group</h2>
+    </div>
+    <div class="card__body">
+      <form method="POST" action="{{ url_for('platform.group_detail', group_id=group.id) }}" novalidate>
+        {{ form.hidden_tag() }}
+        {{ field(form.name, 'tag', hint='The slug stays ' ~ group.slug ~ ' so sign-in links keep working.') }}
+        <button type="submit" class="btn btn--primary"><i class="fas fa-save"></i> Save</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="grid gap-5 md:grid-cols-2 mt-5">
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-life-ring"></i> Support session</h2>
+    </div>
+    <div class="card__body">
+      <p class="form-hint mt-0">
+        See this group's screens as its officers do, to help with a problem. The session is
+        <strong>read-only</strong>, lasts {{ support_minutes }} minutes, and the reason and every page you open
+        go in the group's audit log, where its officers can see them.
+      </p>
+      <form method="POST" action="{{ url_for('platform.start_support', group_id=group.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label class="form-label" for="reason"><i class="fas fa-comment"></i> Why do you need to look?</label>
+          <input id="reason" name="reason" class="form-control" required minlength="5" maxlength="200"
+                 placeholder="e.g. Treasurer reports the March sync shows the wrong total">
+        </div>
+        <button type="submit" class="btn btn--primary"><i class="fas fa-eye"></i> Open support session</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-clipboard-list"></i> Recent activity</h2>
+      <a href="{{ url_for('platform.audit_log', group=group.id) }}" class="btn btn--outline btn--sm">Full log</a>
+    </div>
+    <div class="card__body">
+      {% if events %}
+        {{ audit_timeline(events, icons) }}
+      {% else %}
+        <p class="text-muted m-0">Nothing recorded yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+<!-- app/templates/public/rules.html — a group's welfare rules, for its members -->
+{% extends 'public/_layout.html' %}
+{% from 'main/_rules.html' import render_sections %}
+{% block title %}Welfare rules — {{ brand.name }}{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center gap-4 flex-wrap mb-5">
+  <h1 class="page-header__title">Welfare rules</h1>
+  <a href="{{ url_for('group.rules_pdf', slug=group.slug) }}" class="btn btn--primary btn--sm no-print">
+    <i class="fas fa-download"></i> Download PDF
+  </a>
+</div>
+{{ render_sections(sections) }}
+{% endblock %}
