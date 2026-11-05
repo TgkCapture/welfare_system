@@ -120,6 +120,17 @@ def test_finder_remembers_last_group(client, group):
     assert client.get('/auth/login').headers['Location'] == '/g/mzugoss/login'
 
 
+def test_find_your_group_link_reaches_the_finder_despite_the_remembered_group(client, group, make_group):
+    make_group(name='Dyuni Welfare', slug='dyuni')
+    client.set_cookie(LAST_GROUP_COOKIE, 'dyuni')
+
+    link = '/auth/login?switch=1'
+    assert link.encode() in client.get('/g/dyuni/login').data
+    finder = client.get(link)
+    assert finder.status_code == 200 and b'name="group"' in finder.data
+    assert client.post(link, data={'group': 'mzugoss'}).headers['Location'] == '/g/mzugoss/login'
+
+
 def test_protected_page_sends_visitor_to_finder_with_next(client, group):
     response = client.get('/upload-dashboard')
     assert response.headers['Location'] == '/auth/login?next=/upload-dashboard'

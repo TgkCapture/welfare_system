@@ -57,7 +57,11 @@ class AuthController:
     @staticmethod
     @limits.login
     def login():
-        """Send the visitor to their group's login page."""
+        """Send the visitor to their group's login page.
+
+        A GET goes straight to the last group signed into, unless ?switch=1
+        (the "Find your group" link on a group's login page) asks for the finder.
+        """
         if current_user.is_authenticated:
             return redirect(url_for('main.dashboard'))
 
@@ -69,7 +73,7 @@ class AuthController:
                 return redirect(url_for('group.login', slug=slug, next=next_url))
             limits.failed()
             flash("We couldn't find an active group with that code.", 'danger')
-        else:
+        elif not request.args.get('switch'):
             slug = request.cookies.get(LAST_GROUP_COOKIE)
             if slug and Group.query.filter_by(slug=slug, is_active=True).first():
                 return redirect(url_for('group.login', slug=slug, next=next_url))

@@ -62,13 +62,12 @@
           {% endfor %}
         </div>
 
-        <!-- Remember + forgot -->
+        <!-- Remember -->
         <div class="auth-opts">
           <label class="check-label">
             {{ form.remember(id=form.remember.id) }}
             Remember me
           </label>
-          <a href="#" class="forgot-link">Forgot password?</a>
         </div>
 
         <button type="submit" class="btn btn--primary btn--full btn--lg">
@@ -80,7 +79,7 @@
         {% if group %}
         Accounts are created by your group's officers.<br>
         Not {{ group.settings.short_name or group.name }}?
-        <a href="{{ url_for('auth.login') }}">Find your group</a>
+        <a href="{{ url_for('auth.login', switch=1) }}">Find your group</a>
         {% else %}
         <a href="{{ url_for('auth.login') }}">Officer sign in</a>
         {% endif %}
