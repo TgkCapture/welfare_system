@@ -1,0 +1,50 @@
+<!-- app/templates/platform/group_create.html -->
+{% extends 'base.html' %}
+{% from 'platform/_field.html' import field %}
+{% block title %}New Group — {{ brand.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-plus"></i> New Group</h1>
+    <p class="page-header__sub">A welfare group and its first officer</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('platform.dashboard') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Platform
+    </a>
+  </div>
+</div>
+
+<div class="max-w-xl">
+  <form method="POST" action="{{ url_for('platform.create_group') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div class="card">
+      <div class="card__header">
+        <h2 class="card__title"><i class="fas fa-layer-group"></i> Group</h2>
+      </div>
+      <div class="card__body">
+        {{ field(form.name, 'tag') }}
+        {{ field(form.slug, 'link',
+                 hint='Officers sign in at /g/<slug>/login. It cannot be changed later.') }}
+      </div>
+    </div>
+
+    <div class="card mt-5">
+      <div class="card__header">
+        <h2 class="card__title"><i class="fas fa-user-tie"></i> First officer (Chairperson)</h2>
+      </div>
+      <div class="card__body">
+        {{ field(form.officer_email, 'envelope') }}
+        {{ field(form.officer_password, 'lock', hint='Minimum 8 characters. Share it with the officer privately.') }}
+        {{ field(form.confirm_password, 'lock') }}
+      </div>
+    </div>
+
+    <div class="flex gap-3 mt-6">
+      <button type="submit" class="btn btn--primary"><i class="fas fa-check"></i> Create group</button>
+      <a href="{{ url_for('platform.dashboard') }}" class="btn btn--outline">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

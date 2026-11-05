@@ -1,0 +1,65 @@
+<!-- app/templates/public/paid.html — members who have paid (never those who haven't) -->
+{% extends 'public/_layout.html' %}
+{% block title %}Who has paid — {{ brand.name }}{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-end gap-4 flex-wrap mb-5">
+  <div>
+    <h1 class="page-header__title">Who has paid</h1>
+    {% if period %}<p class="text-muted">{{ month_name }} {{ period[0] }}</p>{% endif %}
+  </div>
+  {% if months|length > 1 %}
+  <form method="GET" action="{{ url_for('group.paid', slug=group.slug) }}" class="no-print flex gap-2">
+    <select name="period" class="form-control" aria-label="Month" onchange="this.form.submit()">
+      {% for y, m in months %}
+      <option value="{{ y }}-{{ m }}" {{ 'selected' if (y, m) == period }}>{{ ['', 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m] }} {{ y }}</option>
+      {% endfor %}
+    </select>
+    <noscript><button type="submit" class="btn btn--outline btn--sm">Show</button></noscript>
+  </form>
+  {% endif %}
+</div>
+
+{% if not period %}
+  <div class="card"><div class="card__body text-muted">No contributions have been published yet.</div></div>
+{% else %}
+  {% if settings.public_show_totals %}
+  <div class="card mb-4">
+    <div class="card__body flex gap-8 flex-wrap">
+      <div><div class="stat-card__value">{{ paid.members|length }}</div><div class="text-sm text-muted">members paid</div></div>
+      <div><div class="stat-card__value">{{ brand.currency }} {{ '{:,.0f}'.format(paid.total) }}</div>
+           <div class="text-sm text-muted">received this month</div></div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="table-wrap">
+      {% if paid.members %}
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Member</th>{% if settings.public_show_amounts %}<th>Amount</th>{% endif %}</tr></thead>
+        <tbody>
+          {% for m in paid.members %}
+          <tr>
+            <td class="text-muted">{{ loop.index }}</td>
+            <td>{{ m.name }} <i class="fas fa-check-circle text-emerald-500" aria-label="paid"></i></td>
+            {% if settings.public_show_amounts %}<td>{{ brand.currency }} {{ '{:,.0f}'.format(m.amount) }}</td>{% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-muted p-5">No payments have been recorded for this month yet.</p>
+      {% endif %}
+    </div>
+  </div>
+  <p class="form-hint mt-4">
+    Not on the list but you've paid? It may not be recorded yet. Check
+    <a href="{{ url_for('group.check', slug=group.slug) }}">your own contributions</a> or ask your treasurer.
+  </p>
+{% endif %}
+{% endblock %}
+
+{% block footer %}
+  {% if paid and paid.synced_at %}Last updated {{ paid.synced_at.strftime('%d %B %Y') }}.{% endif %}
+{% endblock %}

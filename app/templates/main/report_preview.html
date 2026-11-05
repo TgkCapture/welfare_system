@@ -1,195 +1,118 @@
-<!-- app/templates/main/report_preview.html -->
+<!-- app/templates/main/report_preview.html — steps 2 and 3 of the monthly cycle: check, then share -->
 {% extends 'base.html' %}
-
-{% block title %}Report Preview - Mzugoss Welfare{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/report_preview.css') }}">
-{% endblock %}
+{% from 'components/ui.html' import page_header, card, stat, button, badge %}
+{% from 'main/_cycle_steps.html' import cycle_steps %}
+{% from 'main/_balances.html' import balances with context %}
+{% block title %}{{ month }} {{ year }} — {{ brand.name }}{% endblock %}
 
 {% block content %}
-<div class="report-preview-container">
-    <!-- Header -->
-    <div class="report-header">
-        <div class="header-content">
-            <h1 class="header-title">
-                <i class="fas fa-check-circle"></i>
-                Report Generated Successfully
-            </h1>
-            <p class="header-subtitle">
-                {{ month }} {{ year }} Contributions Report
-            </p>
-        </div>
-        <div class="header-icon">
-            <i class="fas fa-file-contract"></i>
-        </div>
-    </div>
+{% set cur = brand.currency %}
+{% set to_check = (run.warnings|length if run else 0) + new_members|length %}
 
-    <!-- Success Alert -->
-    <div class="success-alert">
-        <div class="alert-content">
-            <i class="fas fa-check-circle"></i>
-            <div>
-                <strong>Report Ready!</strong> The {{ month }} {{ year }} contributions report has been successfully generated.
-            </div>
-        </div>
-    </div>
+{% call page_header(month ~ ' ' ~ year, icon='circle-check', sub='Stored and reported. Check it, then share it.') %}
+  {{ button('Upload again', href=url_for('main.upload_dashboard'), icon='rotate', variant='outline', size='sm') }}
+{% endcall %}
+{{ cycle_steps(2 if to_check else 3) }}
 
-    <!-- Summary Statistics -->
-    <div class="summary-section">
-        <h2 class="section-title">
-            <i class="fas fa-chart-pie"></i>
-            Summary Statistics
-        </h2>
-        
-        <div class="summary-grid">
-            <!-- Total Contributions -->
-            <div class="summary-card card-success">
-                <div class="card-header">
-                    <i class="fas fa-money-bill-wave"></i>
-                    <h3>Total Contributions</h3>
-                </div>
-                <div class="card-body">
-                    <div class="card-amount">MWK {{ "%.2f"|format(total_contributions) }}</div>
-                </div>
-            </div>
-            
-            <!-- Contributors -->
-            <div class="summary-card card-primary">
-                <div class="card-header">
-                    <i class="fas fa-users"></i>
-                    <h3>Contributors</h3>
-                </div>
-                <div class="card-body">
-                    <div class="card-amount">{{ contributors }}</div>
-                </div>
-            </div>
-            
-            <!-- Defaulters -->
-            <div class="summary-card card-warning">
-                <div class="card-header">
-                    <i class="fas fa-user-times"></i>
-                    <h3>Defaulters</h3>
-                </div>
-                <div class="card-body">
-                    <div class="card-amount">{{ defaulters }}</div>
-                </div>
-            </div>
-            
-            <!-- Money Dispensed -->
-            <div class="summary-card card-info">
-                <div class="card-header">
-                    <i class="fas fa-hand-holding-usd"></i>
-                    <h3>Money Dispensed</h3>
-                </div>
-                <div class="card-body">
-                    <div class="card-amount">
-                        {% if money_dispensed is not none %}
-                            MWK {{ "%.2f"|format(money_dispensed) }}
-                        {% else %}
-                            N/A
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Total Book Balance -->
-            <div class="summary-card card-dark">
-                <div class="card-header">
-                    <i class="fas fa-book"></i>
-                    <h3>Total Book Balance</h3>
-                </div>
-                <div class="card-body">
-                    <div class="card-amount">
-                        {% if total_book_balance is not none %}
-                            MWK {{ "%.2f"|format(total_book_balance) }}
-                        {% else %}
-                            N/A
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Actions -->
-    <div class="actions-section">
-        <h2 class="section-title">
-            <i class="fas fa-download"></i>
-            Download Options
-        </h2>
-        
-        <div class="actions-grid">
-            <a href="{{ url_for('report.download') }}" class="action-card card-primary">
-                <div class="action-icon">
-                    <i class="fas fa-file-pdf"></i>
-                </div>
-                <div class="action-content">
-                    <h3>Download PDF Report</h3>
-                    <p>Complete report with all details and statistics</p>
-                </div>
-                <div class="action-arrow">
-                    <i class="fas fa-arrow-right"></i>
-                </div>
-            </a>
-            
-            <a href="{{ url_for('report.download_paid_members') }}" class="action-card card-success">
-                <div class="action-icon">
-                    <i class="fas fa-file-image"></i>
-                </div>
-                <div class="action-content">
-                    <h3>Download Paid Members (PNG)</h3>
-                    <p>Image file with paid members list</p>
-                </div>
-                <div class="action-arrow">
-                    <i class="fas fa-arrow-right"></i>
-                </div>
-            </a>
-            
-            <a href="{{ url_for('main.dashboard') }}" class="action-card card-secondary">
-                <div class="action-icon">
-                    <i class="fas fa-arrow-left"></i>
-                </div>
-                <div class="action-content">
-                    <h3>Back to Dashboard</h3>
-                    <p>Return to main dashboard</p>
-                </div>
-                <div class="action-arrow">
-                    <i class="fas fa-arrow-right"></i>
-                </div>
-            </a>
-        </div>
-    </div>
-
-    <!-- Report Details -->
-    <div class="details-section">
-        <h2 class="section-title">
-            <i class="fas fa-info-circle"></i>
-            Report Details
-        </h2>
-        
-        <div class="details-content">
-            <div class="detail-item">
-                <span class="detail-label">Report Period:</span>
-                <span class="detail-value">{{ month }} {{ year }}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Generated On:</span>
-                <span class="detail-value">{{ current_date.strftime('%B %d, %Y at %I:%M %p') }}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">File Name:</span>
-                <span class="detail-value">{{ filename }}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">File Format:</span>
-                <span class="detail-value">PDF Document</span>
-            </div>
-        </div>
-    </div>
+<div class="stats-grid">
+  {{ stat(report.contributors_count, 'paid', icon='circle-check', tone='green') }}
+  {{ stat(report.defaulters_count, 'not paid', icon='circle-xmark', tone='red' if report.defaulters_count else 'green') }}
+  {{ stat('{:,.0f}'.format(report.total_contributions or 0), cur ~ ' received', icon='coins') }}
+  {% if report.total_book_balance is not none %}
+    {{ stat('{:,.0f}'.format(report.total_book_balance), cur ~ ' balance', icon='scale-balanced', tone='purple',
+            meta=('paid out this month ' ~ '{:,.0f}'.format(report.money_dispensed)) if report.money_dispensed else None) }}
+  {% endif %}
 </div>
-{% endblock %}
+{% if ytd %}{{ balances(ytd, report, month) }}{% endif %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/report_preview.js') }}"></script>
+<div class="grid gap-5 lg:grid-cols-2">
+  {# ── Check ── #}
+  <div class="space-y-5">
+    {% call card('Check', icon='list-check', extra=badge('All clear', 'success') if not to_check else badge(to_check ~ ' to look at', 'warning')) %}
+      {% if not to_check %}
+        <p class="text-sm text-slate-600">No new names and no warnings: nothing to check this time.</p>
+      {% endif %}
+
+      {% if new_members %}
+      <h3 class="mb-1 text-sm font-bold">New names ({{ new_members|length }})</h3>
+      <p class="mb-3 text-sm text-slate-500">These didn't match anyone, so they were added as new members. If one is
+        another spelling of an existing member, merge it; otherwise leave it.</p>
+      <ul class="mb-5 divide-y divide-slate-200 rounded-lg border border-slate-200">
+        {% for member, likely in new_members %}
+        <li class="px-4 py-3" id="new-member-{{ member.id }}">
+          <div class="mb-2 text-sm font-semibold">{{ member.display_name }}</div>
+          <form method="POST" action="{{ url_for('main.merge_member', member_id=member.id) }}"
+                hx-post="{{ url_for('main.merge_member', member_id=member.id) }}"
+                hx-target="#new-member-{{ member.id }}" hx-swap="innerHTML"
+                class="flex flex-wrap gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <select name="into" class="form-control !w-auto flex-1" aria-label="Same person as" required>
+              {% if likely %}
+                {% for d in likely %}<option value="{{ d.id }}">Same as {{ d.display_name }}{{ ' (' ~ d.code ~ ')' if d.code }}</option>{% endfor %}
+              {% else %}
+                <option value="">No similar names: probably a new member</option>
+              {% endif %}
+            </select>
+            {% if likely %}<button type="submit" class="btn btn--warning btn--sm">Merge</button>{% endif %}
+            <a href="{{ url_for('main.member', member_id=member.id) }}" class="btn btn--ghost btn--sm">Open</a>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      {% if run and run.warnings %}
+      <h3 class="mb-2 text-sm font-bold">Warnings from the workbook ({{ run.warnings|length }})</h3>
+      <ul class="space-y-2 text-sm">
+        {% for w in run.warnings[:5] %}
+        <li class="flex gap-2"><i class="fas fa-triangle-exclamation mt-1 text-amber-500"></i>
+          <span><span class="text-slate-500">{{ w.where }}:</span> {{ w.message }}</span></li>
+        {% endfor %}
+      </ul>
+      <div class="mt-3">
+        {{ button('See all ' ~ run.warnings|length if run.warnings|length > 5 else 'Details',
+                  href=url_for('main.sync_run', run_id=run.id), variant='outline', size='sm') }}
+      </div>
+      <p class="form-hint">Warnings don't stop anything: fix them in the workbook and sync again.</p>
+      {% endif %}
+    {% endcall %}
+  </div>
+
+  {# ── Share ── #}
+  <div class="space-y-5">
+    {% call card('Share', icon='share-nodes') %}
+      {% if paid_url %}
+      <p class="mb-2 text-sm text-slate-600">Paste this into the group chat:</p>
+      <textarea class="form-control mb-2 font-mono text-sm" rows="5" readonly aria-label="Message for the group">{{ share_text }}</textarea>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="btn btn--primary btn--sm" data-copy="{{ share_text }}"><i class="fas fa-copy"></i> Copy message</button>
+        <a href="https://wa.me/?text={{ share_text|urlencode }}" target="_blank" rel="noopener" class="btn btn--success btn--sm">
+          <i class="fab fa-whatsapp"></i> WhatsApp</a>
+        <a href="{{ paid_url }}" target="_blank" rel="noopener" class="btn btn--outline btn--sm"><i class="fas fa-eye"></i> View page</a>
+      </div>
+      {% else %}
+      <p class="text-sm text-slate-600">The public "who has paid" page is off. Share the image or the PDF instead.</p>
+      {% endif %}
+
+      <div class="divider"></div>
+      <div class="download-grid !grid-cols-1 sm:!grid-cols-2">
+        <a href="{{ url_for('report.download_paid_members') }}" class="download-card download-card--success">
+          <span class="download-card__icon"><i class="fas fa-file-image"></i></span>
+          <span><span class="download-card__title block">Paid members image</span>
+                <span class="download-card__sub block">PNG for the group chat</span></span>
+          <i class="fas fa-download download-card__arrow"></i>
+        </a>
+        <a href="{{ url_for('report.download') }}" class="download-card">
+          <span class="download-card__icon"><i class="fas fa-file-pdf"></i></span>
+          <span><span class="download-card__title block">Full report</span>
+                <span class="download-card__sub block">PDF for the committee</span></span>
+          <i class="fas fa-download download-card__arrow"></i>
+        </a>
+      </div>
+      <p class="form-hint">The full report lists who hasn't paid: keep it among officers.</p>
+    {% endcall %}
+
+    {{ button('Back to the dashboard', href=url_for('main.dashboard'), icon='gauge-high', variant='outline') }}
+  </div>
+</div>
 {% endblock %}

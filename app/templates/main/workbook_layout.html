@@ -1,0 +1,172 @@
+<!-- app/templates/main/workbook_layout.html -->
+{% extends 'base.html' %}
+{% block title %}Workbook Layout — {{ brand.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-table"></i> Workbook layout</h1>
+    <p class="page-header__sub">Only for workbooks that aren't in the standard layout</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.settings') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Settings
+    </a>
+  </div>
+</div>
+
+<div class="card mb-5">
+  <div class="card__body text-sm">
+    Workbooks made from the app's <a href="{{ url_for('main.workbook') }}">standard template</a> are read
+    automatically and ignore these settings. For any other workbook, leave a setting blank to have it worked
+    out, and fill in only what the app gets wrong. Test the settings with a sample file before saving.
+    {% if mapping.is_automatic() %}
+      <strong>Now: everything is worked out automatically</strong> (the original layout).
+    {% endif %}
+  </div>
+</div>
+
+<form method="POST" action="{{ url_for('main.workbook_layout') }}" enctype="multipart/form-data" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="grid gap-5 md:grid-cols-2">
+    <div class="card">
+      <div class="card__header"><h2 class="card__title"><i class="fas fa-layer-group"></i> Which sheet</h2></div>
+      <div class="card__body">
+        {% for value, label in sheet_modes.items() %}
+        <label class="check-label mb-2">
+          <input type="radio" name="sheet_mode" value="{{ value }}" {{ 'checked' if mapping.sheet_mode == value }}>
+          {{ label }}
+        </label>
+        {% endfor %}
+        <div class="form-group mt-3">
+          <label class="form-label" for="sheet_pattern">Sheet name for each year</label>
+          <input type="text" id="sheet_pattern" name="sheet_pattern" class="form-control"
+                 value="{{ mapping.sheet_pattern }}" placeholder="Blank: any sheet whose name has the year">
+          <p class="form-hint">For one sheet per year. Write {year} where the year goes, e.g. <code>Contributions {year}</code>.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="sheet_name">Fixed sheet name</label>
+          <input type="text" id="sheet_name" name="sheet_name" class="form-control" value="{{ mapping.sheet_name }}">
+          <p class="form-hint">For "a sheet with a fixed name".</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header"><h2 class="card__title"><i class="fas fa-columns"></i> Rows and columns</h2></div>
+      <div class="card__body">
+        <div class="form-group">
+          <label class="form-label" for="header_row">Header row (number)</label>
+          <input type="text" id="header_row" name="header_row" class="form-control" inputmode="numeric"
+                 value="{{ mapping.header_row or '' }}" placeholder="Blank: the row with the month's name">
+          <p class="form-hint">The row with the column titles; members start on the row below.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="name_column">Member name column (letter)</label>
+          <input type="text" id="name_column" name="name_column" class="form-control" maxlength="3"
+                 value="{{ mapping.name_column }}" placeholder="Blank: the column titled Name">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="january_column">January column (letter)</label>
+          <input type="text" id="january_column" name="january_column" class="form-control" maxlength="3"
+                 value="{{ mapping.january_column }}" placeholder="Blank: find each month by its title">
+          <p class="form-hint">If set, February is the next column, and so on. Needs a header row number.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header"><h2 class="card__title"><i class="fas fa-coins"></i> Money dispensed and book balance</h2></div>
+      <div class="card__body">
+        {% for value, label in financials.items() %}
+        <label class="check-label mb-2">
+          <input type="radio" name="financials" value="{{ value }}" {{ 'checked' if mapping.financials == value }}>
+          {{ label }}
+        </label>
+        {% endfor %}
+        <div class="flex gap-3 mt-3">
+          <div class="form-group flex-1">
+            <label class="form-label" for="money_dispensed_cell">Money dispensed cell</label>
+            <input type="text" id="money_dispensed_cell" name="money_dispensed_cell" class="form-control"
+                   maxlength="8" value="{{ mapping.money_dispensed_cell }}" placeholder="e.g. B2">
+          </div>
+          <div class="form-group flex-1">
+            <label class="form-label" for="book_balance_cell">Book balance cell</label>
+            <input type="text" id="book_balance_cell" name="book_balance_cell" class="form-control"
+                   maxlength="8" value="{{ mapping.book_balance_cell }}" placeholder="e.g. B3">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-5">
+    <div class="card__header"><h2 class="card__title"><i class="fas fa-vial"></i> Test with a file</h2></div>
+    <div class="card__body">
+      <div class="flex gap-3 flex-wrap items-end">
+        <div class="form-group m-0 flex-[2] min-w-56">
+          <label class="form-label" for="file">Sample workbook</label>
+          <input type="file" id="file" name="file" class="form-control" accept=".xlsx,.xls,.csv">
+        </div>
+        <div class="form-group m-0">
+          <label class="form-label" for="month">Month</label>
+          <select id="month" name="month" class="form-control">
+            {% for name in month_names %}<option value="{{ loop.index }}" {{ 'selected' if loop.index == month }}>{{ name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group m-0">
+          <label class="form-label" for="year">Year</label>
+          <input type="number" id="year" name="year" class="form-control w-28" value="{{ year }}">
+        </div>
+        <button type="submit" name="action" value="test" class="btn btn--outline"><i class="fas fa-search"></i> Test</button>
+      </div>
+      <p class="form-hint">The file is read and then deleted; nothing is saved or synced.</p>
+
+      {% if preview %}
+      <div class="mt-4">
+        {% if preview.error %}
+          <p class="text-red-600"><i class="fas fa-times-circle"></i> {{ preview.error }}</p>
+        {% elif preview.standard %}
+          <p><i class="fas fa-check-circle text-emerald-500"></i>
+            This file is in the standard layout, so it's read automatically and these settings don't apply.</p>
+        {% else %}
+          <p class="text-sm">
+            <i class="fas fa-check-circle text-emerald-500"></i>
+            Read sheet <strong>{{ preview.sheet }}</strong>: names from <strong>{{ preview.name_col }}</strong>,
+            amounts from <strong>{{ preview.month_col }}</strong>. {{ preview.row_count }} member(s);
+            {{ preview.paid }} paid {{ '{:,.0f}'.format(preview.total) }}, {{ preview.unpaid }} unpaid.
+            Money dispensed: {{ '{:,.0f}'.format(preview.money_dispensed) if preview.money_dispensed is not none else 'not found' }};
+            book balance: {{ '{:,.0f}'.format(preview.book_balance) if preview.book_balance is not none else 'not found' }}.
+          </p>
+          <div class="table-wrap mt-3">
+            <table class="data-table">
+              <thead><tr><th>Name</th><th>Amount</th></tr></thead>
+              <tbody>
+                {% for name, amount in preview.rows %}
+                <tr><td>{{ name }}</td><td>{{ '{:,.0f}'.format(amount) if amount == amount and amount is not none else '—' }}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if preview.row_count > preview.rows|length %}
+          <p class="form-hint">First {{ preview.rows|length }} of {{ preview.row_count }} shown.</p>
+          {% endif %}
+          {% for w in preview.warnings %}
+          <p class="text-sm text-amber-600"><i class="fas fa-exclamation-triangle"></i> {{ w.where }}: {{ w.message }}</p>
+          {% endfor %}
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="flex gap-3 mt-6">
+    <button type="submit" name="action" value="save" class="btn btn--primary"><i class="fas fa-save"></i> Save settings</button>
+    {% if not mapping.is_automatic() %}
+    <button type="submit" name="action" value="reset" class="btn btn--outline"
+            data-confirm="Clear the layout settings and work everything out automatically?">Reset to automatic</button>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

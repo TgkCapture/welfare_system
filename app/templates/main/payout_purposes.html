@@ -1,0 +1,73 @@
+<!-- app/templates/main/payout_purposes.html -->
+{% extends 'base.html' %}
+{% block title %}Payout Purposes — {{ brand.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-hand-holding-heart"></i> Payout purposes</h1>
+    <p class="page-header__sub">The reasons your group pays money out, used in the workbook's Payouts sheet</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.settings') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Settings
+    </a>
+  </div>
+</div>
+
+<div class="max-w-3xl">
+  <div class="card mb-5">
+    <div class="card__body">
+      <form class="flex gap-3" method="POST" action="{{ url_for('main.payout_purposes') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="name" class="form-control" maxlength="80" required
+               placeholder="e.g. Funeral condolence" aria-label="New purpose">
+        <button type="submit" class="btn btn--primary whitespace-nowrap">
+          <i class="fas fa-plus"></i> Add
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Purpose</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for p in purposes %}
+          <tr class="{{ '' if p.is_active else 'text-muted' }}">
+            <td>
+              <form class="flex gap-2" method="POST" action="{{ url_for('main.rename_payout_purpose', purpose_id=p.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="text" name="name" value="{{ p.name }}" class="form-control" maxlength="80"
+                       aria-label="Name of {{ p.name }}">
+                <button type="submit" class="btn btn--outline btn--sm" title="Rename"><i class="fas fa-save"></i></button>
+              </form>
+            </td>
+            <td>
+              <span class="status-dot status-dot--{{ 'active' if p.is_active else 'inactive' }}">
+                {{ 'In use' if p.is_active else 'Retired' }}
+              </span>
+            </td>
+            <td>
+              <form method="POST" action="{{ url_for('main.toggle_payout_purpose', purpose_id=p.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn--sm {{ 'btn--warning' if p.is_active else 'btn--success' }}">
+                  {{ 'Retire' if p.is_active else 'Restore' }}
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="text-muted">No purposes yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <p class="form-hint mt-4">
+    Retired purposes leave the workbook's dropdown but past payouts keep them. A sync warns about any
+    payout whose purpose isn't on this list.
+  </p>
+</div>
+{% endblock %}

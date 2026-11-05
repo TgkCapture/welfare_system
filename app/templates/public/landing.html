@@ -1,0 +1,31 @@
+<!-- app/templates/public/landing.html — a group's home page for members -->
+{% extends 'public/_layout.html' %}
+
+{% block content %}
+<h1 class="page-header__title mb-2">{{ brand.name }}</h1>
+<p class="text-muted mb-6">Contributions and welfare rules for members.</p>
+
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  {% set tiles = [
+    (url_for('group.rules', slug=group.slug), 'fas fa-book-open', 'Welfare rules',
+     'What members pay and what support they can receive.', True),
+    (url_for('group.paid', slug=group.slug), 'fas fa-user-check', 'Who has paid',
+     'Members who have paid this month.', group.settings.public_paid_enabled),
+    (url_for('group.check', slug=group.slug), 'fas fa-calendar-check', 'My contributions',
+     'See your own payments with your name and PIN.', True),
+  ] %}
+  {% for href, icon, title, desc, shown in tiles if shown %}
+  <a href="{{ href }}" class="card block no-underline text-inherit">
+    <div class="card__body">
+      <i class="{{ icon }} text-2xl text-brand"></i>
+      <h2 class="text-[1.0625rem] font-extrabold mt-3 mb-1">{{ title }}</h2>
+      <p class="text-sm text-muted">{{ desc }}</p>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block footer %}
+  {% if last_updated %}Contributions last updated {{ last_updated.strftime('%d %B %Y') }}.{% endif %}
+{% endblock %}

@@ -1,173 +1,106 @@
-// app/static/js/base.js 
-document.addEventListener('DOMContentLoaded', function() {
-    // Mobile Navigation
-    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-    const mobileNavOverlay = document.getElementById('mobileNavOverlay');
-    const closeMobileNav = document.getElementById('closeMobileNav');
+/* base.js — global UI behaviour for every page */
+'use strict';
 
-    function openMobileNav() {
-        mobileNavOverlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
-    }
+/* ── Sidebar (off-canvas on small screens) ──────────────────────────── */
+(function initSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  const toggles = document.querySelectorAll('[data-sidebar-toggle]');
+  if (!sidebar) return;
 
-    function closeMobileNavFunc() {
-        mobileNavOverlay.classList.remove('active');
-        document.body.style.overflow = '';
-    }
+  function setOpen(open) {
+    sidebar.classList.toggle('is-open', open);
+    if (overlay) overlay.hidden = !open;
+    toggles.forEach((t) => t.setAttribute('aria-expanded', String(open)));
+    document.body.style.overflow = open ? 'hidden' : '';
+  }
 
-    if (mobileMenuBtn && mobileNavOverlay && closeMobileNav) {
-        mobileMenuBtn.addEventListener('click', openMobileNav);
-        closeMobileNav.addEventListener('click', closeMobileNavFunc);
-        
-        mobileNavOverlay.addEventListener('click', function(e) {
-            if (e.target === mobileNavOverlay) {
-                closeMobileNavFunc();
-            }
-        });
+  toggles.forEach((t) => t.addEventListener('click', () => setOpen(!sidebar.classList.contains('is-open'))));
+  overlay && overlay.addEventListener('click', () => setOpen(false));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+})();
 
-        // Close mobile nav when clicking on links
-        document.querySelectorAll('.mobile-nav-link').forEach(link => {
-            link.addEventListener('click', closeMobileNavFunc);
-        });
-    }
-
-    // User Dropdown
-    const userDropdownToggle = document.getElementById('userDropdownToggle');
-    const userDropdownMenu = document.getElementById('userDropdownMenu');
-
-    if (userDropdownToggle && userDropdownMenu) {
-        userDropdownToggle.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const isActive = userDropdownMenu.classList.contains('show');
-            
-            // Close all other dropdowns
-            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
-                if (menu !== userDropdownMenu) {
-                    menu.classList.remove('show');
-                }
-            });
-            
-            // Toggle current dropdown
-            userDropdownMenu.classList.toggle('show');
-            userDropdownToggle.classList.toggle('active', userDropdownMenu.classList.contains('show'));
-        });
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!userDropdownToggle.contains(e.target) && !userDropdownMenu.contains(e.target)) {
-                userDropdownMenu.classList.remove('show');
-                userDropdownToggle.classList.remove('active');
-            }
-        });
-
-        // Close dropdown when clicking on a dropdown item
-        const dropdownItems = userDropdownMenu.querySelectorAll('.dropdown-item');
-        dropdownItems.forEach(item => {
-            item.addEventListener('click', function() {
-                userDropdownMenu.classList.remove('show');
-                userDropdownToggle.classList.remove('active');
-            });
-        });
-
-        // Close dropdown on escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && userDropdownMenu.classList.contains('show')) {
-                userDropdownMenu.classList.remove('show');
-                userDropdownToggle.classList.remove('active');
-            }
-        });
-    }
-
-    // Auto-dismiss flash messages after 5 seconds
-    setTimeout(() => {
-        document.querySelectorAll('.alert').forEach(alert => {
-            alert.style.transition = 'opacity 0.3s ease';
-            alert.style.opacity = '0';
-            setTimeout(() => {
-                alert.style.display = 'none';
-            }, 300);
-        });
-    }, 5000);
-
-    // Close alert on button click
-    document.querySelectorAll('.alert-close').forEach(button => {
-        button.addEventListener('click', function() {
-            const alert = this.closest('.alert');
-            alert.style.transition = 'opacity 0.3s ease';
-            alert.style.opacity = '0';
-            setTimeout(() => {
-                alert.style.display = 'none';
-            }, 300);
-        });
+/* ── Password show/hide toggle ──────────────────────────────────────── */
+(function initPasswordToggles() {
+  document.querySelectorAll('.input-suffix[data-toggle-pwd]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const wrap  = btn.closest('.input-wrap');
+      const input = wrap && wrap.querySelector('input');
+      if (!input) return;
+      const isText = input.type === 'text';
+      input.type   = isText ? 'password' : 'text';
+      const icon   = btn.querySelector('i');
+      if (icon) icon.className = isText ? 'fas fa-eye' : 'fas fa-eye-slash';
     });
+  });
+})();
 
-    // Toast notification system
-    window.showToast = function(message, type = 'info') {
-        // Remove existing toasts
-        const existingToasts = document.querySelectorAll('.toast');
-        existingToasts.forEach(toast => {
-            if (toast.parentNode) {
-                document.body.removeChild(toast);
-            }
-        });
-        
-        // Create toast element
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.setAttribute('role', 'alert');
-        toast.setAttribute('aria-live', 'assertive');
-        toast.setAttribute('aria-atomic', 'true');
-        
-        toast.innerHTML = `
-            <div class="toast-content">
-                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-                <span>${message}</span>
-            </div>
-            <button class="toast-close" aria-label="Close">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
-        
-        document.body.appendChild(toast);
-        
-        // Show toast
-        setTimeout(() => {
-            toast.classList.add('show');
-        }, 10);
-        
-        // Auto-remove after 5 seconds
-        const autoRemove = setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    document.body.removeChild(toast);
-                }
-            }, 300);
-        }, 5000);
-        
-        // Close button
-        const closeBtn = toast.querySelector('.toast-close');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                clearTimeout(autoRemove);
-                toast.classList.remove('show');
-                setTimeout(() => {
-                    if (toast.parentNode) {
-                        document.body.removeChild(toast);
-                    }
-                }, 300);
-            });
-        }
-        
-        return toast;
-    };
+/* ── Modal helpers (data-modal-open / data-modal-close) ─────────────── */
+(function initModals() {
+  function openModal(id) {
+    const bd = document.getElementById(id);
+    if (!bd) return;
+    bd.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    // focus first focusable element
+    const first = bd.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    first && first.focus();
+  }
+  function closeModal(id) {
+    const bd = document.getElementById(id);
+    if (!bd) return;
+    bd.classList.remove('is-open');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('click', (e) => {
+    const opener = e.target.closest('[data-modal-open]');
+    if (opener) { openModal(opener.dataset.modalOpen); return; }
+
+    const closer = e.target.closest('[data-modal-close]');
+    if (closer) { closeModal(closer.dataset.modalClose); return; }
+
+    // click on backdrop itself
+    if (e.target.classList.contains('modal-backdrop')) {
+      e.target.classList.remove('is-open');
+      document.body.style.overflow = '';
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('.modal-backdrop.is-open').forEach((bd) => {
+      bd.classList.remove('is-open');
+      document.body.style.overflow = '';
+    });
+  });
+
+  // expose globally for inline onclick usage
+  window.openModal  = openModal;
+  window.closeModal = closeModal;
+})();
+
+/* ── Inline form confirmation (data-confirm) ────────────────────────── */
+document.addEventListener('submit', (e) => {
+  const form = e.target;
+  // The clicked button's message wins, so one form can confirm only some actions
+  const msg  = (e.submitter && e.submitter.dataset.confirm) || form.dataset.confirm;
+  if (msg && !confirm(msg)) e.preventDefault();
 });
 
-// Add animation delay to elements with data-animate-delay attribute
-document.addEventListener('DOMContentLoaded', function() {
-    const animatedElements = document.querySelectorAll('[data-animate-delay]');
-    animatedElements.forEach(element => {
-        const delay = element.getAttribute('data-animate-delay');
-        element.style.animationDelay = delay;
-    });
+/* ── Copy to clipboard (data-copy="text") ─────────────────────────── */
+document.addEventListener('click', async (e) => {
+  const button = e.target.closest('[data-copy]');
+  if (!button) return;
+  const label = button.innerHTML;
+  try {
+    await navigator.clipboard.writeText(button.dataset.copy);
+    button.innerHTML = '<i class="fas fa-check"></i> Copied';
+  } catch {
+    // No clipboard access (e.g. plain http): select the text so it can be copied by hand
+    const input = button.parentElement.querySelector('input');
+    if (input) { input.select(); }
+    button.innerHTML = 'Press Ctrl+C';
+  }
+  setTimeout(() => { button.innerHTML = label; }, 2000);
 });

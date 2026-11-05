@@ -43,17 +43,38 @@ A Flask-based system to automate the tracking of monthly contributions, simplify
 | PNG/Charts              | matplotlib, Pillow |
 | Spreadsheet Integration | openpyxl, gspread  |
 | Version Control         | bump2version       |
-| Auth & Storage          | SQLite (built-in)  |
+| Database                | Postgres (SQLite for development) |
+| Serving                 | gunicorn in Docker, with Redis for shared rate limits |
 
 ---
 
-## ⚡ Installation
+## 🐳 Running with Docker
+
+The app, Postgres and Redis, ready for a server behind nginx or Caddy:
+
+```bash
+cp .env.example .env          # fill in SECRET_KEY, POSTGRES_PASSWORD, Google credentials
+docker compose up -d --build  # upgrades the database, then starts gunicorn on 127.0.0.1:8000
+docker compose exec web flask create-superadmin
+```
+
+The site must be served over HTTPS (production cookies are HTTPS-only). Set
+`TRUSTED_PROXIES=1` when a proxy on the same machine forwards to the app.
+Back up with `docker compose exec -T db pg_dump -U welfare welfare > backup.sql`.
+`/api/health` reports the version and whether the database answers.
+
+Moving the live Mzugoss site from 2.0.x: see
+[docs/MZUGOSS_RUNBOOK.md](docs/MZUGOSS_RUNBOOK.md). Setting up a VPS (nginx, a
+domain, HTTPS, backups and updates; with or without Docker) is in
+[docs/DEPLOY_VPS.md](docs/DEPLOY_VPS.md).
+
+## ⚡ Installation (development)
 
 ### 1. Clone the Repo
 
 ```bash
 git clone https://github.com/tgkcapture/welfare_system.git
-cd mzugoss-welfare
+cd welfare_system
 ```
 
 ### 2. Create a Virtual Environment
@@ -69,10 +90,88 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4. Run the App
+### 4. Set Up the Database
+
+The schema is managed with Flask-Migrate.
 
 ```bash
-python app.py
+export FLASK_APP=run.py          # Windows PowerShell: $env:FLASK_APP = "run.py"
+flask db upgrade                 # create or update the database
+flask create-superadmin          # platform operator account (no group)
+flask create-group               # a welfare group, with preset roles
+flask create-admin --group <slug>   # the group's first officer (Chairperson)
+```
+
+Only `create-superadmin` is required. After that, the superadmin can create
+groups and their first officers at `/platform/` in the browser. Officers who
+can manage officers edit their group's roles at `/admin/roles`.
+
+Forgotten passwords: an officer who manages officers sets a new one from the
+officer's edit page, and a superadmin can do it for any officer from the
+group's page under `/platform/`. Both are recorded in the audit log. When
+nobody can sign in:
+
+```bash
+flask list-users [--group <slug>]                    # every account, its group and role
+flask reset-password --group <slug> --email <email>  # leave out --group for a superadmin
+```
+
+Each group's files are kept in `uploads/<slug>/` and `reports/<slug>/`.
+When upgrading from a version without group folders, run once:
+
+```bash
+flask move-files-to-groups --dry-run   # preview
+flask move-files-to-groups
+```
+
+Report files expire after the group's retention period (set on its Settings
+page, otherwise `REPORT_RETENTION_DAYS`). Expired reports are archived, not
+deleted. `flask cleanup-files [--group <slug>] [--dry-run]` runs cleanup by hand.
+
+The daily cleanup runs at `CLEANUP_TIME` (default `02:00`) in every worker
+process; the first one to claim the day in the database does the work and
+the others skip it, so any number of workers or servers is safe. To use cron
+instead, set `ENABLE_AUTO_CLEANUP=false` and run `flask daily-cleanup` once a
+day; it also runs at most once a day.
+
+Upgrading an existing single-group install automatically creates a
+"Mzugoss" group (slug `mzugoss`) and moves existing users and reports into
+it: admins become Chairperson, clerks become Treasurer, and viewer
+accounts are deactivated.
+
+Signing in:
+
+* Officers: `/g/<slug>/login` (for example `/g/mzugoss/login`)
+* Platform superadmins: `/platform/login`
+* `/auth/login` asks for the group code and remembers it for next time
+
+Failed attempts are rate limited per IP; successful ones never count, since
+many members can share one mobile network address:
+
+* wrong passwords (sign-in and password change) and unknown group codes:
+  `LOGIN_RATE_LIMIT`, default `10 per minute;50 per hour`
+* wrong access codes, PINs and personal history links:
+  `PUBLIC_LOOKUP_RATE_LIMIT`, default `10 per minute;30 per hour`
+
+With several workers, point `RATELIMIT_STORAGE_URI` at a shared store such
+as Redis; otherwise each worker counts on its own. Behind a reverse proxy
+(nginx, a load balancer), set `TRUSTED_PROXIES` to the number of proxies so
+limits and the audit log see each visitor's own address. Leave it at `0`
+when the app is reached directly, because the forwarded headers can be forged.
+
+If you already have a database created by an older version (before
+migrations were added, 2.0.x and earlier), mark it as being at the baseline
+once, then upgrade. The first migration brings the old tables into line:
+
+```bash
+flask db stamp 365dc0d4aa41
+flask db upgrade
+```
+
+### 5. Run the App
+
+```bash
+python run.py
 ```
 
 Then open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
@@ -104,6 +203,27 @@ Then open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
    - Distribute to group members
 
 ### For Developers:
+
+```bash
+# Tests
+pip install -r requirements-dev.txt
+pytest
+
+# Schema changes: edit the models, then generate and review a migration
+flask db migrate -m "describe the change"
+flask db upgrade
+```
+
+Styles are Tailwind, written in `app/static/src/app.css` and shared Jinja
+macros (`app/templates/components/ui.html`). The built `app/static/css/app.css`
+is committed, so running the app never needs Node. To change styles:
+
+```bash
+npm install            # once
+npm run build:css      # or: npm run watch:css while editing
+```
+
+Commit the rebuilt `app/static/css/app.css` with your template changes.
 
 ```bash
 # Version management (using bump2version)

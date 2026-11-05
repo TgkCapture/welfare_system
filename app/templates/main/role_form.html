@@ -1,0 +1,62 @@
+<!-- app/templates/main/role_form.html -->
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit Role' if role else 'Add Role' }} — {{ brand.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title">
+      <i class="fas fa-user-tag"></i> {{ 'Edit ' ~ role.name if role else 'Add Role' }}
+    </h1>
+    <p class="page-header__sub">Choose what officers with this role can do</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.roles') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Back to Roles
+    </a>
+  </div>
+</div>
+
+<div class="max-w-xl">
+  <div class="card">
+    <div class="card__body">
+      <form method="POST"
+            action="{{ url_for('main.edit_role', role_id=role.id) if role else url_for('main.create_role') }}"
+            novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="form-group">
+          <label class="form-label" for="{{ form.name.id }}">
+            <i class="fas fa-tag"></i> Role name
+          </label>
+          {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else ""),
+                       placeholder="e.g. Treasurer") }}
+          {% for e in form.name.errors %}
+            <p class="form-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="form-group">
+          <span class="form-label"><i class="fas fa-key"></i> Permissions</span>
+          {% for option in form.permissions %}
+          <label class="check-label mb-2">
+            {{ option() }} {{ option.label.text }}
+          </label>
+          {% endfor %}
+          <p class="form-hint">Only permissions you hold yourself are listed.</p>
+          {% for e in form.permissions.errors %}
+            <p class="form-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="flex gap-3 mt-6">
+          <button type="submit" class="btn btn--primary">
+            <i class="fas fa-save"></i> Save role
+          </button>
+          <a href="{{ url_for('main.roles') }}" class="btn btn--outline">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

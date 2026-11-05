@@ -1,186 +1,233 @@
-<!-- app/templates/main/settings.html -->
 {% extends 'base.html' %}
-
-{% block title %}Settings - Mzugoss Welfare{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
-{% endblock %}
+{% block title %}Settings — {{ brand.name }}{% endblock %}
 
 {% block content %}
-<div class="settings-container">
-    <!-- Header -->
-    <div class="settings-header">
-        <div class="header-content">
-            <h1 class="header-title">
-                <i class="fas fa-cog"></i>
-                Application Settings
-            </h1>
-            <p class="header-subtitle">
-                Configure your welfare system preferences
-            </p>
-        </div>
-        <div class="header-icon">
-            <i class="fas fa-sliders-h"></i>
-        </div>
-    </div>
-
-    <!-- Settings Form -->
-    <div class="settings-card glass-card">
-        <div class="card-header">
-            <h2 class="card-title">
-                <i class="fab fa-google"></i>
-                Google Sheets Configuration
-            </h2>
-            <p class="card-subtitle">Set up Google Sheets integration for automatic data retrieval</p>
-        </div>
-
-        <form method="post" action="{{ url_for('main.settings') }}" class="settings-form" id="settingsForm">
-            <div class="form-group">
-                <label for="sheet_url" class="form-label">
-                    <i class="fas fa-link"></i>
-                    Google Sheets URL
-                </label>
-                <div class="input-with-icon">
-                    <i class="fab fa-google"></i>
-                    <input type="url" class="form-control" id="sheet_url" name="sheet_url" 
-                           value="{{ sheet_url }}" 
-                           placeholder="https://docs.google.com/spreadsheets/d/..."
-                           required>
-                </div>
-                <div class="form-hint">
-                    Enter the URL of your Google Sheet with contribution data. This will be used as the default when generating reports.
-                </div>
-            </div>
-
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary btn-save" id="saveBtn">
-                    <i class="fas fa-save"></i>
-                    <span class="btn-text">Save Settings</span>
-                    <div class="btn-loading" style="display: none;">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <span>Saving...</span>
-                    </div>
-                </button>
-                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline">
-                    <i class="fas fa-times"></i>
-                    Cancel
-                </a>
-            </div>
-        </form>
-    </div>
-
-    <!-- Instructions -->
-    <div class="instructions-card glass-card">
-        <div class="card-header">
-            <h2 class="card-title">
-                <i class="fas fa-info-circle"></i>
-                Setup Instructions
-            </h2>
-        </div>
-        
-        <div class="instructions-content">
-            <ol class="instructions-list">
-                <li class="instruction-item">
-                    <div class="instruction-icon">
-                        <i class="fas fa-file-excel"></i>
-                    </div>
-                    <div class="instruction-text">
-                        <strong>Create a Google Sheet</strong>
-                        <p>Create a Google Sheet with your contribution data using the same format as your Excel files.</p>
-                    </div>
-                </li>
-                
-                <li class="instruction-item">
-                    <div class="instruction-icon">
-                        <i class="fas fa-share-alt"></i>
-                    </div>
-                    <div class="instruction-text">
-                        <strong>Share the Sheet</strong>
-                        <p>Share the sheet with "Anyone with the link can view" or with your service account email.</p>
-                    </div>
-                </li>
-                
-                <li class="instruction-item">
-                    <div class="instruction-icon">
-                        <i class="fas fa-copy"></i>
-                    </div>
-                    <div class="instruction-text">
-                        <strong>Copy the URL</strong>
-                        <p>Copy the URL from your browser's address bar while viewing the sheet.</p>
-                    </div>
-                </li>
-                
-                <li class="instruction-item">
-                    <div class="instruction-icon">
-                        <i class="fas fa-paste"></i>
-                    </div>
-                    <div class="instruction-text">
-                        <strong>Paste the URL</strong>
-                        <p>Paste the URL in the field above and save your settings.</p>
-                    </div>
-                </li>
-            </ol>
-            
-            <div class="note-box">
-                <i class="fas fa-exclamation-circle"></i>
-                <div class="note-content">
-                    <strong>Note:</strong> You need to set up Google API credentials in your instance/config.py file
-                    using GOOGLE_CREDENTIALS_PATH or GOOGLE_CREDENTIALS_JSON environment variables.
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Current Configuration -->
-    {% if sheet_url %}
-    <div class="current-config-card glass-card">
-        <div class="card-header">
-            <h2 class="card-title">
-                <i class="fas fa-check-circle"></i>
-                Current Configuration
-            </h2>
-        </div>
-        
-        <div class="config-content">
-            <div class="config-item">
-                <div class="config-label">
-                    <i class="fab fa-google"></i>
-                    <span>Active Google Sheet:</span>
-                </div>
-                <div class="config-value">
-                    <a href="{{ sheet_url }}" target="_blank" class="config-link">
-                        {{ sheet_url|truncate(60) }}
-                    </a>
-                </div>
-            </div>
-            
-            <div class="config-item">
-                <div class="config-label">
-                    <i class="fas fa-calendar-check"></i>
-                    <span>Last Updated:</span>
-                </div>
-                <div class="config-value">
-                    {{ "Just now" if request.method == 'POST' else "Previously" }}
-                </div>
-            </div>
-        </div>
-        
-        <div class="config-actions">
-            <a href="{{ sheet_url }}" target="_blank" class="btn btn-outline">
-                <i class="fas fa-external-link-alt"></i>
-                Open Sheet
-            </a>
-            <button class="btn btn-outline" id="testConnectionBtn">
-                <i class="fas fa-plug"></i>
-                Test Connection
-            </button>
-        </div>
-    </div>
-    {% endif %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-cog"></i> Settings</h1>
+    <p class="page-header__sub">Settings for your group</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-arrow-left"></i> Dashboard
+    </a>
+  </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+<div class="max-w-2xl">
+
+  <!-- Google Sheets -->
+  <div class="card mb-5">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-database"></i> Data source and storage</h2>
+      {% if sheet_url %}
+        <span class="badge badge--success"><i class="fas fa-plug"></i> Sheet connected</span>
+      {% else %}
+        <span class="badge badge--neutral">No sheet configured</span>
+      {% endif %}
+    </div>
+    <div class="card__body">
+      <form method="POST" action="{{ url_for('main.settings') }}" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label class="form-label" for="sheet_url">
+            <i class="fas fa-link"></i> Google Sheets URL
+          </label>
+          <div class="input-wrap">
+            <i class="input-icon fab fa-google"></i>
+            <input type="url" id="sheet_url" name="sheet_url"
+                   class="form-control"
+                   value="{{ sheet_url }}"
+                   placeholder="https://docs.google.com/spreadsheets/d/…">
+          </div>
+          <p class="form-hint">
+            Leave blank to clear the current URL.
+            {% if service_account_email %}
+              Share the sheet (as Viewer) with
+              <code>{{ service_account_email }}</code>
+              <button type="button" class="btn btn--outline btn--sm" data-copy="{{ service_account_email }}">
+                <i class="fas fa-copy"></i> Copy</button>
+            {% else %}
+              Google Sheets isn't set up on this platform yet: ask the platform administrator.
+            {% endif %}
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="report_retention_days">
+            <i class="fas fa-calendar-day"></i> Keep report files for (days)
+          </label>
+          <input type="number" id="report_retention_days" name="report_retention_days"
+                 class="form-control" min="1" max="{{ max_retention_days }}"
+                 value="{{ retention_days or '' }}"
+                 placeholder="Platform default: {{ default_retention_days }}">
+          <p class="form-hint">
+            Older report files are deleted and their reports archived. The figures and
+            contribution history are kept. Leave blank for the platform default
+            ({{ default_retention_days }} days).
+          </p>
+        </div>
+
+        <div class="flex gap-3 items-center">
+          <button type="submit" class="btn btn--primary">
+            <i class="fas fa-save"></i> Save Settings
+          </button>
+          {% if sheet_url %}
+          <a href="{{ sheet_url }}" target="_blank" rel="noopener" class="btn btn--outline btn--sm">
+            <i class="fas fa-external-link-alt"></i> Open Sheet
+          </a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Branding -->
+  <div class="card mb-5">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-palette"></i> Branding</h2>
+    </div>
+    <div class="card__body">
+      <form method="POST" action="{{ url_for('main.settings') }}" enctype="multipart/form-data" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="section" value="branding">
+        <div class="form-group">
+          <span class="form-label">Logo</span>
+          <div class="flex flex-wrap items-center gap-4">
+            {% if brand.logo %}
+              <img src="{{ url_for('group.logo', slug=brand.slug, v=brand.logo) }}" alt="Current logo"
+                   class="h-16 w-16 rounded-lg border border-slate-200 bg-white object-contain p-1">
+            {% else %}
+              <span class="grid h-16 w-16 place-items-center rounded-lg bg-brand text-xl text-white"><i class="fas fa-hands-helping"></i></span>
+            {% endif %}
+            <div class="min-w-0 flex-1">
+              <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/gif" class="form-control"
+                     aria-label="Logo image">
+              {% if brand.logo %}
+              <label class="check-label mt-2"><input type="checkbox" name="remove_logo" value="1"> Remove the logo</label>
+              {% endif %}
+            </div>
+          </div>
+          <p class="form-hint">PNG, JPEG, WebP or GIF, under 2 MB. Shown in the menu, on members' pages and on reports.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="display_name">Group name</label>
+          <input type="text" id="display_name" name="display_name" class="form-control" maxlength="150"
+                 value="{{ settings.display_name }}">
+          <p class="form-hint">Shown in page titles, on reports and on members' pages.</p>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+          <div class="form-group flex-[2] min-w-48">
+            <label class="form-label" for="short_name">Short name (optional)</label>
+            <input type="text" id="short_name" name="short_name" class="form-control" maxlength="30"
+                   value="{{ settings.short_name or '' }}" placeholder="{{ settings.display_name }}">
+            <p class="form-hint">For the page header.</p>
+          </div>
+          <div class="form-group flex-1 min-w-24">
+            <label class="form-label" for="currency">Currency</label>
+            <input type="text" id="currency" name="currency" class="form-control" maxlength="3"
+                   value="{{ settings.currency }}">
+          </div>
+          <div class="form-group flex-1 min-w-24">
+            <label class="form-label" for="primary_color">Colour</label>
+            <input type="color" id="primary_color" name="primary_color" class="form-control h-10 p-0.5"
+                   value="{{ brand.color }}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="report_title">Report title (optional)</label>
+          <input type="text" id="report_title" name="report_title" class="form-control" maxlength="200"
+                 value="{{ settings.report_title or '' }}" placeholder="{{ brand.report_title }}">
+        </div>
+        <button type="submit" class="btn btn--primary"><i class="fas fa-save"></i> Save branding</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Payout purposes -->
+  <div class="card mb-5">
+    <div class="card__body flex justify-between items-center gap-4">
+      <div>
+        <strong><i class="fas fa-hand-holding-heart"></i> Payout purposes</strong>
+        <p class="form-hint m-0">The reasons your group pays money out, e.g. funeral condolence.</p>
+      </div>
+      <a href="{{ url_for('main.payout_purposes') }}" class="btn btn--outline btn--sm">Manage</a>
+    </div>
+  </div>
+
+  <!-- Setup checklist -->
+  <div class="card mb-5">
+    <div class="card__body flex justify-between items-center gap-4">
+      <div>
+        <strong><i class="fas fa-list-check"></i> Setup checklist</strong>
+        <p class="form-hint m-0">The steps to get your group running, and which are done.</p>
+      </div>
+      <a href="{{ url_for('main.setup') }}" class="btn btn--outline btn--sm">Open</a>
+    </div>
+  </div>
+
+  <!-- Public pages -->
+  <div class="card mb-5">
+    <div class="card__body flex justify-between items-center gap-4">
+      <div>
+        <strong><i class="fas fa-globe"></i> Public pages</strong>
+        <p class="form-hint m-0">What members see without an account, and the group code.</p>
+      </div>
+      <a href="{{ url_for('main.public_pages') }}" class="btn btn--outline btn--sm">Manage</a>
+    </div>
+  </div>
+
+  <!-- Workbook layout -->
+  <div class="card mb-5">
+    <div class="card__body flex justify-between items-center gap-4">
+      <div>
+        <strong><i class="fas fa-table"></i> Workbook layout</strong>
+        <p class="form-hint m-0">
+          {{ 'Custom settings for reading your workbook.' if custom_layout else 'Worked out automatically.' }}
+          Only needed for workbooks not made from the standard template.
+        </p>
+      </div>
+      <a href="{{ url_for('main.workbook_layout') }}" class="btn btn--outline btn--sm">
+        {{ 'Change' if custom_layout else 'Set up' }}</a>
+    </div>
+  </div>
+
+  <!-- Setup instructions -->
+  <div class="card">
+    <div class="card__header">
+      <h2 class="card__title"><i class="fas fa-info-circle"></i> Setup Instructions</h2>
+    </div>
+    <div class="card__body">
+      <ol class="setup-steps">
+        {% set steps = [
+          ('fas fa-file-excel',  'Create a Google Sheet', 'Start from the standard template on the Workbook page, or keep your current layout and set it up under Workbook layout.'),
+          ('fas fa-share-alt',   'Share the Sheet',       'Share it as Viewer with the service account email shown above.'),
+          ('fas fa-copy',        'Copy the URL',          'Copy the full URL from your browser address bar while viewing the sheet.'),
+          ('fas fa-paste',       'Paste & Save',          'Paste the URL above and click Save Settings. The system will use it as the default source for new reports.'),
+        ] %}
+        {% for icon, title, desc in steps %}
+        <li class="setup-step">
+          <div class="setup-step__num">{{ loop.index }}</div>
+          <div class="setup-step__icon"><i class="{{ icon }}"></i></div>
+          <div>
+            <div class="setup-step__title">{{ title }}</div>
+            <div class="setup-step__desc text-sm text-muted">{{ desc }}</div>
+          </div>
+        </li>
+        {% endfor %}
+      </ol>
+
+      <div class="info-note">
+        <i class="fas fa-exclamation-circle"></i>
+        <div>
+          <strong>Credentials required:</strong> Google Sheets integration also needs
+          <code>GOOGLE_CREDENTIALS_PATH</code> or <code>GOOGLE_CREDENTIALS_JSON</code>
+          set in your <code>instance/config.py</code> or environment variables.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
 {% endblock %}

@@ -1,0 +1,12 @@
+{
+  "name": "welfare-system-assets",
+  "private": true,
+  "description": "Builds app/static/css/app.css with Tailwind. Only needed to change styles: the built file is committed, so the app itself never needs Node.",
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i app/static/src/app.css -o app/static/css/app.css --minify",
+    "watch:css": "tailwindcss -c tailwind.config.js -i app/static/src/app.css -o app/static/css/app.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}

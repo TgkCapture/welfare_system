@@ -1,0 +1,48 @@
+<!-- app/templates/auth/find_group.html -->
+{% extends 'base.html' %}
+{% block title %}Sign In — {{ brand.name }}{% endblock %}
+
+{% block extra_css %}
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+
+    <div class="auth-card__top">
+      <div class="auth-card__icon"><i class="fas fa-users"></i></div>
+      <h1 class="auth-card__title">Find your group</h1>
+      <p class="auth-card__sub">Officers sign in on their group's own page</p>
+    </div>
+
+    <div class="auth-card__body">
+      <form method="POST" action="{{ url_for('auth.login', next=next) }}" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group">
+          <label class="form-label" for="group">
+            <i class="fas fa-hashtag"></i> Group code
+          </label>
+          <div class="input-wrap">
+            <i class="input-icon fas fa-users"></i>
+            <input class="form-control" id="group" name="group" type="text"
+                   placeholder="e.g. mzugoss" autocomplete="organization"
+                   autocapitalize="none" spellcheck="false" required autofocus>
+          </div>
+          <p class="form-hint">The code in your group's sign-in link: /g/<strong>code</strong>/login</p>
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--full btn--lg">
+          <i class="fas fa-arrow-right"></i> Continue
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Platform administrator?
+        <a href="{{ url_for('platform.login') }}">Sign in here</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

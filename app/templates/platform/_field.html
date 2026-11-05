@@ -1,0 +1,11 @@
+{# app/templates/platform/_field.html — one labelled form field with its errors #}
+{% macro field(f, icon, hint=None, type=None) %}
+<div class="form-group">
+  <label class="form-label" for="{{ f.id }}"><i class="fas fa-{{ icon }}"></i> {{ f.label.text }}</label>
+  {{ f(class="form-control" + (" is-invalid" if f.errors else "")) }}
+  {% if hint %}<p class="form-hint">{{ hint }}</p>{% endif %}
+  {% for e in f.errors %}
+    <p class="form-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</p>
+  {% endfor %}
+</div>
+{% endmacro %}

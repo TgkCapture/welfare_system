@@ -13,3 +13,21 @@ instance/config.py
 instance/config.py
 credentials/mzugoss-welfare-5dab294def1f.json
 run_migration.py
+instance/welfare_dev.db
+
+# Real member workbooks (personal data) - never commit
+/*.xlsx
+/*.xls
+/*.csv
+instance/*.db
+backups/
+
+# Legacy workbook conversions (real member data)
+conversion/
+
+# Front-end build tooling (the built CSS is committed)
+node_modules/
+tools/
+
+# Group logos uploaded by officers
+instance/branding/

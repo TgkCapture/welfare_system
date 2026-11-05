@@ -1,517 +1,545 @@
 # app/services/pdf_service.py
+"""
+PDF generation using ReportLab.
+
+Two documents are produced here:
+
+  generate_welfare_rules_pdf()        — a group's rules document, from its rule sections
+  generate_contribution_report_pdf()  — per-month financial report
+
+Both return raw ``bytes`` so the caller can stream them directly via
+``make_response`` or write them to disk.  ``save_contribution_report()``
+writes the contribution report to the report folder and returns its path.
+
+Design notes:
+  - All styles are defined once in ``_Styles`` and shared across both
+    generators — change a colour/font there to re-theme everything.
+  - Section builders are private static methods so each logical block
+    is independently readable and testable.
+  - Every public method re-raises on failure after logging — callers
+    decide how to handle the error (flash, fallback, etc.).
+"""
 import io
-from datetime import datetime
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch, cm
-from reportlab.lib import colors
-from reportlab.pdfgen import canvas
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from flask import current_app
 import logging
+import os
+import re
+import uuid
+from datetime import datetime
+
 import pandas as pd
+from flask import current_app
+from markupsafe import escape
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import (
+    Image,
+    PageBreak,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Shared colour constants
+# ---------------------------------------------------------------------------
+_BLUE        = colors.HexColor('#2563eb')
+_BLUE_DARK   = colors.HexColor('#1d4ed8')
+_BLUE_LIGHT  = colors.HexColor('#dbeafe')
+_SLATE_900   = colors.HexColor('#0f172a')
+_SLATE_700   = colors.HexColor('#374151')
+_SLATE_500   = colors.HexColor('#6b7280')
+_SLATE_100   = colors.HexColor('#f1f5f9')
+_SLATE_50    = colors.HexColor('#f8fafc')
+_WHITE       = colors.white
+_RED_HDR     = colors.HexColor('#ef4444')
+_RED_LIGHT   = colors.HexColor('#fef2f2')
+_RED_BORDER  = colors.HexColor('#fecaca')
+_AMBER_BG    = colors.HexColor('#fef3c7')
+_AMBER_BORDER= colors.HexColor('#f59e0b')
+_GRID        = colors.HexColor('#e2e8f0')
+
+
+class _Styles:
+    """Lazy-initialised paragraph style registry."""
+
+    _cache: dict = {}
+
+    @classmethod
+    def get(cls) -> dict:
+        if cls._cache:
+            return cls._cache
+
+        base = getSampleStyleSheet()
+
+        def ps(name, **kw):
+            parent = kw.pop('parent', base['Normal'])
+            return ParagraphStyle(name, parent=parent, **kw)
+
+        cls._cache = {
+            # ── Welfare rules ──────────────────────────────────────────
+            'title': ps(
+                'WR_Title', parent=base['Heading1'],
+                fontSize=22, spaceAfter=24,
+                textColor=_BLUE, alignment=TA_CENTER,
+                fontName='Helvetica-Bold',
+            ),
+            'heading': ps(
+                'WR_Heading', parent=base['Heading2'],
+                fontSize=15, spaceAfter=10, spaceBefore=6,
+                textColor=_SLATE_900, fontName='Helvetica-Bold',
+                leftIndent=8,
+            ),
+            'subheading': ps(
+                'WR_Sub', parent=base['Heading3'],
+                fontSize=12, spaceAfter=4,
+                textColor=_SLATE_700, fontName='Helvetica-Bold',
+            ),
+            'body': ps(
+                'WR_Body',
+                fontSize=10, spaceAfter=6,
+                textColor=_SLATE_700, leading=14,
+            ),
+            'bullet': ps(
+                'WR_Bullet',
+                fontSize=10, spaceAfter=3, spaceBefore=2,
+                textColor=_SLATE_700, leading=14,
+                leftIndent=18, firstLineIndent=-10,
+            ),
+            'important': ps(
+                'WR_Important',
+                fontSize=10, spaceAfter=10, spaceBefore=10,
+                textColor=_SLATE_700, leading=14,
+                backColor=_AMBER_BG,
+                borderColor=_AMBER_BORDER,
+                borderWidth=1, borderPadding=10,
+                leftIndent=8, rightIndent=8,
+            ),
+            'footer': ps(
+                'WR_Footer',
+                fontSize=8, spaceAfter=0,
+                textColor=_SLATE_500, alignment=TA_CENTER,
+            ),
+            # ── Contribution report ────────────────────────────────────
+            'rpt_title': ps(
+                'RPT_Title', parent=base['Heading1'],
+                fontSize=16, spaceAfter=16,
+                textColor=_BLUE, alignment=TA_CENTER,
+                fontName='Helvetica-Bold',
+            ),
+            'rpt_section': ps(
+                'RPT_Section', parent=base['Heading2'],
+                fontSize=12, spaceAfter=10, spaceBefore=4,
+                textColor=_SLATE_900, fontName='Helvetica-Bold',
+                leftIndent=8,
+            ),
+            'rpt_body': ps(
+                'RPT_Body',
+                fontSize=9, spaceAfter=4,
+                textColor=_SLATE_700, leading=12,
+            ),
+            'rpt_footer': ps(
+                'RPT_Footer',
+                fontSize=7, spaceAfter=0,
+                textColor=_SLATE_500, alignment=TA_CENTER,
+            ),
+        }
+        return cls._cache
+
+
+# ---------------------------------------------------------------------------
+# Reusable table-style helpers
+# ---------------------------------------------------------------------------
+
+def _blue_header_table_style(extra=None):
+    base = [
+        ('BACKGROUND',  (0, 0), (-1,  0), _BLUE),
+        ('TEXTCOLOR',   (0, 0), (-1,  0), _WHITE),
+        ('ALIGN',       (0, 0), (-1,  0), 'CENTER'),
+        ('FONTNAME',    (0, 0), (-1,  0), 'Helvetica-Bold'),
+        ('FONTSIZE',    (0, 0), (-1,  0), 11),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BACKGROUND',  (0, 1), (-1, -1), _WHITE),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [_WHITE, _SLATE_50]),
+        ('GRID',        (0, 0), (-1, -1), 0.5, _GRID),
+        ('FONTNAME',    (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE',    (0, 1), (-1, -1), 9),
+        ('TOPPADDING',  (0, 1), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+    ]
+    return TableStyle(base + (extra or []))
+
+
+def _summary_table_style():
+    return TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), _SLATE_50),
+        ('GRID',          (0, 0), (-1, -1), 0.5, _GRID),
+        ('FONTNAME',      (0, 0), (0,  -1), 'Helvetica-Bold'),
+        ('FONTNAME',      (1, 0), (1,  -1), 'Helvetica'),
+        ('FONTSIZE',      (0, 0), (-1, -1), 10),
+        ('TOPPADDING',    (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Main public class
+# ---------------------------------------------------------------------------
+
 class PDFGenerator:
-    """Utility class for generating PDF documents using ReportLab"""
-    
+    """ReportLab-based PDF generation for welfare documents."""
+
+    # ------------------------------------------------------------------
+    # Welfare rules PDF
+    # ------------------------------------------------------------------
+
     @staticmethod
-    def generate_welfare_rules_pdf():
+    def generate_welfare_rules_pdf(brand, sections) -> bytes:
+        """Build a group's welfare rules document from its rule sections.
+
+        *sections* are RuleSection rows in order; their bodies use the rules
+        markup, which turns into the same bold, italic and lists as on the
+        web page.
+
+        Raises:
+            Exception: on any ReportLab failure.
         """
-        Generate PDF from welfare rules using ReportLab
-        
-        Returns:
-            bytes: PDF file content
-        """
+        from app.services.rules_markup import parse
+
         try:
-            # Create a bytes buffer for the PDF
-            buffer = io.BytesIO()
-            
-            # Create the PDF document
+            buf = io.BytesIO()
             doc = SimpleDocTemplate(
-                buffer,
-                pagesize=A4,
-                rightMargin=72,
-                leftMargin=72,
-                topMargin=72,
-                bottomMargin=72,
-                title="Mzugoss Welfare Rules"
+                buf, pagesize=A4,
+                rightMargin=60, leftMargin=60,
+                topMargin=60,   bottomMargin=60,
+                title=f'{brand.name} welfare rules',
             )
-            
-            # Container for the 'Flowable' objects
-            story = []
-            
-            # Get styles
-            styles = getSampleStyleSheet()
-            
-            # Custom Styles
-            title_style = ParagraphStyle(
-                'CustomTitle',
-                parent=styles['Heading1'],
-                fontSize=24,
-                spaceAfter=30,
-                textColor=colors.HexColor('#2563eb'),
-                alignment=TA_CENTER,
-                fontName='Helvetica-Bold'
-            )
-            
-            heading_style = ParagraphStyle(
-                'CustomHeading',
-                parent=styles['Heading2'],
-                fontSize=16,
-                spaceAfter=12,
-                textColor=colors.HexColor('#1e293b'),
-                fontName='Helvetica-Bold',
-                borderPadding=5,
-                borderColor=colors.HexColor('#2563eb'),
-                borderWidth=1,
-                leftIndent=10
-            )
-            
-            subheading_style = ParagraphStyle(
-                'CustomSubheading',
-                parent=styles['Heading3'],
-                fontSize=14,
-                spaceAfter=6,
-                textColor=colors.HexColor('#374151'),
-                fontName='Helvetica-Bold'
-            )
-            
-            normal_style = ParagraphStyle(
-                'Normal',
-                parent=styles['Normal'],
-                fontSize=11,
-                spaceAfter=8,
-                textColor=colors.HexColor('#4b5563'),
-                leading=14
-            )
-            
-            bullet_style = ParagraphStyle(
-                'Bullet',
-                parent=normal_style,
-                leftIndent=20,
-                firstLineIndent=-10,
-                spaceBefore=4,
-                spaceAfter=4
-            )
-            
-            important_style = ParagraphStyle(
-                'Important',
-                parent=normal_style,
-                backColor=colors.HexColor('#fef3c7'),
-                borderColor=colors.HexColor('#f59e0b'),
-                borderWidth=1,
-                borderPadding=10,
-                leftIndent=10,
-                rightIndent=10,
-                spaceBefore=10,
-                spaceAfter=10
-            )
-            
-            footer_style = ParagraphStyle(
-                'Footer',
-                parent=normal_style,
-                fontSize=8,
-                textColor=colors.HexColor('#666666'),
-                alignment=TA_CENTER
-            )
-            
-            # Add Title
-            title = Paragraph("Mzugoss Welfare Rules & Guidelines", title_style)
-            story.append(title)
-            
-            # Add date and version
-            date_text = f"Last Updated: {datetime.now().strftime('%Y-%m-%d')} | Version {current_app.version if hasattr(current_app, 'version') else '1.0'}"
-            story.append(Paragraph(date_text, normal_style))
-            story.append(Spacer(1, 20))
-            
-            # Quick Summary Section
-            story.append(Paragraph("Quick Summary", heading_style))
-            
-            # Fees Table
-            fee_data = [
-                ['Service', 'Amount', 'Period'],
-                ['Monthly Contribution', 'K1,000', 'per month'],
-                ['Funeral Support', 'K50,000', 'per incident'],
-                ['Wedding Support', 'K80,000', 'per wedding'],
-                ['Sickness Support', 'K15,000', 'per admission'],
-                ['Member Death Support', 'K80,000', 'per member']
+
+            s     = _Styles.get()
+            story = PDFGenerator._logo(brand.logo_file) + [
+                Paragraph(f'{escape(brand.name)} — welfare rules', s['title']),
+                Paragraph(f"Printed {datetime.now().strftime('%d %B %Y')}", s['body']),
+                Spacer(1, 16),
             ]
-            
-            fee_table = Table(fee_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
-            fee_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 12),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8fafc')),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 1), (-1, -1), 11),
-                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#cbd5e1')),
-                ('TOPPADDING', (0, 1), (-1, -1), 8),
-                ('BOTTOMPADDING', (0, 1), (-1, -1), 8)
-            ]))
-            story.append(fee_table)
-            story.append(Spacer(1, 20))
-            
-            # Important Notice
-            story.append(Paragraph(
-                "<b>Important Notice:</b> Only contributing members are eligible for welfare benefits. "
-                "Those who do not contribute regularly cannot receive any welfare money.",
-                important_style
-            ))
-            
-            story.append(Spacer(1, 20))
-            
-            # Funeral Rules Section
-            story.append(Paragraph("Funeral Support Rules", heading_style))
-            story.append(Paragraph("Financial assistance during bereavement", subheading_style))
-            
-            funeral_content = [
-                "Money will only be released for immediate family members:",
-                "• Mother, Father, Sister, Brother",
-                "• Legal Guardian, Husband/Wife, Children",
-                "",
-                "<b>Support Amount:</b> K50,000 per funeral incident",
-                "",
-                "<b>Note:</b> Documentation may be required to verify relationship."
-            ]
-            
-            for item in funeral_content:
-                if item.startswith("•"):
-                    story.append(Paragraph(item, bullet_style))
-                elif item.startswith("<b>"):
-                    story.append(Paragraph(item, normal_style))
-                else:
-                    story.append(Paragraph(item, normal_style))
-            
-            story.append(Spacer(1, 15))
-            
-            # Deceased Member Support Section
-            story.append(Paragraph("Deceased Member Support", heading_style))
-            story.append(Paragraph("Support for when a contributing member passes away", subheading_style))
-            
-            deceased_content = [
-                "<b>Special Support:</b> K80,000 support for family",
-                "",
-                "<b>Clarification:</b> This support is specifically for when a member (someone who contributes regularly) passes away. The K80,000 is provided to support the member's family during this difficult time."
-            ]
-            
-            for item in deceased_content:
-                story.append(Paragraph(item, normal_style))
-            
-            story.append(Spacer(1, 15))
-            
-            # Page Break
-            story.append(PageBreak())
-            
-            # Contribution Rules Section
-            story.append(Paragraph("Contribution Rules", heading_style))
-            story.append(Paragraph("Monthly contributions and penalties", subheading_style))
-            
-            contribution_content = [
-                "<b>1. Monthly Contribution:</b> K1,000 per month",
-                "<b>2. Late Payment Penalties:</b> 5% penalty per month for late contributions.",
-                "<i>Example: 2 months late = 10% penalty</i>",
-                "",
-                "<b>3. Back Payments:</b> Missed months must be paid for the specific period they were missed.",
-                "",
-                "<b>4. Benefits Calculation:</b> Number of times you can receive help = Number of months you've contributed.",
-                "<i>Example: 3 months contribution = 3 times eligible for support</i>"
-            ]
-            
-            for item in contribution_content:
-                story.append(Paragraph(item, normal_style))
-            
-            story.append(Spacer(1, 15))
-            
-            # Sickness Rules Section
-            story.append(Paragraph("Sickness Support", heading_style))
-            story.append(Paragraph("Medical and hospitalization assistance", subheading_style))
-            
-            sickness_content = [
-                "<b>Eligibility Criteria:</b>",
-                "Support is provided for members who are admitted in the hospital for a couple of days.",
-                "Outpatient visits and minor illnesses are not covered.",
-                "",
-                "<b>Support Amount:</b> K15,000 per hospital admission",
-                "",
-                "<b>Documentation:</b> Hospital admission records may be required."
-            ]
-            
-            for item in sickness_content:
-                story.append(Paragraph(item, normal_style))
-            
-            story.append(Spacer(1, 15))
-            
-            # Wedding Rules Section
-            story.append(Paragraph("Wedding Support", heading_style))
-            story.append(Paragraph("Celebratory financial assistance", subheading_style))
-            
-            wedding_content = [
-                "<b>Support Amount:</b> K80,000 per wedding ceremony",
-                "Available to contributing members for their own wedding ceremony",
-                "",
-                "<b>Note:</b> One-time support per member for wedding ceremonies."
-            ]
-            
-            for item in wedding_content:
-                story.append(Paragraph(item, normal_style))
-            
-            story.append(Spacer(1, 20))
-            
-            # Key Points Section
-            story.append(Paragraph("Key Points to Remember", heading_style))
-            
-            key_points = [
-                "• Regular contributions ensure eligibility for support when needed",
-                "• Pay on time to avoid 5% monthly penalties",
-                "• Benefits are proportional to your contributions",
-                "• Immediate family coverage for funerals",
-                "• Sickness support: K15,000 for hospital admissions",
-                "• Wedding support: K80,000 per ceremony",
-                "• Member death support: K80,000 for family",
-                "• No welfare money for non-contributors"
-            ]
-            
-            for point in key_points:
-                story.append(Paragraph(point, bullet_style))
-            
-            story.append(Spacer(1, 20))
-            
-            # Footer
-            footer_text = [
-                f"Confidential - For Mzugoss Members Only",
-                f"Generated on: {datetime.now().strftime('%Y-%m-%d at %H:%M')}",
-                "These rules are designed to ensure fair and sustainable welfare support for all contributing members.",
-                "For any clarifications, please contact the welfare committee."
-            ]
-            
-            for line in footer_text:
-                story.append(Paragraph(line, footer_style))
-            
-            # Build PDF
-            doc.build(story)
-            
-            # Get the value of the BytesIO buffer
-            pdf = buffer.getvalue()
-            buffer.close()
-            
-            logger.info("Successfully generated welfare rules PDF")
-            return pdf
-            
-        except Exception as e:
-            logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
-            raise Exception(f"Failed to generate PDF: {str(e)}")
-    
-    @staticmethod
-    def generate_contribution_report_pdf(data):
-        """
-        Generate a PDF report from contribution data
-        
-        Args:
-            data (dict): Contribution data from ExcelParser
-            
-        Returns:
-            bytes: PDF file content
-        """
-        try:
-            buffer = io.BytesIO()
-            
-            # Create PDF document
-            doc = SimpleDocTemplate(
-                buffer,
-                pagesize=A4,
-                rightMargin=50,
-                leftMargin=50,
-                topMargin=50,
-                bottomMargin=50,
-                title=f"Contributions Report - {data.get('month', '')} {data.get('year', '')}"
-            )
-            
-            story = []
-            styles = getSampleStyleSheet()
-            
-            # Custom Styles
-            title_style = ParagraphStyle(
-                'ReportTitle',
-                parent=styles['Heading1'],
-                fontSize=18,
-                spaceAfter=20,
-                textColor=colors.HexColor('#2563eb'),
-                alignment=TA_CENTER,
-                fontName='Helvetica-Bold'
-            )
-            
-            section_style = ParagraphStyle(
-                'Section',
-                parent=styles['Heading2'],
-                fontSize=14,
-                spaceAfter=12,
-                textColor=colors.HexColor('#1e293b'),
-                fontName='Helvetica-Bold',
-                leftIndent=10
-            )
-            
-            normal_style = ParagraphStyle(
-                'ReportNormal',
-                parent=styles['Normal'],
-                fontSize=10,
-                spaceAfter=6,
-                leading=12
-            )
-            
-            # Title
-            title = Paragraph(f"MZUGOSS CLASS OF 2018 MONTHLY CONTRIBUTIONS REPORT", title_style)
-            story.append(title)
+
+            if not sections:
+                story.append(Paragraph('No rules have been written yet.', s['body']))
+            for section in sections:
+                story.append(Paragraph(escape(section.title), s['heading']))
+                if section.subtitle:
+                    story.append(Paragraph(escape(section.subtitle), s['subheading']))
+                for block in parse(section.body):
+                    if block.kind == 'ul':
+                        story.extend(Paragraph(f'• {item}', s['bullet']) for item in block.items)
+                    elif block.kind == 'ol':
+                        story.extend(Paragraph(f'{n}. {item}', s['bullet'])
+                                     for n, item in enumerate(block.items, start=1))
+                    elif block.kind == 'note':
+                        story.append(Paragraph(f'<i>{block.items[0]}</i>', s['body']))
+                    else:
+                        story.append(Paragraph(str(block.items[0]), s['body']))
+                story.append(Spacer(1, 14))
+
             story.append(Spacer(1, 10))
-            
-            # Report Period
-            period = Paragraph(f"Report for {data.get('month', '')} {data.get('year', '')}", section_style)
-            story.append(period)
-            story.append(Spacer(1, 15))
-            
-            # Summary Statistics
-            story.append(Paragraph("SUMMARY STATISTICS", section_style))
-            
-            summary_data = [
-                ["Total Contributions:", f"MWK {data.get('total_contributions', 0):,.2f}"],
-                ["Number of Contributors:", str(data.get('num_contributors', 0))],
-                ["Number of Defaulters:", str(data.get('num_missing', 0))]
-            ]
-            
-            # Add optional financial info
-            money_dispensed = data.get('money_dispensed')
-            if money_dispensed is not None:
-                try:
-                    summary_data.append(["Money Dispensed:", f"MWK {float(money_dispensed):,.2f}"])
-                except (ValueError, TypeError):
-                    summary_data.append(["Money Dispensed:", str(money_dispensed)])
-            
-            total_book_balance = data.get('total_book_balance')
-            if total_book_balance is not None:
-                try:
-                    summary_data.append(["Total Book Balance:", f"MWK {float(total_book_balance):,.2f}"])
-                except (ValueError, TypeError):
-                    summary_data.append(["Total Book Balance:", str(total_book_balance)])
-            
-            summary_table = Table(summary_data, colWidths=[3*inch, 2*inch])
-            summary_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
-                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
-                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('TOPPADDING', (0, 0), (-1, -1), 6),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold')
-            ]))
-            story.append(summary_table)
-            story.append(Spacer(1, 20))
-            
-            # Paid Members Section
-            story.append(Paragraph("PAID MEMBERS", section_style))
-            
-            # Get paid members data
-            df = data.get('data')
-            month_col = data.get('month_col')
-            name_col = data.get('name_col')
-            
-            if isinstance(df, pd.DataFrame) and not df.empty and month_col and name_col:
-                paid_df = df[~df[month_col].isna()]
-                
-                if not paid_df.empty:
-                    # Create table data
-                    table_data = [["Name", "Amount (MWK)"]]
-                    
-                    for _, row in paid_df.iterrows():
-                        name = str(row[name_col])
-                        amount = row[month_col]
-                        try:
-                            amount_str = f"{float(amount):,.2f}"
-                        except (ValueError, TypeError):
-                            amount_str = str(amount)
-                        table_data.append([name, amount_str])
-                    
-                    # Create table
-                    paid_table = Table(table_data, colWidths=[3.5*inch, 1.5*inch])
-                    paid_table.setStyle(TableStyle([
-                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0, 0), (-1, 0), 11),
-                        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
-                        ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
-                        ('FONTSIZE', (0, 1), (-1, -1), 9),
-                        ('TOPPADDING', (0, 1), (-1, -1), 4),
-                        ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
-                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')])
-                    ]))
-                    story.append(paid_table)
-                else:
-                    story.append(Paragraph("No paid members for this period", normal_style))
-            else:
-                story.append(Paragraph("No member data available", normal_style))
-            
-            story.append(Spacer(1, 20))
-            
-            # Defaulters Section (if any)
-            num_missing = data.get('num_missing', 0)
-            if num_missing > 0:
-                story.append(Paragraph("DEFAULTERS", section_style))
-                
-                # Get defaulters list
-                defaulters = data.get('defaulters', [])
-                if defaulters:
-                    defaulter_data = [["Name"]]
-                    defaulter_data.extend([[str(name)] for name in defaulters])
-                    
-                    defaulter_table = Table(defaulter_data, colWidths=[5*inch])
-                    defaulter_table.setStyle(TableStyle([
-                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ef4444')),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0, 0), (-1, 0), 11),
-                        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#fef2f2')),
-                        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#fecaca')),
-                        ('FONTSIZE', (0, 1), (-1, -1), 9),
-                        ('TOPPADDING', (0, 1), (-1, -1), 4),
-                        ('BOTTOMPADDING', (0, 1), (-1, -1), 4)
-                    ]))
-                    story.append(defaulter_table)
-            
-            story.append(Spacer(1, 20))
-            
-            # Footer
-            footer = Paragraph(
-                f"Report generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
-                f"Version {current_app.version if hasattr(current_app, 'version') else '1.0'}",
-                ParagraphStyle(
-                    'Footer',
-                    parent=normal_style,
-                    fontSize=8,
-                    textColor=colors.HexColor('#666666'),
-                    alignment=TA_CENTER
-                )
-            )
-            story.append(footer)
-            
-            # Build PDF
+            story.append(Paragraph(f'For {escape(brand.name)} members.', s['footer']))
+
             doc.build(story)
-            
-            pdf = buffer.getvalue()
-            buffer.close()
-            
-            logger.info(f"Successfully generated contribution report PDF for {data.get('month', '')} {data.get('year', '')}")
+            pdf = buf.getvalue()
+            buf.close()
+
+            logger.info('Generated welfare rules PDF')
             return pdf
-            
+
         except Exception as e:
-            logger.error(f"Contribution report PDF generation failed: {str(e)}", exc_info=True)
-            raise Exception(f"Failed to generate contribution report PDF: {str(e)}")
+            logger.error(f'Welfare rules PDF failed: {e}', exc_info=True)
+            raise Exception(f'Failed to generate welfare rules PDF: {e}') from e
+
+    # ------------------------------------------------------------------
+    # Contribution report PDF
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def generate_contribution_report_pdf(data: dict) -> bytes:
+        """Generate a per-month contribution report.
+
+        Args:
+            data: Dict from ``ExcelParser.parse_excel()``.
+
+        Returns:
+            Raw PDF bytes.
+
+        Raises:
+            Exception: on any ReportLab failure.
+        """
+        month = data.get('month', '')
+        year  = data.get('year', '')
+
+        try:
+            buf = io.BytesIO()
+            doc = SimpleDocTemplate(
+                buf, pagesize=A4,
+                rightMargin=50, leftMargin=50,
+                topMargin=50,   bottomMargin=50,
+                title=f'Contributions Report — {month} {year}',
+            )
+
+            s     = _Styles.get()
+            story = PDFGenerator._logo(data.get('logo_file'))
+
+            # ── Title ──────────────────────────────────────────────────
+            story.append(Paragraph(
+                escape(data.get('report_title') or 'Monthly contributions report').upper(),
+                s['rpt_title'],
+            ))
+            story.append(Paragraph(f'Report for {month} {year}', s['rpt_section']))
+            story.append(Spacer(1, 12))
+
+            # ── Summary ────────────────────────────────────────────────
+            story.extend(PDFGenerator._summary_section(data, s))
+            story.append(Spacer(1, 16))
+
+            # ── Balances and payouts, the year so far ──────────────────
+            if 'dispensed_to_date' in data:
+                story.extend(PDFGenerator._balance_section(data, s))
+                story.append(Spacer(1, 16))
+                story.extend(PDFGenerator._payouts_section(data, s))
+                story.append(Spacer(1, 16))
+
+            # ── Paid members ───────────────────────────────────────────
+            story.extend(PDFGenerator._paid_members_section(data, s))
+            story.append(Spacer(1, 16))
+
+            # ── Defaulters ─────────────────────────────────────────────
+            if data.get('num_missing', 0) > 0:
+                story.extend(PDFGenerator._defaulters_section(data, s))
+                story.append(Spacer(1, 16))
+
+            # ── Footer ─────────────────────────────────────────────────
+            version = getattr(current_app, 'version', '1.0')
+            story.append(Paragraph(
+                f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
+                f"&nbsp;|&nbsp; Version {version}",
+                s['rpt_footer'],
+            ))
+
+            doc.build(story)
+            pdf = buf.getvalue()
+            buf.close()
+
+            logger.info(f'Generated contribution report PDF for {month} {year}')
+            return pdf
+
+        except Exception as e:
+            logger.error(
+                f'Contribution report PDF failed ({month} {year}): {e}',
+                exc_info=True,
+            )
+            raise Exception(
+                f'Failed to generate contribution report PDF: {e}'
+            ) from e
+
+    @staticmethod
+    def save_contribution_report(data: dict, report_folder: str) -> str:
+        """Generate the contribution report and write it to *report_folder*.
+
+        Returns:
+            Absolute path to the saved PDF file.
+        """
+        pdf = PDFGenerator.generate_contribution_report_pdf(data)
+
+        timestamp  = datetime.now().strftime('%Y%m%d%H%M%S')
+        month_safe = re.sub(r'[^A-Za-z0-9]+', '', str(data.get('month', ''))) or 'unknown'
+        # The random part keeps two reports made in the same second from sharing a file
+        filename   = (
+            f"contributions_report"
+            f"_{data.get('year', '')}_{month_safe}_{timestamp}_{uuid.uuid4().hex[:6]}.pdf"
+        )
+        report_path = os.path.join(report_folder, filename)
+
+        os.makedirs(report_folder, exist_ok=True)
+        with open(report_path, 'wb') as fh:
+            fh.write(pdf)
+
+        logger.info(f'Saved contribution report PDF to {report_path}')
+        return report_path
+
+    # ------------------------------------------------------------------
+    # Private section builders
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _logo(path) -> list:
+        """The group's logo, centred above the title, if it has one."""
+        if not path or not os.path.isfile(path):
+            return []
+        try:
+            from PIL import Image as PILImage
+            with PILImage.open(path) as img:
+                width, height = img.size
+            size = 0.9 * inch
+            scale = size / max(width, height)
+            logo = Image(path, width=width * scale, height=height * scale)
+            logo.hAlign = 'CENTER'
+            return [logo, Spacer(1, 8)]
+        except Exception as e:
+            logger.warning(f'Could not add the logo to a PDF: {e}')
+            return []
+
+    @staticmethod
+    def _summary_section(data: dict, s: dict) -> list:
+        """Build the summary statistics table flowables."""
+        cur = data.get('currency', 'MWK')
+        rows = [
+            ['Total Contributions',    f"{cur} {data.get('total_contributions', 0):,.2f}"],
+            ['Number of Contributors', str(data.get('num_contributors', 0))],
+            ['Number of Defaulters',   str(data.get('num_missing', 0))],
+        ]
+
+        # Groups with calculated balances get the balance section instead
+        if 'dispensed_to_date' not in data:
+            dispensed = data.get('money_dispensed')
+            if dispensed is not None:
+                rows.append(['Money Dispensed', f"{cur} {PDFGenerator._fmt(dispensed)}"])
+
+            balance = data.get('total_book_balance')
+            if balance is not None:
+                rows.append(['Total Book Balance', f"{cur} {PDFGenerator._fmt(balance)}"])
+
+        return [
+            Paragraph('SUMMARY STATISTICS', s['rpt_section']),
+            Table(
+                rows,
+                colWidths=[3.0*inch, 2.2*inch],
+                style=_summary_table_style(),
+            ),
+        ]
+
+    @staticmethod
+    def _balance_section(data: dict, s: dict) -> list:
+        """Opening balance, money in and out (this month and the year so far), book balance."""
+        cur, fmt = data.get('currency', 'MWK'), PDFGenerator._fmt
+        month, year = data.get('month', ''), data.get('year', '')
+        so_far = f'Jan–{month[:3]} {year}' if month[:3] != 'Jan' else f'{month} {year}'
+        rows = [
+            ['', f'{month} {year}', so_far],
+            [f'Opening balance, 1 January {year}', '', f"{cur} {fmt(data['opening_balance'])}"],
+            ['Paid in', f"{cur} {fmt(data.get('total_contributions') or 0)}",
+             f"{cur} {fmt(data['contributions_to_date'])}"],
+            ['Money dispensed', f"{cur} {fmt(data.get('money_dispensed') or 0)}",
+             f"{cur} {fmt(data['dispensed_to_date'])}"],
+            [f'Book balance, end of {month} {year}', '', f"{cur} {fmt(data.get('total_book_balance') or 0)}"],
+        ]
+        return [
+            Paragraph('BALANCES', s['rpt_section']),
+            Table(rows, colWidths=[2.6*inch, 1.4*inch, 1.4*inch], style=_blue_header_table_style([
+                ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+                ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ])),
+        ]
+
+    @staticmethod
+    def _payouts_section(data: dict, s: dict) -> list:
+        """Every payout of the year up to the end of the report's month."""
+        year, payouts = data.get('year', ''), data.get('payouts_to_date') or []
+        flowables = [Paragraph(f'MONEY DISPENSED IN {year}', s['rpt_section'])]
+        if not payouts:
+            flowables.append(Paragraph('Nothing paid out so far this year.', s['rpt_body']))
+            return flowables
+        rows = [['Date', 'To', 'Purpose', 'Amount']] + [
+            [p['paid_on'].strftime('%d %b %Y'), Paragraph(escape(p['beneficiary']), s['rpt_body']),
+             Paragraph(escape(p['purpose']), s['rpt_body']), PDFGenerator._fmt(p['amount'])]
+            for p in payouts
+        ] + [['', '', 'Total', PDFGenerator._fmt(data['dispensed_to_date'])]]
+        flowables.append(Table(rows, colWidths=[1.0*inch, 2.0*inch, 1.6*inch, 1.0*inch], repeatRows=1,
+                               style=_blue_header_table_style([
+                                   ('ALIGN', (3, 1), (3, -1), 'RIGHT'),
+                                   ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
+                                   ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                               ])))
+        return flowables
+
+    @staticmethod
+    def _paid_members_section(data: dict, s: dict) -> list:
+        """Build the paid-members table flowables."""
+        flowables = [Paragraph('PAID MEMBERS', s['rpt_section'])]
+
+        df        = data.get('data')
+        month_col = data.get('month_col')
+        name_col  = data.get('name_col')
+
+        if not isinstance(df, pd.DataFrame) or df.empty or not month_col or not name_col:
+            flowables.append(Paragraph('No member data available.', s['rpt_body']))
+            return flowables
+
+        paid_df = df[df[month_col].notna() & (df[month_col] > 0)]
+        if paid_df.empty:
+            flowables.append(Paragraph('No paid members for this period.', s['rpt_body']))
+            return flowables
+
+        rows = [['Name', f"Amount ({data.get('currency', 'MWK')})"]]
+        for _, row in paid_df.iterrows():
+            rows.append([
+                str(row[name_col]),
+                PDFGenerator._fmt(row[month_col]),
+            ])
+
+        flowables.append(
+            Table(
+                rows,
+                colWidths=[3.8*inch, 1.6*inch],
+                style=_blue_header_table_style([
+                    ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
+                ]),
+            )
+        )
+        return flowables
+
+    @staticmethod
+    def _defaulters_section(data: dict, s: dict) -> list:
+        """Build the defaulters table flowables."""
+        flowables  = [Paragraph('DEFAULTERS', s['rpt_section'])]
+        defaulters = data.get('defaulters', [])
+
+        if not defaulters:
+            flowables.append(Paragraph('No defaulters recorded.', s['rpt_body']))
+            return flowables
+
+        rows = [['Name']] + [[str(n)] for n in defaulters]
+        flowables.append(
+            Table(
+                rows,
+                colWidths=[5.4*inch],
+                style=TableStyle([
+                    ('BACKGROUND',    (0, 0), (-1,  0), _RED_HDR),
+                    ('TEXTCOLOR',     (0, 0), (-1,  0), _WHITE),
+                    ('ALIGN',         (0, 0), (-1,  0), 'CENTER'),
+                    ('FONTNAME',      (0, 0), (-1,  0), 'Helvetica-Bold'),
+                    ('FONTSIZE',      (0, 0), (-1,  0), 11),
+                    ('BACKGROUND',    (0, 1), (-1, -1), _RED_LIGHT),
+                    ('GRID',          (0, 0), (-1, -1), 0.5, _RED_BORDER),
+                    ('FONTSIZE',      (0, 1), (-1, -1), 9),
+                    ('TOPPADDING',    (0, 1), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+                ]),
+            )
+        )
+        return flowables
+
+    # ------------------------------------------------------------------
+    # Private — formatting
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _fmt(value) -> str:
+        """Format a numeric amount with thousands separators."""
+        try:
+            return f"{float(value):,.2f}"
+        except (ValueError, TypeError):
+            return str(value)

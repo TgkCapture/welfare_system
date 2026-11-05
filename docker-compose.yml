@@ -1,0 +1,60 @@
+# The app with Postgres and Redis. Settings come from .env (copy .env.example).
+#
+#   docker compose up -d --build
+#   docker compose exec web flask create-superadmin
+#   docker compose logs -f web
+#
+# The app listens on 127.0.0.1:8000 for a reverse proxy (nginx, Caddy) on the
+# same machine to serve over HTTPS; set WEB_PORT to change that.
+services:
+  web:
+    build: .
+    image: welfare-system:${APP_VERSION:-latest}
+    env_file: ${ENV_FILE:-.env}
+    environment:
+      DATABASE_URL: postgresql://welfare:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/welfare
+      RATELIMIT_STORAGE_URI: redis://redis:6379/0
+    ports:
+      - "${WEB_PORT:-127.0.0.1:8000}:8000"
+    volumes:
+      - uploads:/app/uploads
+      - reports:/app/reports
+      - logs:/app/logs
+      - branding:/app/instance/branding
+      # Google service account key, if GOOGLE_CREDENTIALS_JSON isn't used:
+      # - ./credentials/service_account.json:/app/credentials/service_account.json:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: welfare
+      POSTGRES_USER: welfare
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U welfare -d welfare"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Shared rate-limit counts for every gunicorn worker. Nothing in it needs
+  # keeping: losing it only resets the counts.
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    restart: unless-stopped
+
+volumes:
+  postgres:
+  uploads:
+  reports:
+  logs:
+  branding:

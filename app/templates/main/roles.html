@@ -1,0 +1,78 @@
+<!-- app/templates/main/roles.html -->
+{% extends 'base.html' %}
+{% block title %}Roles — {{ brand.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header__text">
+    <h1 class="page-header__title"><i class="fas fa-user-tag"></i> Roles</h1>
+    <p class="page-header__sub">What each officer role in your group can do</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="{{ url_for('main.admin_users') }}" class="btn btn--outline btn--sm">
+      <i class="fas fa-users-cog"></i> Officers
+    </a>
+    <a href="{{ url_for('main.create_role') }}" class="btn btn--primary btn--sm">
+      <i class="fas fa-plus"></i> Add Role
+    </a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Role</th>
+          <th>Permissions</th>
+          <th>Officers</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for role in roles %}
+        <tr>
+          <td><strong>{{ role.name }}</strong></td>
+          <td>
+            <div class="flex gap-1 flex-wrap">
+              {% for code, label in permissions.items() if role.has(code) %}
+                <span class="badge badge--primary" title="{{ label }}">{{ label }}</span>
+              {% else %}
+                <span class="text-muted text-sm">No permissions</span>
+              {% endfor %}
+            </div>
+          </td>
+          <td>{{ holders[role.id] }}</td>
+          <td>
+            {% if current_user.can_grant(role) %}
+            <div class="flex gap-1.5">
+              <a href="{{ url_for('main.edit_role', role_id=role.id) }}"
+                 class="btn btn--outline btn--sm" title="Edit">
+                <i class="fas fa-edit"></i>
+              </a>
+              {% if not holders[role.id] %}
+              <form method="POST" action="{{ url_for('main.delete_role', role_id=role.id) }}"
+                    data-confirm="Delete the {{ role.name }} role?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn--danger btn--sm" title="Delete">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </form>
+              {% endif %}
+            </div>
+            {% else %}
+            <span class="text-muted text-sm" title="This role has permissions you don't hold">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p class="form-hint mt-4">
+  You can only give a role permissions you hold yourself. A role that is still held by an officer
+  can't be deleted, so move its officers to another role first.
+</p>
+{% endblock %}

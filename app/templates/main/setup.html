@@ -1,0 +1,54 @@
+<!-- app/templates/main/setup.html — the setup checklist for a new group -->
+{% extends 'base.html' %}
+{% from 'components/ui.html' import page_header, card, button, badge %}
+{% block title %}Setup — {{ brand.name }}{% endblock %}
+
+{% block content %}
+{% call page_header('Set up ' ~ brand.name, icon='list-check',
+                    sub=('All done: your group is ready.' if complete else done ~ ' of ' ~ total ~ ' steps done')) %}
+  {% if current_user.has_permission('manage_users') or current_user.has_permission('edit_settings') %}
+  <form method="POST" action="{{ url_for('main.toggle_setup') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if dismissed %}
+      {{ button('Show on dashboard', icon='eye', variant='outline', size='sm', name='action', value='show') }}
+    {% else %}
+      {{ button('Hide from dashboard', icon='eye-slash', variant='outline', size='sm', name='action', value='hide') }}
+    {% endif %}
+  </form>
+  {% endif %}
+{% endcall %}
+
+<div class="mb-6 h-2 max-w-3xl overflow-hidden rounded-full bg-slate-200" role="progressbar"
+     aria-valuenow="{{ done }}" aria-valuemin="0" aria-valuemax="{{ total }}">
+  <div class="h-full rounded-full bg-emerald-500" style="width: {{ (100 * done / total)|round|int }}%"></div>
+</div>
+
+<ol class="max-w-3xl space-y-3">
+  {% for step in steps %}
+  {% set allowed = current_user.has_permission(step.permission) %}
+  {% set is_next = next and step.key == next.key %}
+  <li class="card {{ 'ring-2 ring-brand' if is_next }}">
+    <div class="flex items-start gap-4 p-5">
+      <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold
+                   {{ 'bg-emerald-500 text-white' if step.done else 'bg-brand text-white' if is_next else 'bg-slate-100 text-slate-500' }}">
+        {% if step.done %}<i class="fas fa-check"></i>{% else %}{{ loop.index }}{% endif %}
+      </span>
+      <div class="min-w-0 flex-1">
+        <h2 class="flex flex-wrap items-center gap-2 text-base font-bold {{ 'text-slate-500' if step.done }}">
+          <i class="fas fa-{{ step.icon }} text-brand"></i> {{ step.title }}
+          {% if is_next %}{{ badge('Next', 'primary') }}{% endif %}
+        </h2>
+        <p class="mt-1 text-sm text-slate-600">{{ step.text }}</p>
+        {% if not allowed and not step.done %}
+          <p class="form-hint">Ask an officer whose role allows this.</p>
+        {% endif %}
+      </div>
+      {% if allowed %}
+        {{ button('Done, change' if step.done else 'Start', href=url_for(step.endpoint),
+                  variant='outline' if step.done else 'primary', size='sm') }}
+      {% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ol>
+{% endblock %}

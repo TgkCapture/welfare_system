@@ -1,23 +1,28 @@
 # app/routes/auth.py
+"""
+Authentication and profile routes.
+"""
 from flask import Blueprint
+
 from app.controllers.auth_controller import AuthController
+from app.controllers.profile_controller import ProfileController
 
 auth = Blueprint('auth', __name__, url_prefix='/auth')
 
-# ==================== LOGIN/LOGOUT ====================
-auth.route('/login', methods=['GET', 'POST'])(AuthController.login)
+# ==================== AUTH ====================
+# Group finder — officers sign in at /g/<slug>/login, superadmins at
+# /platform/login. No public registration: members do not have accounts.
+auth.route('/login',  methods=['GET', 'POST'])(AuthController.login)
 auth.route('/logout')(AuthController.logout)
 
-# ==================== USER PROFILE ====================
-auth.route('/profile', methods=['GET', 'POST'])(AuthController.profile)
-auth.route('/change-password', methods=['POST'])(AuthController.change_password)
-auth.route('/update-profile', methods=['POST'])(AuthController.update_profile)
+# ==================== PROFILE ====================
+auth.route('/profile', methods=['GET'])(ProfileController.profile)
+auth.route('/change-password', methods=['POST'])(ProfileController.change_password)
+auth.route('/update-profile',  methods=['POST'])(ProfileController.update_profile)
 
-# ==================== ACTIVITY LOG ====================
-auth.route('/activity-log')(AuthController.activity_log)
-
-# ==================== DATA EXPORT ====================
-auth.route('/export-data', methods=['POST'])(AuthController.export_data)
+# ==================== ACTIVITY & DATA ====================
+auth.route('/activity-log')(ProfileController.activity_log)
+auth.route('/export-data', methods=['POST'])(ProfileController.export_data)
 
 # ==================== ACCOUNT DELETION ====================
-auth.route('/delete-account', methods=['POST'])(AuthController.delete_account)
+auth.route('/delete-account', methods=['POST'])(ProfileController.delete_account)
